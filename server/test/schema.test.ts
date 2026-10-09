@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const sql = await readFile(new URL("../migrations/0001_initial_schema.sql", import.meta.url), "utf8");
+const sessionsSql = await readFile(new URL("../migrations/0002_sessions.sql", import.meta.url), "utf8");
 
 test("initial migration defines the core operational entities", () => {
   for (const table of [
@@ -28,6 +29,13 @@ test("financial and audit evidence is append-only", () => {
   assert.ok(sql.includes("CREATE TRIGGER coach_payments_append_only"));
   assert.ok(sql.includes("CREATE TRIGGER audit_events_append_only"));
   assert.ok(sql.includes("reject_immutable_record_mutation"));
+});
+
+test("sessions store only a digest of opaque tokens and support revocation/expiry", () => {
+  assert.ok(sessionsSql.includes("token_hash char(64) NOT NULL UNIQUE"));
+  assert.ok(sessionsSql.includes("revoked_at timestamptz"));
+  assert.ok(sessionsSql.includes("expires_at timestamptz NOT NULL"));
+  assert.ok(sessionsSql.includes("REFERENCES users(id) ON DELETE RESTRICT"));
 });
 
 test("money uses exact numeric types and monthly obligations are period-scoped", () => {
