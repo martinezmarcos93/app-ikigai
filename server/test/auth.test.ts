@@ -213,3 +213,35 @@ test("login throttles repeated failures using a shared per-email counter", async
   assert.equal(limited.json().error, "too_many_attempts");
   assert.equal(db.sessions.length, 0);
 });
+
+test("password reset fails closed when transaction support is unavailable", async (t) => {
+  const db = new FakeDatabase({
+    id: "user-1",
+    email: "admin@example.com",
+    password_hash: await hashPassword("test-admin-password-2026")
+  });
+  const app = await buildApp(config, {
+    db,
+    passwordResetBaseUrl: "https://app.example.com/reset-password",
+    passwordResetDelivery: async () => undefined
+  });
+  t.after(() => app.close());
+
+  const request = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/password-reset/request",
+    headers: { origin },
+    payload: { email: "admin@example.com" }
+  });
+  assert.equal(request.statusCode, 503);
+  assert.equal(request.headers["cache-control"], "no-store");
+
+  const complete = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/password-reset/complete",
+    headers: { origin },
+    payload: { token: "x".repeat(43), password: "new-password-2026-secure" }
+  });
+  assert.equal(complete.statusCode, 503);
+  assert.equal(complete.headers["cache-control"], "no-store");
+});
