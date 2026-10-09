@@ -65,12 +65,14 @@
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
-- [ ] Inventariar cada pantalla y acción de la demo y asignar su estado: local, conectada, parcial o pendiente.
-- [ ] Definir una capa de cliente API uniforme con sesión, CSRF, errores, carga, reintento seguro y estados vacíos.
-- [ ] Conectar miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
-- [ ] Evitar doble fuente de verdad y escrituras silenciosas en `localStorage` desde el portal autenticado.
-- [ ] Resolver permisos de interfaz como ayuda de UX, conservando la autorización efectiva en el servidor.
-- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados.
+**Estado: en curso — primer barrido de inventario y endurecimiento del cliente.** El portal ya consume parcialmente varios endpoints; no se considera completa la integración ni se presupone que CI esté verde.
+
+- [x] Inventariar cada superficie relevante y clasificar su estado inicial en [docs/PORTAL_API_INVENTORY.md](PORTAL_API_INVENTORY.md). El inventario está basado en lectura estática y marca explícitamente los flujos cuya ejecución aún debe comprobarse.
+- [ ] Completar y probar la capa de cliente API uniforme con sesión, CSRF, errores, carga, estados vacíos y política de reintentos seguros. Se añadió validación de paginación de miembros y codificación de parámetros; falta cobertura automatizada.
+- [ ] Completar los flujos de miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
+- [x] Mantener explícita la separación entre demo local con `localStorage` y portal autenticado con datos del servidor; verificar que ningún flujo conectado informe sincronización local ficticia.
+- [ ] Auditar permisos de navegación y renderizadores como ayuda de UX, conservando la autorización efectiva en el servidor.
+- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados, empezando por sesión, miembros y servicios.
 - **Criterio de cierre:** cada flujo declara su origen de datos, manejo de errores y permisos; operaciones críticas probadas contra PostgreSQL.
 
 ### Fase 5 — Completar los flujos del gimnasio
