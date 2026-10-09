@@ -14,11 +14,12 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   // Never cache API responses: they may contain authenticated personal or financial data.
   if (url.pathname === '/api' || url.pathname.startsWith('/api/')) return;
+  if (url.pathname.endsWith('/demo.html') || url.pathname.endsWith('/app.js') || url.pathname.endsWith('/styles.css')) return;
   if (request.cache === 'no-store') return;
   event.respondWith(
     fetch(request).then(response => {
       const cacheControl = response.headers.get('Cache-Control') || '';
-      if (response.ok && response.type === 'basic' && !/\\bno-store\\b/i.test(cacheControl)) {
+      if (response.ok && response.type === 'basic' && !/\bno-store\b/i.test(cacheControl)) {
         const copy = response.clone();
         caches.open(CACHE_VERSION).then(cache => cache.put(request, copy));
       }
