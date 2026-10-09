@@ -1,6 +1,6 @@
 # Ikigai Training API (foundation)
 
-This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Membership management, routine workflows, attendance and fiscal invoicing are not exposed yet. Member account history, idempotent ledger movements and coach monthly obligations/payments/adjustments are available through the API. The coach financial model is a fixed monthly obligation for use of the space; it is not derived from bookings, attendance or percentage shares. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
+This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Membership management, routine workflows and fiscal invoicing are not exposed yet. Attendance recording/correction and member attendance history are available with server-side scope checks and audit events. Member account history, idempotent ledger movements and coach monthly obligations/payments/adjustments are available through the API. The coach financial model is a fixed monthly obligation for use of the space; it is not derived from bookings, attendance or percentage shares. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
 
 ## Requirements
 
@@ -36,6 +36,9 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/coaches/:id/obligations`: configure one fixed obligation per coach and month; same terms replay safely, conflicting terms return 409.
 - `POST /api/v1/coach-obligations/:id/payments`: record partial or excess payments with idempotency keys and an internal-receipt label.
 - `POST /api/v1/coach-obligations/:id/adjustments`: append a signed correction with reason and idempotency key.
+- `GET /api/v1/class-sessions/:id/attendance`: administrator or assigned coach reads confirmed attendees and saved attendance.
+- `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally; duplicate bookings are rejected and every change is audited.
+- `GET /api/v1/members/:id/attendance`: administrator or the member reads the member's own attendance history.
 - `POST /api/v1/class-sessions/:id/bookings`: active members reserve their own place; capacity and duplicate checks run inside a PostgreSQL transaction.
 - `POST /api/v1/bookings/:id/cancel`: member-owner or administrator cancellation before the 40-minute cutoff, with transactional waitlist promotion.
 
