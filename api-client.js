@@ -13,7 +13,12 @@
 
   function resolveBaseUrl() {
     const requested = new URLSearchParams(window.location.search).get("apiBase");
-    const candidate = new URL(requested || "/api/v1", window.location.href);
+    const page = new URL(window.location.href);
+    const isLocalHost = ["localhost", "127.0.0.1"].includes(page.hostname);
+    const defaultBase = isLocalHost && page.port !== "3001"
+      ? `http://${page.hostname}:3001/api/v1`
+      : "/api/v1";
+    const candidate = new URL(requested || defaultBase, page.href);
     const sameOrigin = candidate.origin === window.location.origin;
     const localDevOrigin = window.location.protocol === "http:"
       && candidate.protocol === "http:"
