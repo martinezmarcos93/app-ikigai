@@ -19,6 +19,10 @@ Este backend es una primera base ejecutable, no una autorización para operar co
 
 No hay todavía un flujo de alta inicial de administradores. No insertar usuarios con contraseñas débiles ni exponer un endpoint público de registro. La creación del primer administrador debe realizarse mediante un procedimiento operativo controlado, que se implementará antes de desplegar.
 
+## Estado de implementación
+
+La fundación inicial está escrita y dispone de pruebas con dobles de la base de datos y un workflow que aplica el esquema a PostgreSQL real. No se considera validada hasta que ese workflow termine correctamente. No existe integración frontend-backend ni procedimiento de aprovisionamiento de usuarios; por tanto, todavía no es desplegable para uso del gimnasio.
+
 ## Endpoints actuales
 
 - `GET /healthz`: estado básico del proceso; no informa secretos ni detalles de infraestructura.
