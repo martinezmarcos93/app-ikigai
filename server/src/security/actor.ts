@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import type { Database } from "../db.js";
 
@@ -66,8 +67,6 @@ function tokenHash(token: string): string {
 function createHashSha256(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
-
-import { createHash } from "node:crypto";
 
 export function canAccessMember(
   actor: AuthenticatedActor,
