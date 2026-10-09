@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastToken: "" };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastToken: "", memberOffset: 0, memberPageSize: 25, memberTotal: 0 };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -242,8 +242,10 @@
   async function renderMembers() {
     if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
     setPage("Miembros");
-    const result = await api.listMembers(100, 0);
+    setLoading("Consultando miembros…");
+    const result = await api.listMembers(state.memberPageSize, state.memberOffset);
     state.members = result.items || [];
+    state.memberTotal = Number(result.total ?? state.members.length);
     state.selectedMember = selected(memberOptions(), state.selectedMember);
     const list = state.members.length
       ? table(["Miembro","Estado","Alta","Acciones"], state.members.map(m => row([
@@ -252,6 +254,16 @@
           `<button class="button small" type="button" data-action="edit-member" data-id="${esc(m.id)}">Ver / editar</button>`
         ])))
       : empty("Todavía no hay miembros registrados.", "empty-members.svg");
+    const first = state.memberTotal === 0 ? 0 : state.memberOffset + 1;
+    const last = Math.min(state.memberOffset + state.memberPageSize, state.memberTotal);
+    const pagination = `
+      <div class="inline-form member-pagination" aria-label="Paginación de miembros">
+        <p class="muted">Mostrando ${first}–${last} de ${state.memberTotal}</p>
+        <div class="button-row">
+          <button class="button ghost small" type="button" data-action="members-prev" ${state.memberOffset === 0 ? "disabled" : ""}>Anterior</button>
+          <button class="button ghost small" type="button" data-action="members-next" ${state.memberOffset + state.memberPageSize >= state.memberTotal ? "disabled" : ""}>Siguiente</button>
+        </div>
+      </div>`;
     const create = form("Alta de miembro","create-member",
       field("Nombre completo","full_name","text",{required:true,wide:true})+
       field("Correo","email","email")+
@@ -267,11 +279,11 @@
       "Crear miembro",
       "Crear el perfil no crea una cuenta de acceso ni genera cargos. Podés invitarlo desde Accesos.");
     $("#pageContent").innerHTML = `
-      <div class="panel"><div class="section-title"><span>Registro de miembros</span><span class="badge">${result.total ?? state.members.length} registros</span></div>${list}</div>
+      <div class="panel"><div class="section-title"><span>Registro de miembros</span><span class="badge">${state.memberTotal} registros</span></div>${list}${pagination}</div>
       <div style="height:16px"></div>${create}
       <div id="memberEditMount" style="margin-top:16px"></div>`;
   }
-  async function renderMemberEdit(id) {
+    async function renderMemberEdit(id) {
     const result = await api.getMember(id);
     const m = result.member;
     const mount = $("#memberEditMount");
@@ -673,7 +685,17 @@
     const action = event.target.closest("[data-action]");
     if (!action) return;
     try {
-      if (action.dataset.action === "edit-member") await renderMemberEdit(action.dataset.id);
+      if (action.dataset.action === "members-prev") {
+        state.memberOffset = Math.max(0, state.memberOffset - state.memberPageSize);
+        await renderView("members");
+      }
+      else if (action.dataset.action === "members-next") {
+        if (state.memberOffset + state.memberPageSize < state.memberTotal) {
+          state.memberOffset += state.memberPageSize;
+          await renderView("members");
+        }
+      }
+      else if (action.dataset.action === "edit-member") await renderMemberEdit(action.dataset.id);
       else if (action.dataset.action === "edit-service") {
         const service = state.services.find(s => s.id === action.dataset.id);
         if (!service) return;

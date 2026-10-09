@@ -17,7 +17,7 @@
 | --- | --- | --- | --- |
 | Inicio de sesión | Conectado | `login()`, `me()`, `logout()`; cookie de sesión, CSRF en memoria y `credentials: include` | Pruebas de contrato de sesión expirada, logout y origen no permitido |
 | Resumen de administración | Parcial | Lee miembros, servicios y profesores | Evitar que el fallo de un recurso deje toda la vista sin diagnóstico específico; probar payloads vacíos y errores 401/403/5xx |
-| Miembros | Parcial | Lista paginada, alta, consulta y edición | Verificar validación de campos, paginación, permisos y errores de conflicto; confirmar que un 403/404 no se presenta como éxito |
+| Miembros | Parcial | Lista paginada en páginas de 25 registros, alta, consulta y edición; el offset se envía a la API y no se simula en memoria | Ejecutar pruebas de navegación anterior/siguiente, páginas vacías, 403/404 y cambios de total; confirmar que un error no se presenta como éxito |
 | Servicios | Parcial | Listado, alta y actualización | Pruebas de contrato para precio nulo, activo/inactivo y preservación de precios históricos |
 | Membresías | Parcial | Historial por miembro, alta y finalización | Probar selector de miembro, vigencias, conflictos y ausencia de cargos automáticos |
 | Cuenta corriente | Parcial | Lectura de movimientos/saldo y alta de movimientos con clave de idempotencia | Probar reintentos, doble envío, ajustes debit/credit, pagos parciales y saldos a favor |

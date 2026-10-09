@@ -31,6 +31,11 @@ test("connected portal does not fall back to demo browser storage", async () => 
   assert.ok(portal.includes('"invite-member"'));
   assert.match(portal, /async function renderMyRoutine/);
   assert.match(portal, /async function renderAttendance/);
+  assert.match(portal, /memberPageSize: 25/);
+  assert.ok(portal.includes("api.listMembers(state.memberPageSize, state.memberOffset)"));
+  assert.ok(portal.includes('data-action="members-prev"'));
+  assert.ok(portal.includes('data-action="members-next"'));
+  assert.ok(portal.includes("state.memberOffset += state.memberPageSize"));
   assert.match(portal, /api\.listRoutineAssignments/);
   assert.match(portal, /api\.listAttendance/);
 });
