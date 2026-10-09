@@ -168,6 +168,8 @@
     createCoachObligation: (coachId, body) => request(`/coaches/${id(coachId)}/obligations`, { method: "POST", body }),
     recordCoachPayment: (obligationId, body, idempotencyKey) => request(`/coach-obligations/${id(obligationId)}/payments`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body }),
     createCoachAdjustment: (obligationId, body, idempotencyKey) => request(`/coach-obligations/${id(obligationId)}/adjustments`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body }),
+    getInstitutionSettings: () => request("/admin/institution-settings"),
+    updateInstitutionSettings: body => request("/admin/institution-settings", { method: "PATCH", body }),
     createInvitation: body => request("/admin/invitations", { method: "POST", body }),
     resendInvitation: invitationId => request(`/admin/invitations/${id(invitationId)}/resend`, { method: "POST", body: {} }),
     revokeInvitation: invitationId => request(`/admin/invitations/${id(invitationId)}/revoke`, { method: "POST", body: {} }),

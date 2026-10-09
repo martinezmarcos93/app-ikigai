@@ -74,7 +74,8 @@
 - [x] Corregir el service worker para no almacenar respuestas de `/api/` ni respuestas con `Cache-Control: no-store`; las respuestas autenticadas no deben entrar en caché.
 - [ ] Validar CI y comprobar manualmente el primer inicio de sesión, dashboard vacío, navegación a configuración y actualización/limpieza del service worker.
 - [ ] Resolver la asignación segura de más de un rol a una misma cuenta si Agustín necesita ser simultáneamente administrador y profesor.
-- [ ] Diseñar la configuración institucional persistida en servidor (contacto, dirección, horarios y preferencias); no usar valores de demostración como configuración real.
+- [x] Diseñar e implementar la configuración institucional persistida en PostgreSQL: nombre, contacto, dirección y horarios, con valores vacíos/no configurados por defecto; lectura/escritura sólo de administración, CSRF, respuestas no cacheables y auditoría de campos modificados.
+- [ ] Validar la configuración institucional contra PostgreSQL mediante CI y prueba manual de lectura/edición/recarga; no usar valores de demostración como configuración real.
 
 **Estado: en curso — primer barrido de inventario y endurecimiento del cliente.** El portal ya consume parcialmente varios endpoints; no se considera completa la integración ni se presupone que CI esté verde.
 
