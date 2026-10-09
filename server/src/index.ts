@@ -3,6 +3,7 @@ import pg from "pg";
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { PostgresDatabase } from "./db/postgres.js";
+import { validatePasswordResetConfig } from "./security/password-reset-config.js";
 
 const config = loadConfig();
 const passwordResetBaseUrl = process.env.PASSWORD_RESET_BASE_URL?.trim();
@@ -10,18 +11,12 @@ const resendApiKey = process.env.RESEND_API_KEY?.trim();
 const passwordResetFrom = process.env.PASSWORD_RESET_FROM?.trim();
 
 if (config.nodeEnv === "production") {
-  if (!passwordResetBaseUrl || !resendApiKey || !passwordResetFrom) {
-    throw new Error("PASSWORD_RESET_BASE_URL, RESEND_API_KEY, and PASSWORD_RESET_FROM are required in production.");
-  }
-  let resetUrl: URL;
-  try {
-    resetUrl = new URL(passwordResetBaseUrl);
-  } catch {
-    throw new Error("PASSWORD_RESET_BASE_URL must be a valid HTTPS URL.");
-  }
-  if (resetUrl.protocol !== "https:" || resetUrl.username || resetUrl.password) {
-    throw new Error("PASSWORD_RESET_BASE_URL must be HTTPS and contain no credentials.");
-  }
+  validatePasswordResetConfig({
+    baseUrl: passwordResetBaseUrl,
+    apiKey: resendApiKey,
+    from: passwordResetFrom,
+    corsOrigins: config.corsOrigins
+  });
 }
 
 const passwordResetDelivery = resendApiKey && passwordResetFrom
