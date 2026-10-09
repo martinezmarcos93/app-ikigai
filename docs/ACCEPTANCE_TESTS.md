@@ -132,3 +132,16 @@
 - [ ] Repeating an identical assignment is idempotent; conflicting terms for the same member/version/start date return a conflict.
 - [ ] A member can read only their own assignments and cannot browse the full routine catalogue or create routines.
 - [ ] Assignment and routine-version changes are audited transactionally.
+
+## Recuperación de contraseña
+
+- [ ] La solicitud devuelve la misma respuesta pública para una cuenta existente y una desconocida.
+- [ ] El enlace contiene el token sólo en el fragmento URL; no aparece en la query, logs ni payloads de auditoría.
+- [ ] El token se almacena como digest, expira a los 30 minutos y no puede reutilizarse.
+- [ ] Solicitar otro enlace invalida los anteriores.
+- [ ] Si falla la entrega del correo, el token creado queda invalidado.
+- [ ] Completar la recuperación cambia la contraseña y revoca todas las sesiones activas.
+- [ ] La página lee el token del fragmento y lo elimina inmediatamente del historial del navegador.
+- [ ] La pantalla usa el endpoint real /api/v1/auth/password-reset/complete y no escribe credenciales ni tokens en almacenamiento local.
+- [ ] Los límites compartidos funcionan entre dos instancias contra la misma PostgreSQL.
+- [ ] La restauración de backup se verifica en una base descartable; no se confunde con backups de producción configurados.
