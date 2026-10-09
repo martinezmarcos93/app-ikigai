@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const sql = await readFile(new URL("../migrations/0001_initial_schema.sql", import.meta.url), "utf8");
 const sessionsSql = await readFile(new URL("../migrations/0002_sessions.sql", import.meta.url), "utf8");
+const invitationsSql = await readFile(new URL("../migrations/0003_user_invitations.sql", import.meta.url), "utf8");
 
 test("initial migration defines the core operational entities", () => {
   for (const table of [
@@ -38,6 +39,14 @@ test("sessions store only a digest of opaque tokens and support revocation/expir
   assert.ok(sessionsSql.includes("revoked_at timestamptz"));
   assert.ok(sessionsSql.includes("expires_at timestamptz NOT NULL"));
   assert.ok(sessionsSql.includes("REFERENCES users(id) ON DELETE RESTRICT"));
+});
+
+test("account invitations are one-time, expiring, and stored only as token digests", () => {
+  assert.ok(invitationsSql.includes("token_hash char(64) NOT NULL UNIQUE"));
+  assert.ok(invitationsSql.includes("expires_at timestamptz NOT NULL"));
+  assert.ok(invitationsSql.includes("accepted_at timestamptz"));
+  assert.ok(invitationsSql.includes("revoked_at timestamptz"));
+  assert.ok(invitationsSql.includes("user_invitations_one_open_per_user"));
 });
 
 test("money uses exact numeric types and monthly obligations are period-scoped", () => {
