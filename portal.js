@@ -428,8 +428,16 @@
     const coachInvite = coachOpts.length
       ? form("Invitar a un profesor","invite-coach",selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")
       : empty("Primero creá un perfil de profesor; después podrás vincularle un acceso.");
+    const adminCoachLink = coachOpts.length
+      ? form("Vincular profesor a una cuenta existente","link-admin-coach",
+        field("Correo de la cuenta administradora","email","email",{required:true,value:state.user?.email || ""})+
+        selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value),
+        "Vincular cuenta",
+        "Reutiliza el login actual. El correo del perfil de profesor debe coincidir con el de la cuenta administradora; no se crea otro usuario.")
+      : empty("Creá primero el perfil de profesor con el correo que usa la cuenta administradora.");
     $("#pageContent").innerHTML = `
       <div class="two-col">${memberInvite}${coachInvite}</div>
+      <div style="margin-top:16px">${adminCoachLink}</div>
       <div id="invitationResult" style="margin-top:16px"></div>
       <p class="footer-note">La API no envía correos todavía. El token aparece una sola vez en esta pantalla: entregalo por un canal seguro y no lo incluyas en capturas o mensajes públicos. Vence a las 24 horas.</p>`;
   }
@@ -633,6 +641,12 @@
         const key = api.idempotencyKeyFor(formNode,"coach-adjustment",payload);
         await api.createCoachAdjustment($("#coachFinanceMount").dataset.obligationId || "",payload,key);
         showNotice("Ajuste registrado.", "success"); await renderCoachFinance(state.selectedCoach); return;
+      }
+      if (kind === "link-admin-coach") {
+        const result = await api.linkCoachToAdmin({ email:v("email"), coachId:v("coachId") });
+        await renderView("invitations");
+        showNotice(`La cuenta ${result.email} conserva administración y ahora también tiene rol de profesor. No se creó otro usuario.`, "success");
+        return;
       }
       if (kind === "invite-member" || kind === "invite-coach") {
         const role = kind === "invite-member" ? "member" : "coach";
