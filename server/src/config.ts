@@ -6,6 +6,7 @@ export interface AppConfig {
   port: number;
   corsOrigins: string[];
   sessionSecret: string;
+  trustProxyHops: number;
 }
 
 export type EnvironmentSource = Record<string, string | undefined>;
@@ -24,6 +25,12 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
 
   const host = (env.HOST ?? "127.0.0.1").trim();
   if (!host) throw new Error("HOST must not be empty.");
+
+  const rawTrustProxyHops = env.TRUST_PROXY_HOPS ?? "0";
+  const trustProxyHops = Number(rawTrustProxyHops);
+  if (!Number.isInteger(trustProxyHops) || trustProxyHops < 0 || trustProxyHops > 10) {
+    throw new Error("TRUST_PROXY_HOPS must be an integer between 0 and 10.");
+  }
 
   const rawOrigins = env.CORS_ORIGINS;
   if (rawEnv === "production" && !rawOrigins?.trim()) {
@@ -52,5 +59,5 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
   }
   const sessionSecret = env.SESSION_SECRET ?? "development-only-session-secret-change-before-deploy";
 
-  return { nodeEnv: rawEnv, host, port, corsOrigins, sessionSecret };
+  return { nodeEnv: rawEnv, host, port, corsOrigins, sessionSecret, trustProxyHops };
 }
