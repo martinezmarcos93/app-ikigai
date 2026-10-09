@@ -5,6 +5,7 @@ export interface AppConfig {
   host: string;
   port: number;
   corsOrigins: string[];
+  sessionSecret: string;
 }
 
 export type EnvironmentSource = Record<string, string | undefined>;
@@ -46,5 +47,10 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
     }
   }
 
-  return { nodeEnv: rawEnv, host, port, corsOrigins };
+  const sessionSecret = env.SESSION_SECRET ?? "development-only-session-secret-change-before-deploy";
+  if (rawEnv === "production" && sessionSecret.length < 32) {
+    throw new Error("SESSION_SECRET must contain at least 32 characters in production.");
+  }
+
+  return { nodeEnv: rawEnv, host, port, corsOrigins, sessionSecret };
 }
