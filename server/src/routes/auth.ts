@@ -202,23 +202,27 @@ export function registerAuthRoutes(
       return reply.code(202).send(genericResponse);
     }
 
-    const found = await db.query<{ id: string; email: string } & Record<string, unknown>>(
-      "SELECT id,email FROM users WHERE email=$1 AND status='active' AND auth_provider='local' LIMIT 1",
-      [email]
-    );
-    const user = found.rows[0];
-    if (!user) return reply.code(202).send(genericResponse);
-
     const rawToken = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-    await db.query(
-      "UPDATE password_reset_tokens SET used_at=now() WHERE user_id=$1 AND used_at IS NULL",
-      [user.id]
-    );
-    await db.query(
-      "INSERT INTO password_reset_tokens (user_id,token_hash,expires_at,request_id) VALUES ($1,$2,$3,$4)",
-      [user.id, tokenHash(rawToken), expiresAt.toISOString(), request.id]
-    );
+    const issueToken = async (tx: Database): Promise<{ id: string; email: string } | null> => {
+      const found = await tx.query<{ id: string; email: string } & Record<string, unknown>>(
+        "SELECT id,email FROM users WHERE email=$1 AND status='active' AND auth_provider='local' FOR UPDATE",
+        [email]
+      );
+      const user = found.rows[0];
+      if (!user) return null;
+      await tx.query(
+        "UPDATE password_reset_tokens SET used_at=now() WHERE user_id=$1 AND used_at IS NULL",
+        [user.id]
+      );
+      await tx.query(
+        "INSERT INTO password_reset_tokens (user_id,token_hash,expires_at,request_id) VALUES ($1,$2,$3,$4)",
+        [user.id, tokenHash(rawToken), expiresAt.toISOString(), request.id]
+      );
+      return user;
+    };
+    const user = transactionalDb ? await transactionalDb.transaction(issueToken) : await issueToken(db);
+    if (!user) return reply.code(202).send(genericResponse);
     const resetUrl = new URL(passwordResetBaseUrl);
     resetUrl.searchParams.set("token", rawToken);
     try {
