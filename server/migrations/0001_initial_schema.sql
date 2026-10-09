@@ -95,6 +95,7 @@ CREATE TABLE ledger_entries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   member_id uuid NOT NULL REFERENCES member_profiles(id) ON DELETE RESTRICT,
   entry_type text NOT NULL CHECK (entry_type IN ('charge', 'payment', 'adjustment', 'refund', 'reversal')),
+  direction text NOT NULL CHECK (direction IN ('debit', 'credit')),
   amount numeric(12,2) NOT NULL CHECK (amount > 0),
   description text NOT NULL,
   occurred_on date NOT NULL,
@@ -102,13 +103,26 @@ CREATE TABLE ledger_entries (
   payment_method text,
   reference text,
   reverses_entry_id uuid REFERENCES ledger_entries(id) ON DELETE RESTRICT,
+  idempotency_key text,
+  request_hash char(64),
   created_by uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK ((entry_type = 'reversal' AND reverses_entry_id IS NOT NULL) OR
-         (entry_type <> 'reversal' AND reverses_entry_id IS NULL))
+         (entry_type <> 'reversal' AND reverses_entry_id IS NULL)),
+  CHECK (
+    (entry_type = 'charge' AND direction = 'debit') OR
+    (entry_type IN ('payment', 'refund') AND direction = 'credit') OR
+    entry_type IN ('adjustment', 'reversal')
+  ),
+  CHECK ((idempotency_key IS NULL AND request_hash IS NULL) OR
+         (idempotency_key IS NOT NULL AND request_hash IS NOT NULL))
 );
 CREATE INDEX ledger_member_date_idx ON ledger_entries(member_id, occurred_on DESC);
 CREATE INDEX ledger_period_idx ON ledger_entries(applied_period);
+CREATE UNIQUE INDEX ledger_idempotency_unique
+  ON ledger_entries(created_by, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE UNIQUE INDEX ledger_one_reversal_per_entry
+  ON ledger_entries(reverses_entry_id) WHERE reverses_entry_id IS NOT NULL;
 
 CREATE TABLE class_templates (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
