@@ -64,3 +64,7 @@ table { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+@media (max-width: 760px) {
+  .sidebar.open { box-shadow: 0 0 0 100vmax rgba(0,0,0,.58), 20px 0 60px #0009; }
+}
