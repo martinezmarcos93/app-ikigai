@@ -64,3 +64,15 @@
 - [ ] Production startup fails when DATABASE_URL, CORS_ORIGINS or a sufficiently long SESSION_SECRET is missing.
 - [ ] Login rate limiting is verified; production multi-instance deployments use a shared rate-limit store.
 - [ ] Cross-member and cross-coach authorization tests pass before any business-data endpoint is released.
+
+
+## PostgreSQL-backed booking API
+- [ ] Two concurrent requests for the last place produce exactly one confirmed booking; the other enters the waitlist.
+- [ ] Confirmed bookings never exceed the session capacity.
+- [ ] A duplicate active booking for the same member/session is rejected.
+- [ ] A booking request inside the 40-minute cutoff is rejected by server time.
+- [ ] A member cannot book on behalf of another member or access a booking owned by another member.
+- [ ] Cancellation inside the 40-minute cutoff is rejected.
+- [ ] Cancelling a confirmed booking before cutoff promotes the oldest waiting booking in the same transaction.
+- [ ] Cancelling a waitlisted booking does not promote another member.
+- [ ] A failed booking/cancellation transaction leaves no partial state changes.
