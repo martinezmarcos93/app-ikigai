@@ -182,6 +182,104 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(invalidDates.statusCode, 400);
   assert.equal(invalidDates.json().error, "invalid_date_range");
 
+  const attendanceStartsAt = new Date(Date.now() - 30 * 60_000);
+  const attendanceEndsAt = new Date(attendanceStartsAt.getTime() + 60 * 60_000);
+  const attendanceSessionResult = await pool.query(
+    `INSERT INTO class_sessions (template_id, starts_at, ends_at, capacity_snapshot, status)
+     VALUES ($1, $2, $3, 2, 'scheduled') RETURNING id`,
+    [templateId, attendanceStartsAt.toISOString(), attendanceEndsAt.toISOString()]
+  );
+  const attendanceSessionId = attendanceSessionResult.rows[0]?.id as string;
+  const firstAttendanceBookingResult = await pool.query(
+    "INSERT INTO bookings (session_id, member_id, status, created_by) VALUES ($1, $2, 'confirmed', $3) RETURNING id",
+    [attendanceSessionId, first.memberId, first.userId]
+  );
+  const secondAttendanceBookingResult = await pool.query(
+    "INSERT INTO bookings (session_id, member_id, status, created_by) VALUES ($1, $2, 'confirmed', $3) RETURNING id",
+    [attendanceSessionId, second.memberId, second.userId]
+  );
+  const firstAttendanceBookingId = firstAttendanceBookingResult.rows[0]?.id as string;
+  const secondAttendanceBookingId = secondAttendanceBookingResult.rows[0]?.id as string;
+
+  const attendanceSave = await app.inject({
+    method: "PUT",
+    url: `/api/v1/class-sessions/${attendanceSessionId}/attendance`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: {
+      records: [
+        { bookingId: firstAttendanceBookingId, attended: true },
+        { bookingId: secondAttendanceBookingId, attended: false }
+      ]
+    }
+  });
+  assert.equal(attendanceSave.statusCode, 200);
+  assert.equal(attendanceSave.json().created, 2);
+
+  const attendanceCorrection = await app.inject({
+    method: "PUT",
+    url: `/api/v1/class-sessions/${attendanceSessionId}/attendance`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: {
+      records: [
+        { bookingId: firstAttendanceBookingId, attended: false },
+        { bookingId: secondAttendanceBookingId, attended: false }
+      ]
+    }
+  });
+  assert.equal(attendanceCorrection.statusCode, 200);
+  assert.equal(attendanceCorrection.json().updated, 1);
+  assert.equal(attendanceCorrection.json().unchanged, 1);
+
+  const sessionAttendance = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions/${attendanceSessionId}/attendance`,
+    headers: { cookie: `ikigai_session=${admin.token}` }
+  });
+  assert.equal(sessionAttendance.statusCode, 200);
+  assert.equal(sessionAttendance.json().records.length, 2);
+  assert.equal(sessionAttendance.json().records.every((record: { attended: boolean }) => record.attended === false), true);
+
+  const ownAttendance = await app.inject({
+    method: "GET",
+    url: `/api/v1/members/${first.memberId}/attendance`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(ownAttendance.statusCode, 200);
+  assert.equal(ownAttendance.json().records.length, 1);
+  assert.equal(ownAttendance.json().records[0].attended, false);
+
+  const memberCannotRecordAttendance = await app.inject({
+    method: "PUT",
+    url: `/api/v1/class-sessions/${attendanceSessionId}/attendance`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${first.token}`,
+      "x-csrf-token": first.csrfToken
+    },
+    payload: { records: [{ bookingId: firstAttendanceBookingId, attended: true }] }
+  });
+  assert.equal(memberCannotRecordAttendance.statusCode, 404);
+
+  const attendanceAudit = await pool.query(
+    `SELECT action FROM audit_events WHERE entity_id = ANY($1::text[])`,
+    [[
+      attendanceSave.json().records[0].id,
+      attendanceSave.json().records[1].id
+    ]]
+  );
+  assert.deepEqual(
+    attendanceAudit.rows.map((row) => row.action).sort(),
+    ["attendance.corrected", "attendance.recorded", "attendance.recorded"].sort()
+  );
+
   const unconfiguredObligation = await app.inject({
     method: "GET",
     url: `/api/v1/coaches/${coachId}/obligations?period=2026-10`,
