@@ -168,3 +168,12 @@ This is an executable foundation, not the production system. Resource-level auth
 4. Extend the transaction-capable repository and audited member-profile writes with integration tests for date constraints and conflict responses.
 5. Extend booking tests for cancellation cutoff, transaction rollback, retries and operational edge cases.
 6. Add PostgreSQL integration tests for ledger append-only behavior and role isolation before exposing production data.
+
+
+## Estado de hardening — 9 de octubre de 2026
+
+La rama de Fase 3 incorpora una migración para límites de autenticación compartidos en PostgreSQL y tokens de recuperación de contraseña de un solo uso. El flujo guarda sólo el digest del token, limita su validez a 30 minutos, invalida sesiones activas tras cambiar la contraseña y registra un evento de auditoría sin incluir token, correo ni contraseña. El envío de correo usa Resend por HTTPS y requiere configuración explícita en producción.
+
+La instalación de dependencias está bloqueada por lockfile y CI usa `npm ci`. El workflow incluye una prueba de backup/restauración en una base local descartable. Eso valida el mecanismo, pero **no significa que existan backups de producción**: proveedor, cifrado, retención, alertas y RPO/RTO siguen pendientes.
+
+No usar datos reales hasta que el pipeline de la fase pase, se complete la matriz de autorización negativa, se revise la auditoría y se demuestre restauración en el entorno operativo elegido.
