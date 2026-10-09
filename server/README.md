@@ -30,6 +30,7 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/admin/invitations/:id/resend`: issues a replacement token for an unaccepted invitation, revoking previous outstanding tokens.
 - `POST /api/v1/admin/invitations/:id/revoke`: invalidates an unaccepted invitation without issuing a replacement.
 - `POST /api/v1/admin/users/:id/sessions/revoke`: administrator-only, audited revocation of all active sessions for a user; repeated requests are safe.
+- `POST /api/v1/admin/users/:id/reset-access`: disables a member/coach account, revokes its sessions and outstanding invitations, and issues a one-time password-setup invitation. Requires an audit reason; administrators cannot use this flow to reset other admin accounts.
 - `POST /api/v1/auth/accept-invitation`: accepts a one-time token and sets the account password; the token is stored only as a digest and expires after 24 hours. The raw token is returned once to the administrator and must be delivered securely out of band; no email is sent.
 - `GET /api/v1/members?limit=&offset=`: administrator-only paginated member list.
 - `GET /api/v1/members/:id`: administrator, self-member, or assigned-coach access with role-specific field minimization.
