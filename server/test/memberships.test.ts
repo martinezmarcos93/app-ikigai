@@ -34,6 +34,8 @@ class MembershipDatabase implements Database, TransactionalDatabase {
         session_id: "session-id", user_id: adminId, email: "actor@example.test",
         roles: this.roles, member_id: this.ownMemberId, coach_id: null
       }];
+    } else if (sql.includes("FROM member_profiles WHERE id=$1 FOR UPDATE")) {
+      rows = [{ id: memberId }];
     } else if (sql.includes("FROM services") && sql.includes("active=true")) {
       rows = [{ id: serviceId, name: "Funcional", active: true }];
     } else if (sql.includes("INSERT INTO memberships")) {
