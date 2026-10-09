@@ -62,6 +62,6 @@ test("shared PostgreSQL rate limit is enforced across two API instances", {
   }
   const blocked = await secondApp.inject(attempt());
   assert.equal(blocked.statusCode, 429);
-  assert.equal(blocked.json().error, "too_many_attempts");
+  assert.equal(blocked.json().error, "rate_limit_exceeded");
   assert.ok(Number(blocked.headers["retry-after"]) >= 1);
 });
