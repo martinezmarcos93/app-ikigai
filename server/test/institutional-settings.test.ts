@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const root = new URL("../../", import.meta.url);
-
 test("institution settings are server-backed, admin-only, no-store, and audited", async () => {
   const [route, migration, app] = await Promise.all([
     readFile(new URL("../src/routes/institutional-settings.ts", import.meta.url), "utf8"),
@@ -32,6 +30,6 @@ test("institution settings portal contract uses API methods and does not use loc
   assert.match(client, /getInstitutionSettings/);
   assert.match(client, /updateInstitutionSettings/);
   assert.match(portal, /renderInstitutionSettings/);
-  assert.match(portal, /data-form="institution-settings"/);
+  assert.match(portal, /form\("Configuración institucional","institution-settings"/);
   assert.match(html, /data-view="institution-settings"/);
 });
