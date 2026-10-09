@@ -1,4 +1,4 @@
-name: Validate prototype
+name: Validate prototype and API
 
 on:
   pull_request:
@@ -6,8 +6,12 @@ on:
   push:
     branches: [main, "feat/**"]
 
+permissions:
+  contents: read
+
 jobs:
-  syntax-and-product-smoke-check:
+  prototype-checks:
+    name: Prototype syntax and product rules
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,3 +48,25 @@ jobs:
           }
           console.log('Core product-rule smoke checks passed.');
           NODE
+
+  api-checks:
+    name: API typecheck, tests, and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install API dependencies
+        run: npm install --no-audit --no-fund
+      - name: Type-check API
+        run: npm run check
+      - name: Run API and domain tests
+        run: npm test
+      - name: Build API
+        run: npm run build
