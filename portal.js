@@ -221,6 +221,7 @@
       field("Teléfono de emergencia","emergency_contact_phone")+
       selectField("Estado","status",["trial","active","suspended","debtor","exited"],"trial")+
       field("Fecha de alta","joined_on","date",{value:today()})+
+      field("Fecha de baja","exited_on","date")+
       field("Notas internas","notes","text",{wide:true}),
       "Crear miembro",
       "Crear el perfil no crea una cuenta de acceso ni genera cargos. Podés invitarlo desde Accesos.");
@@ -487,7 +488,7 @@
         const result = await api.createMember({
           full_name:v("full_name"), email:optional("email"), phone:optional("phone"), address:optional("address"),
           dni:optional("dni"), emergency_contact_name:optional("emergency_contact_name"), emergency_contact_phone:optional("emergency_contact_phone"),
-          status:v("status"), joined_on:optional("joined_on"), notes:optional("notes")
+          status:v("status"), joined_on:optional("joined_on"), exited_on:optional("exited_on"), notes:optional("notes")
         });
         state.selectedMember = result.member.id;
         showNotice("Miembro creado. El alta no generó un cargo ni una cuenta de acceso.", "success");
