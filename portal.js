@@ -109,6 +109,7 @@
     document.querySelectorAll("[data-role='admin']").forEach(node => { node.hidden = !isAdmin(); });
     const coachesNav = document.querySelector('[data-view="coaches"]');
     if (coachesNav) coachesNav.hidden = !(isAdmin() || isCoach());
+    document.querySelectorAll('[data-view="memberships"], [data-view="accounts"]').forEach(node => { node.hidden = !(isAdmin() || isMember()); });
     const membersNav = document.querySelector('[data-view="members"]');
     if (membersNav) membersNav.hidden = !isAdmin();
     const servicesNav = document.querySelector('[data-view="services"]');
@@ -365,6 +366,8 @@
     const body = result.configured ? `
       <div class="stats-grid"><div class="stat-card"><small>Obligación fija</small><strong>${money(result.obligation?.agreed_amount)}</strong></div><div class="stat-card"><small>Pagado</small><strong>${money(result.paid)}</strong></div><div class="stat-card"><small>Saldo</small><strong>${money(result.balance)}</strong></div></div>
       <div class="content-grid"><section class="panel"><h3 class="section-title">Pagos parciales</h3>${table(["Fecha","Importe","Medio"],(result.payments||[]).map(p=>row([date(p.paid_on),money(p.amount),esc(labels[p.payment_method]||p.payment_method||"—")])))}</section><section class="panel"><h3 class="section-title">Ajustes históricos</h3>${table(["Ajuste","Motivo"],(result.adjustments||[]).map(a=>row([money(a.amount_delta),esc(a.reason)])))}</section></div>` : empty("No existe una obligación configurada para este mes. Definila solo cuando el importe haya sido acordado.");
+    mount.dataset.coachId = id;
+    mount.dataset.obligationId = result.obligation?.id || "";
     mount.innerHTML = `<section class="panel"><h2 class="section-title">Cuenta de ${esc(coach?.full_name || "profesor")} · ${month()}</h2>${body}
       ${form("Configurar obligación mensual","create-obligation",field("Importe mensual acordado (ARS)","agreed_amount","number",{required:true,min:"0",step:"0.01"})+field("Vencimiento","due_on","date",{required:true,value:month()+"-10"}),"Configurar importe")}
       ${result.configured ? `<div class="two-col" style="margin-top:16px">${form("Registrar pago","coach-payment",field("Importe pagado","amount","number",{required:true,min:"0.01",step:"0.01"})+field("Fecha de pago","paid_on","date",{required:true,value:today()})+selectField("Medio","payment_method",["cash","transfer","card","other"],"transfer")+field("Referencia","reference"),"Registrar pago")}${form("Registrar ajuste","coach-adjustment",field("Variación (+/-)","amount_delta","number",{required:true,step:"0.01",placeholder:"Ej. -5000 o 2500"})+field("Motivo del ajuste","reason","text",{required:true,wide:true}),"Registrar ajuste")}</div>` : "" }
@@ -481,7 +484,7 @@
       }
       if (kind === "coach-payment") {
         const key = `coach-payment-${crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random().toString(36).slice(2)}`;
-        await api.recordCoachPayment($("#coachFinanceMount").dataset.coachId || state.selectedCoach,{
+        await api.recordCoachPayment($("#coachFinanceMount").dataset.obligationId || "",{
           amount:v("amount"),paid_on:v("paid_on"),payment_method:v("payment_method"),reference:optional("reference")
         },key);
         showNotice("Pago registrado.", "success"); await renderCoachFinance(state.selectedCoach); return;
