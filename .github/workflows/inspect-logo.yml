@@ -18,4 +18,15 @@ jobs:
           echo "LOGO_BEGIN"
           base64 -w0 assets/ikigai-logo.jpg | fold -w 30000 | sed 's/^/LOGO_CHUNK:/'
           echo "LOGO_END"
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from PIL import Image
+          from collections import Counter
+          image = Image.open("assets/ikigai-logo.jpg").convert("RGB")
+          print("LOGO_SIZE", image.size)
+          colors = Counter(image.resize((180, 180)).getdata())
+          print("DOMINANT_COLORS", colors.most_common(18))
+          reds = [(count, rgb) for rgb, count in colors.items() if rgb[0] > 120 and rgb[0] > rgb[1] * 1.7 and rgb[0] > rgb[2] * 1.5]
+          print("DOMINANT_REDS", sorted(reds, reverse=True)[:10])
+          PY
           file assets/ikigai-logo.jpg
