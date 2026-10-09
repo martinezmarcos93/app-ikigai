@@ -19,8 +19,7 @@ export async function buildApp(
   const app = Fastify({
     logger: config.nodeEnv !== "test",
     bodyLimit: 1_048_576,
-    requestTimeout: 15_000,
-    disableRequestLogging: config.nodeEnv === "test"
+    requestTimeout: 15_000
   });
 
   await app.register(helmet, config.nodeEnv === "production" ? {} : {
