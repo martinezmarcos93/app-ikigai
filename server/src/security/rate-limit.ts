@@ -39,6 +39,7 @@ export async function consumeSharedRateLimit(
   if (callsSinceCleanup >= 100) {
     callsSinceCleanup = 0;
     await db.query("DELETE FROM auth_rate_limit_buckets WHERE expires_at < now()");
+    await db.query("DELETE FROM password_reset_tokens WHERE expires_at < now() - interval '30 days'");
   }
 
   const result = await db.query<{ hits: number; retry_after_seconds: number } & Record<string, unknown>>(
