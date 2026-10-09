@@ -153,4 +153,35 @@ test("PostgreSQL invitations activate a scoped account once without storing the 
     [created.json().invitation.userId]
   );
   assert.deepEqual(audit.rows.map((row) => row.action), ["user.invitation_accepted", "user.invitation_created", "user.invitation_resent"]);
+
+  const revokeProfile = await pool.query(
+    "INSERT INTO member_profiles (full_name,status) VALUES ($1,'trial') RETURNING id",
+    [`Revoked Invitee ${suffix}`]
+  );
+  const revokeInvite = await app.inject({
+    method: "POST",
+    url: "/api/v1/admin/invitations",
+    headers: adminHeaders,
+    payload: {
+      email: `revoked-${suffix}@example.test`,
+      role: "member",
+      memberId: String(revokeProfile.rows[0]?.id)
+    }
+  });
+  assert.equal(revokeInvite.statusCode, 201);
+  const revokedToken = String(revokeInvite.json().invitationToken);
+  const revoked = await app.inject({
+    method: "POST",
+    url: `/api/v1/admin/invitations/${revokeInvite.json().invitation.id}/revoke`,
+    headers: adminHeaders
+  });
+  assert.equal(revoked.statusCode, 200);
+  assert.equal(revoked.json().revoked, true);
+  const revokedAcceptance = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/accept-invitation",
+    headers: { origin },
+    payload: { token: revokedToken, password }
+  });
+  assert.equal(revokedAcceptance.statusCode, 400);
 });
