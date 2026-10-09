@@ -56,7 +56,9 @@
 - [ ] Revisar validación de entrada, límites de tamaño, errores estables, idempotencia, transacciones y auditoría.
 - [x] Revisar los payloads de auditoría; eliminar email de eventos de invitación y comprobar que recuperación/invitaciones no guardan tokens en claro. Las razones libres deben redactarse sin DNI, credenciales ni datos de contacto. 
 - [ ] Mantener revisión de auditoría durante la revisión independiente y añadir controles adicionales si el modelo de datos cambia.
-- [x] Documentar variables de entorno para secretos y envío de correo; no incluir credenciales reales en el repositorio. 
+- [x] Documentar variables de entorno para secretos y envío de correo; no incluir credenciales reales en el repositorio.
+- [x] Validar al iniciar en producción la URL HTTPS de recuperación, el origen CORS, la clave del proveedor y el sender; añadir pruebas unitarias de configuración.
+- [x] Hacer explícita la confianza en proxies mediante `TRUST_PROXY_HOPS`, con valor seguro por defecto `0` y validación de rango. 
 - [ ] Cargar secretos reales sólo en el gestor del proveedor cuando se elija el entorno de despliegue.
 - [x] Añadir prueba automatizada de dump/restauración en una base PostgreSQL local descartable dentro de CI.
 - [ ] Configurar backups de producción, retención, alertas y calendario de restauración tras elegir proveedor.
