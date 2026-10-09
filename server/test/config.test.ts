@@ -8,7 +8,8 @@ test("development defaults are local and explicit", () => {
     host: "127.0.0.1",
     port: 3001,
     corsOrigins: ["http://localhost:8000", "http://127.0.0.1:8000"],
-    sessionSecret: "development-only-session-secret-change-before-deploy"
+    sessionSecret: "development-only-session-secret-change-before-deploy",
+    trustProxyHops: 0
   });
 });
 
@@ -52,4 +53,13 @@ test("invalid ports and environments fail during startup", () => {
   assert.throws(() => loadConfig({ PORT: "0" }), /PORT must be an integer/);
   assert.throws(() => loadConfig({ PORT: "3.14" }), /PORT must be an integer/);
   assert.throws(() => loadConfig({ NODE_ENV: "staging" }), /NODE_ENV must be/);
+});
+
+
+test("trusted proxy hops default to zero and accept only a bounded integer", () => {
+  assert.equal(loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "test-session-secret-with-more-than-32-characters" }).trustProxyHops, 0);
+  assert.equal(loadConfig({ TRUST_PROXY_HOPS: "2" }).trustProxyHops, 2);
+  assert.throws(() => loadConfig({ TRUST_PROXY_HOPS: "-1" }), /TRUST_PROXY_HOPS must be an integer/);
+  assert.throws(() => loadConfig({ TRUST_PROXY_HOPS: "1.5" }), /TRUST_PROXY_HOPS must be an integer/);
+  assert.throws(() => loadConfig({ TRUST_PROXY_HOPS: "11" }), /TRUST_PROXY_HOPS must be an integer/);
 });
