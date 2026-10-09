@@ -57,7 +57,7 @@ Abrir `http://localhost:8000/`; la entrada principal dirige al portal conectado.
 
 1. **Configuración institucional:** completar nombre, contacto, dirección y horarios confirmados desde la sección *Configuración*. Los campos vacíos significan que el dato sigue pendiente; la API guarda los cambios en PostgreSQL y registra la modificación en auditoría.
 2. **Servicios:** registrar cada disciplina/servicio y sólo los precios que Agustín haya confirmado. El precio vigente no reescribe acuerdos históricos.
-3. **Profesores:** crear perfiles de profesores con sus datos correctos. Configurar la obligación mensual fija sólo cuando se haya acordado el importe y el período; no se calcula como porcentaje de reservas ni asistencia.
+3. **Profesores:** crear perfiles de profesores con sus datos correctos. Si Agustín debe operar como administrador y profesor, el email del perfil de profesor debe coincidir con el email de su cuenta administradora; luego, desde **Accesos**, usar “Vincular profesor a una cuenta existente”. Ese flujo agrega el rol `coach` a la cuenta activa sin crear otro usuario ni quitar `admin`. Configurar la obligación mensual fija sólo cuando se haya acordado el importe y el período; no se calcula como porcentaje de reservas ni asistencia.
 4. **Miembros:** dar de alta los perfiles necesarios con información verificada. El alta de un perfil no genera cargos ni credenciales.
 5. **Accesos:** crear una invitación individual para el perfil ya creado. El token se muestra una sola vez; entregarlo por un canal seguro. El sistema no envía correos todavía.
 6. **Membresías y cuenta corriente:** asignar la membresía acordada y registrar movimientos explícitos. No se crean cargos automáticamente y los comprobantes de la aplicación no son facturas fiscales.
@@ -65,7 +65,7 @@ Abrir `http://localhost:8000/`; la entrada principal dirige al portal conectado.
 
 La lista de primera puesta en marcha del portal orienta sobre servicios, profesores y miembros que aún faltan. No reemplaza la revisión humana de los datos.
 
-**Límite actual:** la asignación de varios roles a una misma cuenta todavía está pendiente; no se debe duplicar una cuenta para sortear esa limitación.
+**Límite actual:** el vínculo admin+profesor tiene implementación inicial y requiere CI y prueba manual antes de confiar en él. El flujo sólo agrega el rol `coach` a una cuenta `admin` activa con correo coincidente; no ofrece todavía una interfaz general para editar cualquier combinación de roles.
 
 ## 6. Roles y límites actuales
 
