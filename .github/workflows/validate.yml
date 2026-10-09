@@ -71,6 +71,7 @@ jobs:
         working-directory: server
     env:
       DATABASE_URL: postgres://ikigai:ikigai_test@localhost:5432/ikigai_test
+      IKIGAI_INTEGRATION_TESTS: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,11 +83,11 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Type-check API
         run: npm run check
-      - name: Run API and domain tests
+      - name: Apply schema migrations to disposable PostgreSQL
+        run: npm run db:migrate
+      - name: Run API, domain, and PostgreSQL integration tests
         run: npm test
       - name: Build API
         run: npm run build
-      - name: Apply initial schema to disposable PostgreSQL
-        run: npm run db:migrate
-      - name: Verify migration is repeatable
+      - name: Verify migrations are repeatable
         run: npm run db:migrate
