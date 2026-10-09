@@ -60,3 +60,12 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 ## Estado de cobertura y salida
 
 Las pruebas nombradas existen en el repositorio; **no se marca esta matriz como aprobada** hasta que CI ejecute los tests de unidad e integración y se revisen los resultados. Los tests de autorización negativa deben mantenerse y ampliarse si se añade cualquier endpoint o rol nuevo. La revisión de seguridad independiente, el adaptador real de correo y la política de backup/restore de producción siguen siendo gates antes de datos reales.
+
+
+## Pruebas transversales adicionales
+
+- `server/test/rate-limit.integration.test.ts`: comprueba que dos instancias de API con pools PostgreSQL independientes comparten el contador de intentos; el identificador persistido se deriva mediante HMAC-SHA-256 con `SESSION_SECRET`.
+- `server/test/config.test.ts`: verifica que la URL pública de recuperación no contiene credenciales, query ni fragmento y que su origen está incluido en CORS.
+- `server/test/password-reset.integration.test.ts`: confirma que el token está en el fragmento URL y no en la query, que sólo se almacena su digest y que el adaptador recibe el evento de entrega esperado.
+
+La existencia de estas pruebas no equivale a aprobación; el estado sólo puede cambiar tras ejecutar y revisar CI.
