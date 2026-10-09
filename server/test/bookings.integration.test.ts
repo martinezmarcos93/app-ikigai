@@ -420,7 +420,7 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   );
   assert.deepEqual(
     routineAudit.rows.map((row) => row.action).sort(),
-    ["exercise.created", "routine.created", "routine.assigned"].sort()
+    ["exercise.created", "routine.created", "routine.version_created", "routine.assigned"].sort()
   );
 
   const unconfiguredObligation = await app.inject({
