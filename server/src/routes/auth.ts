@@ -118,6 +118,7 @@ export function registerAuthRoutes(
       }
     },
     async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
       if (!originAllowed(request, reply, config)) return;
       const email = request.body.email.trim().toLowerCase();
       const password = request.body.password;
@@ -176,6 +177,7 @@ export function registerAuthRoutes(
   );
 
   app.get("/api/v1/auth/me", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
     const session = await currentSession(request, db);
     if (!session) {
       clearSessionCookie(reply, config);
@@ -195,6 +197,7 @@ export function registerAuthRoutes(
   });
 
   app.post("/api/v1/auth/logout", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
     if (!originAllowed(request, reply, config)) return;
     const session = await currentSession(request, db);
     if (session) {
