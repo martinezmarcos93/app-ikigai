@@ -46,7 +46,7 @@ La API usa TypeScript, Fastify y PostgreSQL. Incluye una primera implementación
 
 El workflow de GitHub Actions verifica sintaxis de JavaScript, reglas de producto, el manifiesto PWA, TypeScript, tests, build y migraciones contra PostgreSQL. El backend versiona `server/package-lock.json` y CI usa `npm ci` para instalar las dependencias de forma reproducible.
 
-Antes de usar datos reales faltan, entre otros puntos, ampliar las pruebas de autorización, recuperación de contraseña, limitación de intentos compartida entre instancias, revisión de seguridad, backups y restauración ensayada, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
+La Fase 3 agrega recuperación de contraseña por adaptador HTTPS configurado, rate limiting compartido en PostgreSQL, minimización de auditoría y un ensayo automatizado de backup/restore. Antes de usar datos reales faltan validar el pipeline final, configurar y probar el adaptador real, completar la matriz de autorización de todos los endpoints, obtener una revisión independiente y definir backups cifrados/retención/restauración del proveedor de producción, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
 
 ## Reglas del negocio que no deben alterarse accidentalmente
 
