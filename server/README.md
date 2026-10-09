@@ -6,7 +6,7 @@ This directory contains the first executable backend slice. It serves health che
 
 The API uses Resend through its HTTPS API; the reset link is sent only when `RESEND_API_KEY`, `PASSWORD_RESET_FROM`, and `PASSWORD_RESET_BASE_URL` are configured. In production all three are mandatory, and the base URL must use HTTPS. The front-end reset page is a separate portal task; the backend endpoints can be exercised independently. Raw reset tokens are sent only by email, stored as SHA-256 digests, expire after 30 minutes, and are single-use.
 
-Authentication and reset-attempt limits use atomic PostgreSQL counters, shared across API replicas. Keys are hashed so raw IP/email values are not stored in the rate-limit table. Expired counter rows need periodic cleanup as part of operations.
+Authentication and reset-attempt limits use atomic PostgreSQL counters, shared across API replicas. Keys are hashed so raw IP/email values are not stored in the rate-limit table. Expired counter rows are pruned opportunistically every 100 authentication attempts.
 
 ## Requirements
 
