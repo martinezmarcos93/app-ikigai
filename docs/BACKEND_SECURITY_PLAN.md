@@ -158,12 +158,12 @@ The first backend foundation has been added under `server/`:
 - Transactional, advisory-lock-protected SQL migration runner.
 - CI typecheck/test/build plus a disposable PostgreSQL migration and repeat-run check.
 
-This is an executable foundation, not the production system. Resource-level authorization exists for member profile reads/writes and the current booking, ledger, coach, attendance and routine endpoints; it still needs broader negative testing and independent review. Self-service password recovery, MFA if required, a shared rate-limit store for multiple replicas, backups and deployment are still pending. Admin-assisted access reset for member/coach accounts now revokes sessions and outstanding invitations before issuing a one-time password setup token. The current login/session implementation needs successful CI and PostgreSQL migration checks before it should be treated as a stable foundation. Booking rules are connected to transactional endpoints with PostgreSQL concurrency integration coverage. Before production use, the implementation still needs broader failure/retry tests, a completed audit review, tested backup restoration and operational monitoring.
+This is an executable foundation, not the production system. Resource-level authorization exists for member profile reads/writes and the current booking, ledger, coach, attendance and routine endpoints, with unit and PostgreSQL integration coverage; it still needs a complete negative authorization matrix and independent review. The Phase 3 branch adds self-service password recovery, PostgreSQL-backed shared rate limiting and a disposable backup/restore smoke test. CI and restore evidence must be green before treating the changes as stable. Admin-assisted access reset for member/coach accounts revokes sessions and outstanding invitations before issuing a one-time password setup token. Before production use, the implementation still needs broader failure/retry tests, a systematic audit review, provider-managed backups with tested restoration, operational monitoring and an independent security review.
 
 ## Implementation sequence updated
 
 1. Complete this baseline with CI results and correct any migration/type/test failures.
-2. Finish the authentication review, add password recovery and invitation resend/revocation, and decide the deployment-grade shared rate-limit store.
+2. Finish the authentication review, validate the new password recovery flow and shared PostgreSQL rate-limit store, and retain invitation resend/revocation controls.
 3. Expand role/scope authorization and negative tests for every new endpoint; member profile reads now have initial coverage.
 4. Extend the transaction-capable repository and audited member-profile writes with integration tests for date constraints and conflict responses.
 5. Extend booking tests for cancellation cutoff, transaction rollback, retries and operational edge cases.
