@@ -1,0 +1,46 @@
+name: Validate prototype
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "feat/**"]
+
+jobs:
+  syntax-and-product-smoke-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: node --check app.js
+      - name: Validate PWA manifest
+        run: node -e "const m = JSON.parse(require('fs').readFileSync('manifest.webmanifest', 'utf8')); if (!m.name || !m.start_url || !m.display) process.exit(1)"
+      - name: Check core product rules are present
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const app = fs.readFileSync('app.js', 'utf8');
+          const required = [
+            'bookingCutoffPassed',
+            'promoteWaitlist',
+            'state.attendance.push(record)',
+            'monthlyPayments.push',
+            'OBLIGACIÓN MENSUAL',
+            'LISTA DE ESPERA'
+          ];
+          const missing = required.filter(term => !app.includes(term));
+          if (missing.length) {
+            console.error('Missing expected product rules:', missing.join(', '));
+            process.exit(1);
+          }
+          if (app.includes('c.share') || app.includes('c.rate')) {
+            console.error('Legacy coach revenue-share logic must not return.');
+            process.exit(1);
+          }
+          console.log('Core product-rule smoke checks passed.');
+          NODE
