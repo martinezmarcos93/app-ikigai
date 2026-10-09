@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   prototype-checks:
-    name: Prototype syntax and product rules
+    name: Prototype syntax, PWA assets, and product rules
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,8 +25,57 @@ jobs:
           node --check app.js
           node --check api-client.js
           node --check portal.js
-      - name: Validate PWA manifest
-        run: node -e "const m = JSON.parse(require('fs').readFileSync('manifest.webmanifest', 'utf8')); if (!m.name || !m.start_url || !m.display) process.exit(1)"
+      - name: Validate PWA manifest and local asset paths
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
+          const requiredManifestFields = ['name', 'short_name', 'start_url', 'scope', 'display', 'background_color', 'theme_color'];
+          const missingFields = requiredManifestFields.filter(field => !manifest[field]);
+          if (missingFields.length) {
+            console.error('Missing PWA manifest fields:', missingFields.join(', '));
+            process.exit(1);
+          }
+          if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
+            console.error('The PWA manifest must declare at least one icon.');
+            process.exit(1);
+          }
+          for (const icon of manifest.icons) {
+            if (!icon.src || !icon.sizes || !icon.type) {
+              console.error('Every PWA icon must declare src, sizes, and type.');
+              process.exit(1);
+            }
+            const localPath = decodeURIComponent(new URL(icon.src, 'https://local.invalid/').pathname).slice(1);
+            if (!fs.existsSync(path.resolve(localPath))) {
+              console.error('PWA icon path does not exist:', icon.src);
+              process.exit(1);
+            }
+          }
+
+          const serviceWorker = fs.readFileSync('sw.js', 'utf8');
+          const shellStart = serviceWorker.indexOf('const APP_SHELL = [');
+          const shellEnd = shellStart < 0 ? -1 : serviceWorker.indexOf('];', shellStart);
+          if (shellStart < 0 || shellEnd < 0) {
+            console.error('Could not find APP_SHELL in sw.js.');
+            process.exit(1);
+          }
+          const shellSource = serviceWorker.slice(shellStart, shellEnd + 1);
+          const shellPaths = [...shellSource.matchAll(/['"]([^'"]+)['"]/g)].map(match => match[1]);
+          for (const shellPath of shellPaths) {
+            const localPath = decodeURIComponent(new URL(shellPath, 'https://local.invalid/').pathname).slice(1);
+            if (!fs.existsSync(path.resolve(localPath))) {
+              console.error('Service worker shell path does not exist:', shellPath);
+              process.exit(1);
+            }
+          }
+          if (!fs.existsSync('docs/ROADMAP_IMPLEMENTATION.md')) {
+            console.error('Missing canonical implementation roadmap.');
+            process.exit(1);
+          }
+          console.log(`PWA manifest valid; checked ${manifest.icons.length} icon(s) and ${shellPaths.length} app-shell path(s).`);
+          NODE
       - name: Check core product rules are present
         run: |
           node --input-type=module <<'NODE'
@@ -83,7 +132,7 @@ jobs:
         with:
           node-version: 22
       - name: Install API dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Type-check API
         run: npm run check
       - name: Apply schema migrations to disposable PostgreSQL

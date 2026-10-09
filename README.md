@@ -1,62 +1,52 @@
-# Ikigai Training — Demo local
+# Ikigai Training
 
-Prototipo navegable de administración de gimnasio, con estilo basado en la identidad visual de Ikigai Training (negro, rojo y tipografía condensada).
+Aplicación en desarrollo para la gestión de un gimnasio. El repositorio mantiene dos superficies diferenciadas: una demo local navegable y un portal inicial conectado a una API multiusuario.
 
-## Abrir la demo
+## Estado y hoja de ruta
 
-Opción directa: abrí `index.html` en un navegador moderno.
+La hoja de ruta canónica es [docs/ROADMAP_IMPLEMENTATION.md](docs/ROADMAP_IMPLEMENTATION.md). Define el orden de implementación, criterios de cierre, riesgos conocidos y estado de cada área. El trabajo se ejecuta por fases; no se adelantan cambios de identidad visual ni se declara terminada una función sin pruebas.
 
-Opción recomendada: desde esta carpeta ejecutá uno de estos comandos:
+Documentación relacionada:
+
+- [Plan de producto y reglas del negocio](docs/PRODUCT_PLAN.md)
+- [Modelo de datos](docs/DATA_MODEL.md)
+- [Pruebas de aceptación](docs/ACCEPTANCE_TESTS.md)
+- [Plan de seguridad del backend](docs/BACKEND_SECURITY_PLAN.md)
+- [Documentación de la API](server/README.md)
+
+## Demo local
+
+Abrí `index.html` en un navegador moderno o ejecutá desde la raíz:
 
 ```bash
 python -m http.server 8000
 ```
 
-Después entrá a http://localhost:8000.
+Luego entrá a http://localhost:8000. La demo utiliza HTML, CSS y JavaScript sin backend; persiste cambios en el `localStorage` del navegador y permite restaurar datos de prueba. Sus datos y selector de rol son exclusivamente demostrativos.
 
-No requiere instalar dependencias. Usa HTML, CSS y JavaScript sin backend. Los cambios quedan guardados en `localStorage` del navegador utilizado. El botón **Reiniciar datos de prueba** restaura los datos iniciales.
-
-## Qué puede probarse
-
-- Cambio entre vista de administrador y miembro.
-- Panel de resumen con miembros, deudas, turnos, cupos y avisos.
-- Alta/edición de miembros, búsqueda/filtros y exportación a CSV.
-- Cuentas corrientes de miembros: cargos, pagos, saldos y movimientos.
-- Obligaciones mensuales de profesores al gimnasio, con pagos parciales y saldo por período (demo; importes sin configurar por defecto).
-- Agenda por fecha, capacidad configurable por franja, reservas, lista de espera y promoción automática al liberar cupos.
-- Registro histórico de asistencia por reserva y fecha.
-- Catálogo y edición de rutinas/ejercicios.
-- Perfiles de profesores y obligación mensual fija por uso del espacio; no se calculan porcentajes por reserva.
-- Publicación de avisos y registro de ausencias/llegadas tarde.
-- Diseño responsive para teléfono, tablet y escritorio.
+La demo contiene vistas de miembros, cuentas corrientes, obligaciones mensuales fijas de profesores, agenda, reservas, lista de espera, asistencia, ejercicios/rutinas, avisos y perfiles. Su presencia en la interfaz no implica que los flujos estén integrados con la API.
 
 ## Portal conectado a la API
 
-El archivo [portal.html](portal.html) es una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no lee ni escribe los datos de la demo local. Incluye vistas iniciales de miembros, servicios, membresías, cuenta corriente, profesores y generación de invitaciones. Los permisos siguen siendo validados por la API.
+`portal.html` ofrece una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
 
-Para probarlo en desarrollo:
+Para desarrollo, seguí [server/README.md](server/README.md): requiere Node.js 22 y PostgreSQL. En terminales separadas, ejecutá la API desde `server/` y el servidor estático desde la raíz; después abrí http://localhost:8000/portal.html. En localhost el portal apunta por defecto a la API en el puerto 3001.
 
-1. Instalá y ejecutá PostgreSQL y seguí los pasos de [server/README.md](server/README.md) para migrar la base y crear el primer administrador.
-2. En una terminal ejecutá `cd server && npm run dev`.
-3. En otra terminal, desde la raíz del repositorio, ejecutá `python -m http.server 8000`.
-4. Abrí http://localhost:8000/portal.html. En localhost, el portal apunta por defecto a la API en el puerto 3001.
+## Backend y validaciones
 
-La creación de invitaciones devuelve un token de un solo uso que debe entregarse por un canal seguro. No uses datos reales hasta completar revisión de seguridad, pruebas de recuperación y configuración operativa.
+La API usa TypeScript, Fastify y PostgreSQL. Incluye una primera implementación de autenticación, sesiones revocables, protección CSRF/origen, autorización por rol y alcance, reservas transaccionales, cuenta corriente, asistencia, rutinas versionadas y obligaciones mensuales de profesores.
 
-## Backend en desarrollo
+El workflow de GitHub Actions verifica sintaxis de JavaScript, reglas de producto, el manifiesto PWA, TypeScript, tests, build y migraciones contra PostgreSQL. El backend versiona `server/package-lock.json` y CI usa `npm ci` para instalar las dependencias de forma reproducible.
 
-La API está en [`server/`](server/README.md). Incluye Node.js 22, TypeScript estricto, Fastify, PostgreSQL y migraciones transaccionales; login con contraseña scrypt, sesiones revocables y protección CSRF/origen; lectura y edición de perfiles con autorización por rol; reservas transaccionales con corte de 40 minutos, capacidad y lista de espera; cuenta corriente con movimientos idempotentes y auditoría; obligaciones mensuales fijas de profesores con pagos parciales y ajustes; asistencia histórica y rutinas versionadas con permisos de alcance. La integración con la interfaz de la demo aún no está hecha.
+Antes de usar datos reales faltan, entre otros puntos, ampliar las pruebas de autorización, recuperación de contraseña, limitación de intentos compartida entre instancias, revisión de seguridad, backups y restauración ensayada, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
 
-La API sigue siendo una fundación en desarrollo, no está aprobada para datos reales. Faltan recuperación de contraseña, limitación de intentos compartida entre réplicas, ampliación de pruebas de autorización, restauración de backups ensayada, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
+## Reglas del negocio que no deben alterarse accidentalmente
 
-## Credenciales y límites
-
-No hay inicio de sesión real ni separación de permisos segura: el selector de rol es sólo para recorrer la demo. Los datos son ficticios y se guardan en el navegador. Las notificaciones son internas de la demo; no se envían push, email ni WhatsApp. La asistencia se guarda como historial dentro del estado local del navegador, pero todavía no cuenta con una base compartida ni con auditoría de servidor. No usar importes de profesores, saldos ni datos de ejemplo para operar el gimnasio.
-
-## Enfoque Android-first
-
-La rama `feat/android-first-product-foundation` incorpora mejoras iniciales para pantallas compactas, objetivos táctiles, áreas seguras, navegación móvil accesible y una base PWA instalable con caché del shell estático. La caché no sincroniza datos entre dispositivos ni convierte `localStorage` en almacenamiento multiusuario.
-
-## Hoja de ruta
-
-Consultar [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md), [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), [`docs/ACCEPTANCE_TESTS.md`](docs/ACCEPTANCE_TESTS.md) y [`docs/BACKEND_SECURITY_PLAN.md`](docs/BACKEND_SECURITY_PLAN.md) para las decisiones de producto, el modelo de datos y las pruebas de aceptación. La demo del navegador sigue siendo local y todavía no consume la API. La carpeta [server/](server/README.md) contiene la API separada. La demo local no consume todavía esta API. No usar datos reales hasta cerrar los pendientes de seguridad, completar los flujos y verificar la operación.
+- La obligación de cada profesor con el gimnasio es mensual, fija e independiente de reservas o asistencia; no hay reparto porcentual.
+- Los importes mensuales de profesores permanecen sin configurar hasta que se acuerden explícitamente; se admiten pagos parciales y saldos a favor.
+- Los movimientos financieros mantienen historial; cambiar una tarifa no reescribe cargos o pagos anteriores.
+- Las reservas respetan el corte de 40 minutos y la capacidad configurada; la lista de espera no consume cupos confirmados.
+- No se incorporan multas automáticas no aprobadas.
+- La autorización efectiva se valida en el servidor.
+- El logo existente y la identidad visual oscura/roja son la referencia de marca. La Fase 2 debe inspeccionar y medir el original antes de crear variantes o modificar colores.
+- No cargar datos reales ni tratar el prototipo como sistema de producción.
