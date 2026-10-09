@@ -182,6 +182,112 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(invalidDates.statusCode, 400);
   assert.equal(invalidDates.json().error, "invalid_date_range");
 
+  const chargeKey = `ledger-charge-${suffix}`;
+  const chargePayload = {
+    type: "charge",
+    amount: "45000",
+    description: "Cuota mensual de prueba",
+    occurred_on: "2026-10-09",
+    applied_period: "2026-10-01"
+  };
+  const charge = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": chargeKey
+    },
+    payload: chargePayload
+  });
+  assert.equal(charge.statusCode, 201);
+  assert.equal(charge.json().balance, "45000.00");
+
+  const chargeReplay = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": chargeKey
+    },
+    payload: chargePayload
+  });
+  assert.equal(chargeReplay.statusCode, 200);
+  assert.equal(chargeReplay.json().entry.id, charge.json().entry.id);
+  assert.equal(chargeReplay.json().balance, "45000.00");
+
+  const chargeKeyConflict = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": chargeKey
+    },
+    payload: { ...chargePayload, amount: "46000" }
+  });
+  assert.equal(chargeKeyConflict.statusCode, 409);
+
+  const payment = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": `ledger-payment-${suffix}`
+    },
+    payload: {
+      type: "payment",
+      amount: "10000",
+      description: "Pago parcial de prueba",
+      occurred_on: "2026-10-09",
+      applied_period: "2026-10-01",
+      payment_method: "Transferencia"
+    }
+  });
+  assert.equal(payment.statusCode, 201);
+  assert.equal(payment.json().balance, "35000.00");
+  assert.equal(payment.json().receiptType, "internal");
+
+  const ownLedger = await app.inject({
+    method: "GET",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(ownLedger.statusCode, 200);
+  assert.equal(ownLedger.json().entries.length, 2);
+  assert.equal(ownLedger.json().balance, "35000.00");
+
+  const memberCannotPostLedger = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${first.token}`,
+      "x-csrf-token": first.csrfToken,
+      "idempotency-key": `member-payment-${suffix}`
+    },
+    payload: {
+      type: "payment",
+      amount: "100",
+      description: "Not allowed",
+      occurred_on: "2026-10-09"
+    }
+  });
+  assert.equal(memberCannotPostLedger.statusCode, 403);
+
+  const ledgerAudit = await pool.query(
+    `SELECT count(*)::int AS total FROM audit_events
+      WHERE action = 'ledger.entry_created' AND entity_id = ANY($1::text[])`,
+    [[charge.json().entry.id, payment.json().entry.id]]
+  );
+  assert.equal(ledgerAudit.rows[0]?.total, 2);
+
   async function book(actor: TestActor, sessionId: string) {
     return app.inject({
       method: "POST",
