@@ -116,6 +116,7 @@ export function buildApp({ pool, config, passwordVerifier = argon2.verify }: App
     const rawToken = createSessionToken();
     const tokenHash = hashSessionToken(rawToken, config.sessionPepper);
     const expiresAt = new Date(Date.now() + config.sessionTtlHours * 60 * 60 * 1000);
+    await pool.query("UPDATE users SET last_login_at = now() WHERE id = $1", [user.id]);
     await pool.query(
       "INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)",
       [tokenHash, user.id, expiresAt],
@@ -236,7 +237,7 @@ export function buildApp({ pool, config, passwordVerifier = argon2.verify }: App
     }
     if (user.role === "coach" && user.coachId) {
       const result = await pool.query(
-        `SELECT m.id, m.first_name, m.last_name, m.email, m.phone, m.status, m.joined_at, m.left_at
+        `SELECT m.id, m.first_name, m.last_name, m.status
          FROM members m
          JOIN coach_member_assignments a ON a.member_id = m.id
          WHERE a.coach_id = $1 AND a.active = true
@@ -268,11 +269,16 @@ export function buildApp({ pool, config, passwordVerifier = argon2.verify }: App
       return reply.code(404).send({ error: "not_found", message: "Miembro no encontrado." });
     }
 
-    const result = await pool.query(
-      `SELECT id, first_name, last_name, email, phone, address, status, joined_at, left_at, emergency_contact_name, emergency_contact_phone
-       FROM members WHERE id = $1 LIMIT 1`,
-      [memberId],
-    );
+    const result = user.role === "coach"
+      ? await pool.query(
+          "SELECT id, first_name, last_name, status FROM members WHERE id = $1 LIMIT 1",
+          [memberId],
+        )
+      : await pool.query(
+          `SELECT id, first_name, last_name, email, phone, address, dni, status, joined_at, left_at, emergency_contact_name, emergency_contact_phone
+           FROM members WHERE id = $1 LIMIT 1`,
+          [memberId],
+        );
     if (!result.rows[0]) return reply.code(404).send({ error: "not_found", message: "Miembro no encontrado." });
     return { member: result.rows[0] };
   });
