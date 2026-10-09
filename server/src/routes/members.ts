@@ -1,5 +1,4 @@
 import type { FastifyInstance } from "fastify";
-import type { AppConfig } from "../config.js";
 import type { Database } from "../db.js";
 import { canAccessMember, coachHasMemberScope, resolveActor } from "../security/actor.js";
 
@@ -27,17 +26,9 @@ interface MemberRow extends Record<string, unknown> {
   notes: string | null;
 }
 
-function unauthorized(reply: Parameters<Parameters<FastifyInstance["get"]>[1]>[1]) {
-  return reply.code(401).send({
-    error: "unauthenticated",
-    message: "A valid session is required."
-  });
-}
-
 export function registerMemberRoutes(
   app: FastifyInstance,
-  db: Database,
-  _config: AppConfig
+  db: Database
 ): void {
   app.get<{ Querystring: MemberListQuery }>(
     "/api/v1/members",
