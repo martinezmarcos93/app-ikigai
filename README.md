@@ -29,7 +29,7 @@ La demo contiene vistas de miembros, cuentas corrientes, obligaciones mensuales 
 
 ## Portal conectado a la API
 
-`portal.html` ofrece una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
+`portal.html` ofrece una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. La recuperación de contraseña está disponible en `reset-password.html`; el enlace lleva el token en el fragmento URL, vence a los 30 minutos y requiere configurar el adaptador HTTPS de entrega y `PASSWORD_RESET_PUBLIC_URL` en el servidor. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
 
 Para desarrollo, seguí [server/README.md](server/README.md): requiere Node.js 22 y PostgreSQL. En terminales separadas, ejecutá la API desde `server/` y el servidor estático desde la raíz; después abrí http://localhost:8000/portal.html. En localhost el portal apunta por defecto a la API en el puerto 3001.
 
