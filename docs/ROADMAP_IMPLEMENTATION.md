@@ -15,15 +15,15 @@
 ## Orden de ejecución
 
 ### Fase 1 — Base estable, CI reproducible y documentación unificada
-**Estado: en curso.**
+**Estado: en curso; primera barrida documental y de CI aplicada, pendiente de ejecución y cierre reproducible.**
 
 - [x] Confirmar `main` como fuente de verdad y trabajar en una rama de implementación.
 - [x] Registrar el orden de fases y los criterios de cierre en esta hoja de ruta.
-- [ ] Unificar el README con esta hoja de ruta para evitar planes duplicados o contradictorios.
-- [ ] Revisar el workflow de CI y ampliar comprobaciones estáticas útiles.
+- [x] Unificar el README con esta hoja de ruta para evitar planes duplicados o contradictorios.
+- [x] Revisar el workflow de CI y ampliar comprobaciones estáticas útiles: valida campos del manifiesto, existencia de iconos/rutas del shell y presencia de la hoja de ruta.
 - [ ] Resolver la reproducibilidad de dependencias del backend: generar y versionar un lockfile npm y pasar de `npm install` a `npm ci`.
 - [ ] Ejecutar el pipeline completo en la rama y revisar sus resultados antes de integrar.
-- [ ] Mantener la demo local separada del portal conectado a la API y dejar claros sus límites.
+- [x] Mantener la demo local separada del portal conectado a la API y dejar claros sus límites en el README.
 - **Criterio de cierre:** documentación enlazada y no contradictoria; dependencias bloqueadas; CI verde en el commit de la fase; ninguna afirmación de producción sin evidencia.
 
 ### Fase 2 — Identidad visual, logo y assets de Ikigai
