@@ -30,6 +30,19 @@ No requiere instalar dependencias. Usa HTML, CSS y JavaScript sin backend. Los c
 - Publicación de avisos y registro de ausencias/llegadas tarde.
 - Diseño responsive para teléfono, tablet y escritorio.
 
+## Portal conectado a la API
+
+El archivo [portal.html](portal.html) es una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no lee ni escribe los datos de la demo local. Incluye vistas iniciales de miembros, servicios, membresías, cuenta corriente, profesores y generación de invitaciones. Los permisos siguen siendo validados por la API.
+
+Para probarlo en desarrollo:
+
+1. Instalá y ejecutá PostgreSQL y seguí los pasos de [server/README.md](server/README.md) para migrar la base y crear el primer administrador.
+2. En una terminal ejecutá `cd server && npm run dev`.
+3. En otra terminal, desde la raíz del repositorio, ejecutá `python -m http.server 8000`.
+4. Abrí http://localhost:8000/portal.html. En localhost, el portal apunta por defecto a la API en el puerto 3001.
+
+La creación de invitaciones devuelve un token de un solo uso que debe entregarse por un canal seguro. No uses datos reales hasta completar revisión de seguridad, pruebas de recuperación y configuración operativa.
+
 ## Backend en desarrollo
 
 La API está en [`server/`](server/README.md). Incluye Node.js 22, TypeScript estricto, Fastify, PostgreSQL y migraciones transaccionales; login con contraseña scrypt, sesiones revocables y protección CSRF/origen; lectura y edición de perfiles con autorización por rol; reservas transaccionales con corte de 40 minutos, capacidad y lista de espera; cuenta corriente con movimientos idempotentes y auditoría; obligaciones mensuales fijas de profesores con pagos parciales y ajustes; asistencia histórica y rutinas versionadas con permisos de alcance. La integración con la interfaz de la demo aún no está hecha.
