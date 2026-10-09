@@ -50,7 +50,9 @@ CREATE TABLE users (
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK ((role <> 'member') OR member_id IS NOT NULL),
   CHECK ((role <> 'coach') OR coach_id IS NOT NULL),
-  CHECK ((role <> 'admin') OR (member_id IS NULL AND coach_id IS NULL))
+  CHECK ((role = 'admin' AND member_id IS NULL AND coach_id IS NULL) OR
+         (role = 'member' AND member_id IS NOT NULL AND coach_id IS NULL) OR
+         (role = 'coach' AND coach_id IS NOT NULL AND member_id IS NULL))
 );
 
 CREATE TABLE sessions (
