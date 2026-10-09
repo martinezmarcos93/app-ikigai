@@ -1,0 +1,19 @@
+/* Ikigai Training — brand tokens measured from assets/ikigai-logo.jpg.
+   Brand red sampled from the source image: RGB(227, 26, 32) / #E31A20.
+   Keep interface surfaces near-black; do not recolor or distort the source logo. */
+:root {
+  --ikigai-brand-red: #e31a20;
+  --ikigai-brand-red-highlight: #ec2124;
+  --ikigai-brand-red-dark: #7c090f;
+  --ikigai-brand-black: #000000;
+  --ikigai-surface: #080808;
+  --ikigai-surface-raised: #111112;
+  --ikigai-surface-elevated: #171719;
+  --ikigai-line: #303034;
+  --ikigai-white: #f3f3f5;
+  --ikigai-silver: #808281;
+  --ikigai-muted: #9c9ca3;
+  --ikigai-success: #75d69c;
+  --ikigai-warning: #e6b755;
+  --ikigai-info: #73a9ff;
+}

@@ -1,14 +1,14 @@
 :root {
   color-scheme: dark;
-  --bg: #080808;
-  --panel: #111112;
-  --panel-2: #171719;
-  --line: #303034;
-  --muted: #9c9ca3;
-  --text: #f3f3f5;
-  --red: #e63946;
-  --red-dark: #a71926;
-  --green: #75d69c;
+  --bg: var(--ikigai-surface);
+  --panel: var(--ikigai-surface-raised);
+  --panel-2: var(--ikigai-surface-elevated);
+  --line: var(--ikigai-line);
+  --muted: var(--ikigai-muted);
+  --text: var(--ikigai-white);
+  --red: var(--ikigai-brand-red);
+  --red-dark: var(--ikigai-brand-red-dark);
+  --green: var(--ikigai-success);
   font-family: "Rajdhani", system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
@@ -18,8 +18,9 @@ button, input, select, textarea { min-height: 44px; }
 button { cursor: pointer; }
 a { color: inherit; }
 [hidden] { display: none !important; }
-.portal-topbar { min-height: 72px; padding: 12px clamp(16px,4vw,44px); display:flex; align-items:center; gap:24px; border-bottom:1px solid var(--line); background:#0d0d0e; }
-.portal-brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
+.portal-topbar { min-height: 72px; padding: 12px clamp(16px,4vw,44px); display:flex; align-items:center; gap:24px; border-bottom:1px solid var(--line); background:var(--ikigai-surface); }
+.portal-brand { display:flex; align-items:center; gap:12px; text-decoration:none; min-width:0; }
+.portal-brand-logo { width:56px; height:54px; flex:0 0 auto; object-fit:contain; background:var(--ikigai-brand-black); border:1px solid var(--ikigai-brand-red-dark); border-radius:3px; }
 .brand-mark { width:40px; height:40px; display:grid; place-items:center; background:var(--red); color:white; font-family:"Bebas Neue",sans-serif; font-size:24px; }
 .portal-brand strong { display:block; font-family:"Bebas Neue",sans-serif; letter-spacing:1.5px; font-size:25px; line-height:1; }
 .portal-brand small { display:block; margin-top:4px; font-size:11px; letter-spacing:2px; color:var(--muted); }
@@ -62,7 +63,7 @@ code { overflow-wrap:anywhere; color:#f4b4ba; }
 .sidebar-label { margin:0 10px 12px; color:var(--muted); font-size:11px; letter-spacing:1.8px; }
 .portal-nav { display:grid; gap:4px; }
 .nav-link { display:flex; align-items:center; gap:11px; width:100%; text-align:left; border:1px solid transparent; border-radius:6px; padding:10px 12px; min-height:46px; color:#c5c5cb; background:transparent; font-weight:700; }
-.nav-link span { width:18px; color:#9c9ca3; text-align:center; }
+.nav-link span { width:18px; height:20px; flex:0 0 18px; display:grid; place-items:center; color:var(--muted); text-align:center; }.nav-link svg { width:18px; height:18px; display:block; fill:none; stroke:currentColor; }
 .nav-link.active { color:white; background:#291215; border-color:#54252b; }
 .nav-link.active span { color:var(--red); }
 .sidebar-foot { border-top:1px solid var(--line); margin:18px 8px 0; padding:14px 0 0; display:grid; gap:5px; }

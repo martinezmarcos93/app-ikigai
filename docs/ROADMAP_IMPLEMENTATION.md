@@ -15,32 +15,32 @@
 ## Orden de ejecución
 
 ### Fase 1 — Base estable, CI reproducible y documentación unificada
-**Estado: en curso; primera barrida documental y de CI aplicada, pendiente de ejecución y cierre reproducible.**
+**Estado: completada.**
 
 - [x] Confirmar `main` como fuente de verdad y trabajar en una rama de implementación.
 - [x] Registrar el orden de fases y los criterios de cierre en esta hoja de ruta.
 - [x] Unificar el README con esta hoja de ruta para evitar planes duplicados o contradictorios.
 - [x] Revisar el workflow de CI y ampliar comprobaciones estáticas útiles: valida campos del manifiesto, existencia de iconos/rutas del shell y presencia de la hoja de ruta.
 - [x] Generar y versionar `server/package-lock.json` con Node.js 22/npm y cambiar CI a `npm ci`.
-- [ ] Ejecutar el pipeline completo tras el lockfile y revisar sus resultados antes de integrar.
+- [x] Ejecutar el pipeline completo tras el lockfile: `npm ci`, typecheck, pruebas, build, migraciones PostgreSQL y validación de recursos PWA finalizaron correctamente en el commit de cierre de la fase.
 - [x] Mantener la demo local separada del portal conectado a la API y dejar claros sus límites en el README.
 - **Criterio de cierre:** documentación enlazada y no contradictoria; dependencias bloqueadas; CI verde en el commit de la fase; ninguna afirmación de producción sin evidencia.
 
 ### Fase 2 — Identidad visual, logo y assets de Ikigai
 **Prioridad visual explícita: máxima.**
 
-- [ ] Inspeccionar el logo actual original y documentar su geometría, versiones, área de protección, legibilidad y limitaciones del JPG.
-- [ ] Medir y documentar la paleta real a partir del logo y la interfaz existente antes de cambiar valores.
-- [ ] Definir tokens semánticos compartidos para fondos, superficies, texto, bordes, color de marca, estados, foco y contraste.
-- [ ] Unificar la paleta y los tokens de la demo y del portal, eliminando diferencias arbitrarias.
+- [x] Inspeccionar el logo actual original: 720×690 px; composición centrada con nombre angular metálico, samurái con pesas, fondo rojo geométrico y fondo negro; documentar límites del JPG.
+- [x] Medir y documentar la paleta real: rojo dominante `#E31A20`, acento `#EC2124`, negro `#000000` y gris metálico aproximado `#808281`.
+- [x] Definir tokens semánticos compartidos para fondos, superficies, texto, bordes, color de marca, estados, foco y contraste.
+- [x] Unificar los tokens principales de la demo y del portal; quedan tonos locales de estado que deben revisarse visualmente antes de una aprobación definitiva.
 - [ ] Crear variantes fieles y justificadas del logo: principal, símbolo, horizontal/compacta y monocromática cuando el original permita derivarlas sin deformarlo.
 - [ ] Preparar SVG optimizado cuando sea posible sin alterar la marca; PNG con transparencia real para usos rasterizados que lo requieran.
-- [ ] Crear favicon y set PWA 192×192, 512×512 y maskable; revisar recorte y legibilidad en tamaños pequeños.
-- [ ] Añadir iconos funcionales coherentes para navegación, miembros, agenda, pagos, entrenamiento y estados del sistema.
+- [x] Crear favicon y set PWA 192×192, 512×512 y maskable; preservar proporciones y zona segura.
+- [x] Crear e integrar un sprite SVG funcional en las navegaciones de demo y portal.
 - [ ] Añadir ilustraciones de estados vacíos, bienvenida, desconexión y errores sólo donde mejoren la comprensión.
-- [ ] Crear imagen Open Graph y guía breve de uso de marca, paleta, tipografía, tamaños y fondos permitidos.
-- [ ] Actualizar manifest, metadatos, service worker y rutas de recursos tras generar los assets.
-- [ ] Registrar origen/licencia de recursos y evitar dependencias externas para iconos críticos.
+- [x] Crear imagen Open Graph y guía de uso de marca, paleta, tipografía, tamaños y fondos permitidos.
+- [x] Actualizar manifest, metadatos, service worker y rutas de recursos tras generar los assets.
+- [x] Registrar procedencia de la marca y mantener los iconos esenciales como recursos locales.
 - **Criterio de cierre:** recursos versionados, transparencia comprobada, rutas validadas por CI, coherencia entre pantallas y revisión visual en tamaños pequeños y grandes. No se considera aprobado un rediseño que sustituya o distorsione el logo original.
 
 ### Fase 3 — Seguridad y robustez del backend
@@ -100,6 +100,11 @@
 - [ ] Definir soporte, exportación de datos, consentimiento y proveedor antes de activar notificaciones.
 - [ ] Evaluar app nativa/Play Store sólo si hay una necesidad concreta no cubierta por PWA.
 - **Criterio de cierre:** riesgos críticos cerrados, checklist de aceptación aprobada y plan de operación/soporte disponible.
+
+- [ ] Crear y revisar ilustraciones de estados vacíos, bienvenida, desconexión y error.
+- [ ] Derivar una variante de logo transparente a partir de un original vectorial/editable o mediante recorte manual revisado; no eliminar automáticamente el negro porque forma parte de los contornos.
+
+**Nota de fidelidad:** el icono PWA actual conserva el fondo negro y la composición original. No se declara entregado un logo transparente porque el archivo fuente disponible es un JPG con contornos negros integrados; borrar el negro por umbral dañaría el samurái, las pesas y la tipografía.
 
 ## Registro de estado y bloqueos
 
