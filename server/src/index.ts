@@ -5,6 +5,48 @@ import { loadConfig } from "./config.js";
 import { PostgresDatabase } from "./db/postgres.js";
 
 const config = loadConfig();
+const passwordResetBaseUrl = process.env.PASSWORD_RESET_BASE_URL?.trim();
+const resendApiKey = process.env.RESEND_API_KEY?.trim();
+const passwordResetFrom = process.env.PASSWORD_RESET_FROM?.trim();
+
+if (config.nodeEnv === "production") {
+  if (!passwordResetBaseUrl || !resendApiKey || !passwordResetFrom) {
+    throw new Error("PASSWORD_RESET_BASE_URL, RESEND_API_KEY, and PASSWORD_RESET_FROM are required in production.");
+  }
+  let resetUrl: URL;
+  try {
+    resetUrl = new URL(passwordResetBaseUrl);
+  } catch {
+    throw new Error("PASSWORD_RESET_BASE_URL must be a valid HTTPS URL.");
+  }
+  if (resetUrl.protocol !== "https:" || resetUrl.username || resetUrl.password) {
+    throw new Error("PASSWORD_RESET_BASE_URL must be HTTPS and contain no credentials.");
+  }
+}
+
+const passwordResetDelivery = resendApiKey && passwordResetFrom
+  ? async (email: string, resetUrl: string): Promise<void> => {
+      const safeUrl = resetUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from: passwordResetFrom,
+          to: [email],
+          subject: "Restablecer contraseña — Ikigai Training",
+          text: `Solicitaste restablecer tu contraseña. Abrí este enlace antes de 30 minutos: ${resetUrl}. Si no lo solicitaste, ignorá este correo.`,
+          html: `<p>Solicitaste restablecer tu contraseña de Ikigai Training.</p><p><a href="${safeUrl}">Crear una contraseña nueva</a></p><p>El enlace vence en 30 minutos. Si no lo solicitaste, ignorá este correo.</p>`
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`Password reset email provider returned HTTP ${response.status}.`);
+      }
+    }
+  : undefined;
+
 const connectionString = process.env.DATABASE_URL;
 if (config.nodeEnv === "production" && !connectionString) {
   throw new Error("DATABASE_URL is required in production.");
@@ -26,8 +68,10 @@ if (pool) await pool.query("SELECT 1");
 const database = pool ? new PostgresDatabase(pool) : undefined;
 const app = await buildApp(config, database ? {
   db: database,
-  transactionalDb: database
-} : {});
+  transactionalDb: database,
+  passwordResetDelivery,
+  passwordResetBaseUrl
+} : { passwordResetDelivery, passwordResetBaseUrl });
 
 try {
   await app.listen({ host: config.host, port: config.port });
