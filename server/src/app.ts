@@ -4,12 +4,14 @@ import cookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import type { AppConfig } from "./config.js";
-import type { Database } from "./db.js";
+import type { Database, TransactionalDatabase } from "./db.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerMemberRoutes } from "./routes/members.js";
+import { registerBookingRoutes } from "./routes/bookings.js";
 
 export interface AppDependencies {
   db?: Database;
+  transactionalDb?: TransactionalDatabase;
 }
 
 export async function buildApp(
@@ -47,9 +49,13 @@ export async function buildApp(
     version: "v1"
   }));
 
-  if (dependencies.db) {
-    registerAuthRoutes(app, dependencies.db, config);
-    registerMemberRoutes(app, dependencies.db);
+  const appDb = dependencies.db ?? dependencies.transactionalDb;
+  if (appDb) {
+    registerAuthRoutes(app, appDb, config);
+    registerMemberRoutes(app, appDb);
+  }
+  if (dependencies.transactionalDb) {
+    registerBookingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
   }
 
   app.setNotFoundHandler((_request, reply) => {
