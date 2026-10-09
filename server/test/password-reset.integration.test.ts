@@ -67,6 +67,8 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   });
   assert.equal(unknown.statusCode, 202);
   assert.equal(requested.statusCode, 202);
+  assert.equal(requested.headers["cache-control"], "no-store");
+  assert.equal(unknown.headers["cache-control"], "no-store");
   assert.deepEqual(requested.json(), unknown.json());
   assert.ok(deliveredUrl);
   const rawToken = new URL(deliveredUrl).searchParams.get("token");
@@ -122,4 +124,18 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   });
   assert.equal(reused.statusCode, 400);
   assert.equal(reused.json().error, "invalid_or_expired_reset_token");
+
+  const expiredToken = randomBytes(32).toString("base64url");
+  await pool.query(
+    "INSERT INTO password_reset_tokens (user_id,token_hash,created_at,expires_at) VALUES ($1,$2,now()-interval '2 hours',now()-interval '1 hour')",
+    [userId, digest(expiredToken)]
+  );
+  const expired = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/password-reset/complete",
+    headers: { origin },
+    payload: { token: expiredToken, password: "expired-token-password-2026" }
+  });
+  assert.equal(expired.statusCode, 400);
+  assert.equal(expired.json().error, "invalid_or_expired_reset_token");
 });
