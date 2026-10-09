@@ -53,6 +53,7 @@ export async function buildApp(
   // A database-backed fixed-window limiter is shared by all replicas. It only
   // covers sensitive endpoints; the plugin's local limits remain defense-in-depth.
   if (dependencies.db) {
+    let rateLimitCleanupCounter = 0;
     app.addHook("onRequest", async (request, reply) => {
       const path = request.url.split("?")[0] ?? request.url;
       const policy = path === "/api/v1/auth/login" ? { max: 5, seconds: 60 }
@@ -64,6 +65,10 @@ export async function buildApp(
           : null;
       if (!policy) return;
 
+      rateLimitCleanupCounter += 1;
+      if (rateLimitCleanupCounter % 100 === 0) {
+        await dependencies.db!.query("DELETE FROM rate_limit_buckets WHERE updated_at < now() - interval '24 hours'");
+      }
       const identity = `${request.method}:${path}:${request.ip}`;
       const key = createHash("sha256").update(identity).digest("hex");
       const result = await dependencies.db!.query<{ request_count: number } & Record<string, unknown>>(
