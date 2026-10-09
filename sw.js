@@ -1,5 +1,5 @@
 /* Network-first shell strategy: fetch updates when online and fall back to cache offline. */
-const CACHE_VERSION = 'ikigai-shell-v5';
+const CACHE_VERSION = 'ikigai-shell-v6';
 const APP_SHELL = ['./','./index.html','./portal.html','./portal.css','./api-client.js','./portal.js','./reset-password.html','./reset-password.js','./manifest.webmanifest','./assets/brand/tokens.css','./assets/icons/ikigai-symbols.svg','./assets/ikigai-logo.jpg','./assets/pwa/icon-192.png','./assets/pwa/icon-512.png','./assets/pwa/icon-maskable-512.png','./assets/pwa/favicon-48.png','./assets/pwa/apple-touch-icon.png','./assets/social/og-image.png','./assets/illustrations/welcome.svg','./assets/illustrations/empty-members.svg','./assets/illustrations/offline.svg','./assets/illustrations/error-state.svg'];
 
 self.addEventListener('install', event => {
