@@ -65,6 +65,16 @@
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
+**Barrido actual: primera puesta en marcha y eliminación de configuración de demo.** La entrada principal pasa al portal conectado; el prototipo se conserva aparte, vacío y sin autenticación.
+
+- [x] Crear `docs/INITIAL_SETUP.md` con el procedimiento de primera instalación, creación segura del administrador y orden inicial de configuración.
+- [x] Retirar los registros semilla del prototipo local e invalidar su almacenamiento de la versión anterior.
+- [x] Configurar la PWA para abrir el portal conectado y conservar el prototipo en `demo.html`.
+- [x] Añadir al resumen administrativo una lista de primera puesta en marcha para servicios, profesores y miembros.
+- [x] Corregir el service worker para no almacenar respuestas de `/api/` ni respuestas con `Cache-Control: no-store`; las respuestas autenticadas no deben entrar en caché.
+- [ ] Validar CI y comprobar manualmente el primer inicio de sesión, dashboard vacío, navegación a configuración y actualización/limpieza del service worker.
+- [ ] Resolver la asignación segura de más de un rol a una misma cuenta si Agustín necesita ser simultáneamente administrador y profesor.
+
 **Estado: en curso — primer barrido de inventario y endurecimiento del cliente.** El portal ya consume parcialmente varios endpoints; no se considera completa la integración ni se presupone que CI esté verde.
 
 - [x] Inventariar cada superficie relevante y clasificar su estado inicial en [docs/PORTAL_API_INVENTORY.md](PORTAL_API_INVENTORY.md). El inventario está basado en lectura estática y marca explícitamente los flujos cuya ejecución aún debe comprobarse.
