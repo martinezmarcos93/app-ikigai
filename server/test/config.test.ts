@@ -7,7 +7,8 @@ test("development defaults are local and explicit", () => {
     nodeEnv: "development",
     host: "127.0.0.1",
     port: 3001,
-    corsOrigins: ["http://localhost:8000", "http://127.0.0.1:8000"]
+    corsOrigins: ["http://localhost:8000", "http://127.0.0.1:8000"],
+    sessionSecret: "development-only-session-secret-change-before-deploy"
   });
 });
 
@@ -30,6 +31,13 @@ test("production accepts exact origins and rejects wildcard/path origins", () =>
   assert.throws(
     () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com/app" }),
     /exact HTTP\(S\) origins/
+  );
+});
+
+test("production requires a strong session secret", () => {
+  assert.throws(
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "short" }),
+    /SESSION_SECRET must contain at least 32 characters/
   );
 });
 
