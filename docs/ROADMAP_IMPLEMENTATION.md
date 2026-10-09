@@ -68,7 +68,7 @@
 **Estado: en curso — primer barrido de inventario y endurecimiento del cliente.** El portal ya consume parcialmente varios endpoints; no se considera completa la integración ni se presupone que CI esté verde.
 
 - [x] Inventariar cada superficie relevante y clasificar su estado inicial en [docs/PORTAL_API_INVENTORY.md](PORTAL_API_INVENTORY.md). El inventario está basado en lectura estática y marca explícitamente los flujos cuya ejecución aún debe comprobarse.
-- [ ] Completar y probar la capa de cliente API uniforme con sesión, CSRF, errores, carga, estados vacíos y política de reintentos seguros. Se añadió validación de paginación de miembros y codificación de parámetros; falta cobertura automatizada.
+- [ ] Completar y probar la capa de cliente API uniforme con sesión, CSRF, errores, carga, estados vacíos y política de reintentos seguros. Se añadió validación de paginación de miembros, codificación de parámetros y smoke tests del cliente en `scripts/test-api-client.mjs`, incorporados al workflow; la ejecución CI de esta rama sigue pendiente.
 - [ ] Completar los flujos de miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
 - [x] Mantener explícita la separación entre demo local con `localStorage` y portal autenticado con datos del servidor; verificar que ningún flujo conectado informe sincronización local ficticia.
 - [ ] Auditar permisos de navegación y renderizadores como ayuda de UX, conservando la autorización efectiva en el servidor.
