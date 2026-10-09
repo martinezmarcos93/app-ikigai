@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   canPromoteWaitlist,
   evaluateBookingRequest,
+  isBeforeBookingCutoff,
   isValidCapacity
 } from "../src/domain/booking.js";
 
@@ -13,6 +14,18 @@ const base = {
   confirmedBookings: 3,
   hasActiveBooking: false
 };
+
+test("cancellation cutoff is enforced against server timestamps", () => {
+  assert.equal(isBeforeBookingCutoff(
+    "2026-10-10T18:00:00-03:00",
+    "2026-10-10T17:19:59-03:00"
+  ), true);
+  assert.equal(isBeforeBookingCutoff(
+    "2026-10-10T18:00:00-03:00",
+    "2026-10-10T17:20:00-03:00"
+  ), false);
+  assert.equal(isBeforeBookingCutoff("invalid", "2026-10-10T17:00:00-03:00"), false);
+});
 
 test("capacity accepts only integer values from 1 to 30", () => {
   for (const value of [1, 8, 30]) assert.equal(isValidCapacity(value), true);
