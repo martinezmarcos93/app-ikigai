@@ -60,3 +60,13 @@ Esta matriz se deriva de los controles del servidor, no de la visibilidad de bot
 ## Estado de cobertura y salida
 
 Las pruebas nombradas existen en el repositorio; **no se marca esta matriz como aprobada** hasta que CI ejecute los tests de unidad e integración y se revisen los resultados. Los tests de autorización negativa deben mantenerse y ampliarse si se añade cualquier endpoint o rol nuevo. La revisión de seguridad independiente, el adaptador real de correo y la política de backup/restore de producción siguen siendo gates antes de datos reales.
+
+
+## Pruebas transversales agregadas
+
+- `server/test/password-reset-config.test.ts`: exige URL HTTPS sin query/fragment ni credenciales, sender de una sola línea, clave de proveedor con longitud mínima y origen de reset incluido en CORS.
+- `server/test/rate-limit.integration.test.ts`: usa dos clientes PostgreSQL independientes para comprobar que el contador compartido impone el mismo límite entre instancias.
+- `server/test/password-reset.integration.test.ts`: verifica que el token de recuperación se extrae del fragmento URL y no de la query; el token persistido debe ser sólo un digest.
+- `TRUST_PROXY_HOPS` se configura explícitamente y vale cero por defecto. No confiar en forwarded headers sin conocer y restringir la cadena de proxies.
+
+Estos tests se incorporan a `npm test`; su existencia no sustituye la ejecución real en CI.
