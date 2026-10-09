@@ -172,6 +172,8 @@ This is an executable foundation, not the production system. Resource-level auth
 
 ## Update — Fase 3 de hardening (2026-10-09)
 
+La matriz endpoint por endpoint está en [SECURITY_ROUTE_MATRIX.md](SECURITY_ROUTE_MATRIX.md). Se documentan los guards y los tests existentes, pero no se considera aprobada hasta que CI se ejecute y se revisen los resultados.
+
 Se añadieron los siguientes controles al backend:
 
 - Recuperación de contraseña: pantalla pública, solicitud con respuesta genérica, token aleatorio de 256 bits, persistencia exclusiva del SHA-256, vencimiento a los 30 minutos, revocación de tokens anteriores, consumo transaccional, cambio de contraseña y revocación de todas las sesiones activas. El enlace lleva el token en el fragmento URL (no se envía al servidor web en la petición inicial) y sólo se entrega mediante un webhook configurado; la respuesta API no contiene el token.
