@@ -19,7 +19,8 @@ button { cursor: pointer; }
 a { color: inherit; }
 [hidden] { display: none !important; }
 .portal-topbar { min-height: 72px; padding: 12px clamp(16px,4vw,44px); display:flex; align-items:center; gap:24px; border-bottom:1px solid var(--line); background:var(--ikigai-surface); }
-.portal-brand { display:flex; align-items:center; gap:12px; text-decoration:none; min-width:0; }\n.portal-brand-logo { width:56px; height:54px; flex:0 0 auto; object-fit:contain; background:var(--ikigai-brand-black); border:1px solid var(--ikigai-brand-red-dark); border-radius:3px; }
+.portal-brand { display:flex; align-items:center; gap:12px; text-decoration:none; min-width:0; }
+.portal-brand-logo { width:56px; height:54px; flex:0 0 auto; object-fit:contain; background:var(--ikigai-brand-black); border:1px solid var(--ikigai-brand-red-dark); border-radius:3px; }
 .brand-mark { width:40px; height:40px; display:grid; place-items:center; background:var(--red); color:white; font-family:"Bebas Neue",sans-serif; font-size:24px; }
 .portal-brand strong { display:block; font-family:"Bebas Neue",sans-serif; letter-spacing:1.5px; font-size:25px; line-height:1; }
 .portal-brand small { display:block; margin-top:4px; font-size:11px; letter-spacing:2px; color:var(--muted); }
