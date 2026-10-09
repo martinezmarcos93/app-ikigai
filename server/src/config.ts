@@ -47,10 +47,10 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
     }
   }
 
-  const sessionSecret = env.SESSION_SECRET ?? "development-only-session-secret-change-before-deploy";
-  if (rawEnv === "production" && sessionSecret.length < 32) {
-    throw new Error("SESSION_SECRET must contain at least 32 characters in production.");
+  if (rawEnv === "production" && (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32)) {
+    throw new Error("SESSION_SECRET must be explicitly configured with at least 32 characters in production.");
   }
+  const sessionSecret = env.SESSION_SECRET ?? "development-only-session-secret-change-before-deploy";
 
   return { nodeEnv: rawEnv, host, port, corsOrigins, sessionSecret };
 }
