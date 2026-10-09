@@ -43,6 +43,11 @@ export function buildApp({ pool, config, passwordVerifier = argon2.verify }: App
     errorResponseBuilder: () => ({ error: "rate_limit_exceeded", message: "Demasiadas solicitudes. Intentá nuevamente más tarde." }),
   });
 
+  app.addHook("onSend", async (request, reply, payload) => {
+    if (request.url.startsWith("/api/")) reply.header("Cache-Control", "no-store");
+    return payload;
+  });
+
   app.addHook("onRequest", async (request, reply) => {
     const method = request.method.toUpperCase();
     if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
