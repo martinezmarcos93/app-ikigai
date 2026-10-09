@@ -33,9 +33,9 @@ test("API client sends cookies, CSRF tokens, and disables response caching", asy
   assert.match(client, /credentials: "include"/);
   assert.match(client, /cache: "no-store"/);
   assert.match(client, /X-CSRF-Token/);
-  assert.match(client, //auth\/login/);
-  assert.match(client, //auth\/me/);
-  assert.match(client, //members\/\$\{id\(memberId\)\}\/ledger-entries/);
-  assert.match(client, //admin\/invitations/);
+  assert.ok(client.includes("/auth/login"));
+  assert.ok(client.includes("/auth/me"));
+  assert.ok(client.includes("/members/${id(memberId)}/ledger-entries"));
+  assert.ok(client.includes("/admin/invitations"));
   assert.match(client, /Por seguridad, la API debe compartir origen/);
 });
