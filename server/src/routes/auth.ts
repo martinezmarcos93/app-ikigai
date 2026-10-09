@@ -180,6 +180,113 @@ export function registerAuthRoutes(
     }
   );
 
+  app.post<{ Body: { email: string } }>("/api/v1/auth/password-reset/request", {
+    schema: {
+      body: {
+        type: "object",
+        required: ["email"],
+        additionalProperties: false,
+        properties: { email: { type: "string", minLength: 3, maxLength: 254, format: "email" } }
+      }
+    }
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    if (!requireAllowedOrigin(request, reply, config)) return;
+    const email = request.body.email.trim().toLowerCase();
+    const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-ip", request.ip), 10, 60);
+    const emailLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-email", email), 3, 3600);
+    const genericResponse = {
+      message: "If an eligible account exists, instructions will be sent to its registered email address."
+    };
+    if (!ipLimit.allowed || !emailLimit.allowed || !passwordResetDelivery || !passwordResetBaseUrl) {
+      return reply.code(202).send(genericResponse);
+    }
+
+    const found = await db.query<{ id: string; email: string } & Record<string, unknown>>(
+      "SELECT id,email FROM users WHERE email=$1 AND status='active' AND auth_provider='local' LIMIT 1",
+      [email]
+    );
+    const user = found.rows[0];
+    if (!user) return reply.code(202).send(genericResponse);
+
+    const rawToken = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    await db.query(
+      "UPDATE password_reset_tokens SET used_at=now() WHERE user_id=$1 AND used_at IS NULL",
+      [user.id]
+    );
+    await db.query(
+      "INSERT INTO password_reset_tokens (user_id,token_hash,expires_at,request_id) VALUES ($1,$2,$3,$4)",
+      [user.id, tokenHash(rawToken), expiresAt.toISOString(), request.id]
+    );
+    const resetUrl = new URL(passwordResetBaseUrl);
+    resetUrl.searchParams.set("token", rawToken);
+    try {
+      await passwordResetDelivery(user.email, resetUrl.toString());
+    } catch (error) {
+      await db.query(
+        "UPDATE password_reset_tokens SET used_at=now() WHERE token_hash=$1 AND used_at IS NULL",
+        [tokenHash(rawToken)]
+      );
+      request.log.error({ err: error, event: "password_reset_delivery_failed" }, "Password reset delivery failed");
+    }
+    return reply.code(202).send(genericResponse);
+  });
+
+  app.post<{ Body: { token: string; password: string } }>("/api/v1/auth/password-reset/complete", {
+    schema: {
+      body: {
+        type: "object",
+        required: ["token", "password"],
+        additionalProperties: false,
+        properties: {
+          token: { type: "string", minLength: 32, maxLength: 128 },
+          password: { type: "string", minLength: 12, maxLength: 128 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    if (!requireAllowedOrigin(request, reply, config)) return;
+    const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-complete-ip", request.ip), 10, 3600);
+    if (!ipLimit.allowed) {
+      reply.header("Retry-After", String(ipLimit.retryAfterSeconds));
+      return reply.code(429).send({
+        error: "too_many_attempts",
+        message: "Too many password-reset attempts. Try again later."
+      });
+    }
+    const digest = tokenHash(request.body.token);
+    const passwordHash = await hashPassword(request.body.password);
+    const work = async (tx: Database): Promise<boolean> => {
+      const found = await tx.query<{ id: string; user_id: string } & Record<string, unknown>>(
+        "SELECT prt.id, prt.user_id FROM password_reset_tokens prt JOIN users u ON u.id=prt.user_id WHERE prt.token_hash=$1 AND prt.used_at IS NULL AND prt.expires_at>now() AND u.status='active' AND u.auth_provider='local' FOR UPDATE OF prt,u",
+        [digest]
+      );
+      const token = found.rows[0];
+      if (!token) return false;
+      await tx.query("UPDATE users SET password_hash=$1,updated_at=now() WHERE id=$2", [passwordHash, token.user_id]);
+      await tx.query("UPDATE password_reset_tokens SET used_at=now() WHERE user_id=$1 AND used_at IS NULL", [token.user_id]);
+      const revoked = await tx.query(
+        "UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL RETURNING id",
+        [token.user_id]
+      );
+      await tx.query(
+        "INSERT INTO audit_events (action,entity_type,entity_id,request_id,after_data) VALUES ('user.password_reset_completed','user',$1,$2,$3::jsonb)",
+        [token.user_id, request.id, JSON.stringify({ sessionsRevoked: revoked.rowCount ?? revoked.rows.length })]
+      );
+      return true;
+    };
+    const completed = transactionalDb ? await transactionalDb.transaction(work) : await work(db);
+    if (!completed) {
+      return reply.code(400).send({
+        error: "invalid_or_expired_reset_token",
+        message: "The reset link is invalid, expired, or already used."
+      });
+    }
+    return reply.code(200).send({ message: "Password updated. Sign in again with the new password." });
+  });
+
   app.get("/api/v1/auth/me", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const session = await currentSession(request, db);
