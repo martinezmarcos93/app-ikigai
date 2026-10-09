@@ -201,6 +201,12 @@ export function registerAuthRoutes(
     if (!ipLimit.allowed || !emailLimit.allowed || !passwordResetDelivery || !passwordResetBaseUrl) {
       return reply.code(202).send(genericResponse);
     }
+    if (!transactionalDb) {
+      return reply.code(503).send({
+        error: "password_reset_unavailable",
+        message: "Password reset is temporarily unavailable."
+      });
+    }
 
     const rawToken = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
@@ -221,7 +227,7 @@ export function registerAuthRoutes(
       );
       return user;
     };
-    const user = transactionalDb ? await transactionalDb.transaction(issueToken) : await issueToken(db);
+    const user = await transactionalDb.transaction(issueToken);
     if (!user) return reply.code(202).send(genericResponse);
     const resetUrl = new URL(passwordResetBaseUrl);
     resetUrl.searchParams.set("token", rawToken);
@@ -260,6 +266,12 @@ export function registerAuthRoutes(
         message: "Too many password-reset attempts. Try again later."
       });
     }
+    if (!transactionalDb) {
+      return reply.code(503).send({
+        error: "password_reset_unavailable",
+        message: "Password reset is temporarily unavailable."
+      });
+    }
     const digest = tokenHash(request.body.token);
     const passwordHash = await hashPassword(request.body.password);
     const work = async (tx: Database): Promise<boolean> => {
@@ -281,7 +293,7 @@ export function registerAuthRoutes(
       );
       return true;
     };
-    const completed = transactionalDb ? await transactionalDb.transaction(work) : await work(db);
+    const completed = await transactionalDb.transaction(work);
     if (!completed) {
       return reply.code(400).send({
         error: "invalid_or_expired_reset_token",
