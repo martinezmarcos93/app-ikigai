@@ -27,7 +27,7 @@
 - **Criterio de cierre:** documentación enlazada y no contradictoria; dependencias bloqueadas; CI verde en el commit de la fase; ninguna afirmación de producción sin evidencia.
 
 ### Fase 2 — Identidad visual, logo y assets de Ikigai
-**Prioridad visual explícita: máxima.** Primer sistema de tokens, PWA, sprite de iconos y cuatro ilustraciones SVG creados. La variante transparente del logo queda bloqueada por la ausencia de un maestro editable; no se falsea con borrado automático del negro.
+**Prioridad visual explícita: máxima. Estado: sistema de marca y assets funcionales integrados; variante fiel/vectorial del logo bloqueada por falta del maestro editable.** Primer sistema de tokens, PWA, sprite de iconos y cuatro ilustraciones SVG creados. La variante transparente del logo queda bloqueada por la ausencia de un maestro editable; no se falsea con borrado automático del negro.
 
 - [x] Inspeccionar el logo actual original: 720×690 px; composición centrada con nombre angular metálico, samurái con pesas, fondo rojo geométrico y fondo negro; documentar límites del JPG.
 - [x] Medir y documentar la paleta real: rojo dominante `#E31A20`, acento `#EC2124`, negro `#000000` y gris metálico aproximado `#808281`.
