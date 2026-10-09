@@ -32,8 +32,10 @@ No requiere instalar dependencias. Usa HTML, CSS y JavaScript sin backend. Los c
 
 No hay inicio de sesión real ni separación de permisos segura: el selector de rol es sólo para recorrer la demo. Los datos son ficticios y se guardan en el navegador. Las notificaciones son internas de la demo; no se envían push, email ni WhatsApp. El registro de asistencia no tiene historial persistente separado. No usar importes de profesores, saldos ni datos de ejemplo para operar el gimnasio.
 
-## Próxima etapa sugerida
+## Enfoque Android-first
 
-1. Validar con Agustín las reglas de negocio: planes, precios, vigencias, quién puede asignar rutinas, cómo se liquida cada profe y políticas de cancelación.
-2. Separar la interfaz de la API y persistencia real. Para una app Android, considerar frontend web instalable (PWA) primero o envoltorio Android después; la decisión depende de requerimientos offline y notificaciones push.
-3. Añadir autenticación, roles de servidor, base de datos, historial de auditoría, notificaciones push y pruebas automatizadas antes de usar información real.
+La rama `feat/android-first-product-foundation` incorpora mejoras iniciales para pantallas compactas, objetivos táctiles, áreas seguras, navegación móvil accesible y una base PWA instalable con caché del shell estático. La caché no sincroniza datos entre dispositivos ni convierte `localStorage` en almacenamiento multiusuario.
+
+## Hoja de ruta
+
+Consultar [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md) para las decisiones de producto, reglas funcionales, fases y criterios de aceptación móvil. La demo sigue siendo local: no usar datos reales hasta implementar backend, autenticación, autorización del lado servidor, base de datos compartida y pruebas.
