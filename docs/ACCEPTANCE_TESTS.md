@@ -158,3 +158,10 @@
 - [ ] La configuración de producción rechaza URL sin HTTPS, con credenciales, query/fragment o un origen fuera de CORS.
 - [ ] El rate limit compartido se verifica entre dos instancias API con pools PostgreSQL separados.
 - [ ] La restauración de backup se verifica en una base descartable; no se confunde con backups de producción configurados.
+
+## Autorización de asistencia y rutinas
+
+- [ ] El miembro puede leer sólo su propio historial de asistencia; el acceso cruzado devuelve `404`.
+- [ ] El profesor asignado a una sesión puede consultar y corregir asistencia; otro profesor no puede leer ni escribir esa sesión.
+- [ ] Los endpoints de rutinas permiten alcance propio del miembro y alcance del profesor sólo cuando existe una asignación vigente o reserva dentro de la ventana definida.
+- [ ] Los intentos de escritura de miembros en endpoints exclusivos de administración/profesores son rechazados en el servidor, aunque el cliente invoque la API directamente.
