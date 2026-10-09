@@ -15,6 +15,7 @@ Documentación relacionada:
 - [Matriz de autorización por endpoint](docs/SECURITY_ROUTE_MATRIX.md)
 - [Copias de seguridad y restauración](docs/OPERATIONS_BACKUP_RESTORE.md)
 - [Documentación de la API](server/README.md)
+- [Inventario de integración del portal y API](docs/PORTAL_API_INVENTORY.md)
 
 ## Demo local
 
