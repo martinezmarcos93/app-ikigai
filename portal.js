@@ -43,7 +43,7 @@
   const setLoading = (message = "Consultando la API…") => {
     $("#pageContent").innerHTML = `<div class="loading">${esc(message)}</div>`;
   };
-  const empty = message => `<div class="empty">${esc(message)}</div>`;
+  const empty = (message, illustration = null) => `<div class="empty">${illustration ? `<img class="state-illustration empty-illustration" src="./assets/illustrations/${esc(illustration)}" alt="" aria-hidden="true">` : ""}<p>${esc(message)}</p></div>`;
   const field = (label, name, type = "text", opts = {}) => {
     const required = opts.required ? " required" : "";
     const min = opts.min !== undefined ? ` min="${esc(opts.min)}"` : "";
@@ -206,11 +206,13 @@
     const result = await api.listMembers(100, 0);
     state.members = result.items || [];
     state.selectedMember = selected(memberOptions(), state.selectedMember);
-    const list = table(["Miembro","Estado","Alta","Acciones"], state.members.map(m => row([
-      `<strong>${esc(m.full_name)}</strong><small class="muted">${esc(m.email || m.phone || "Sin contacto")}</small>`,
-      statusBadge(m.status),date(m.joined_on),
-      `<button class="button small" type="button" data-action="edit-member" data-id="${esc(m.id)}">Ver / editar</button>`
-    ])));
+    const list = state.members.length
+      ? table(["Miembro","Estado","Alta","Acciones"], state.members.map(m => row([
+          `<strong>${esc(m.full_name)}</strong><small class="muted">${esc(m.email || m.phone || "Sin contacto")}</small>`,
+          statusBadge(m.status),date(m.joined_on),
+          `<button class="button small" type="button" data-action="edit-member" data-id="${esc(m.id)}">Ver / editar</button>`
+        ])))
+      : empty("Todavía no hay miembros registrados.", "empty-members.svg");
     const create = form("Alta de miembro","create-member",
       field("Nombre completo","full_name","text",{required:true,wide:true})+
       field("Correo","email","email")+
