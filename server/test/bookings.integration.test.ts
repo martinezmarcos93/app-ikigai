@@ -23,7 +23,7 @@ interface TestActor {
   csrfToken: string;
 }
 
-async function createActor(pool: pg.Pool, name: string): Promise<TestActor> {
+async function createActor(pool: pg.Pool, name: string, role: "member" | "admin" = "member"): Promise<TestActor> {
   const email = `it-${randomUUID()}@example.test`;
   const insertedUser = await pool.query(
     `INSERT INTO users (email, password_hash, auth_provider, status)
@@ -32,7 +32,7 @@ async function createActor(pool: pg.Pool, name: string): Promise<TestActor> {
     [email, "integration-test-placeholder-hash"]
   );
   const userId = insertedUser.rows[0]?.id as string;
-  await pool.query("INSERT INTO user_roles (user_id, role) VALUES ($1, 'member')", [userId]);
+  await pool.query("INSERT INTO user_roles (user_id, role) VALUES ($1, $2)", [userId, role]);
   const insertedMember = await pool.query(
     `INSERT INTO member_profiles (user_id, full_name, status)
      VALUES ($1, $2, 'active')
@@ -137,6 +137,20 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
     [first.memberId]
   );
   assert.equal(profileAudit.rows[0]?.total, 1);
+
+  const admin = await createActor(pool, `Integration Admin ${suffix}`, "admin");
+  const invalidDates = await app.inject({
+    method: "PATCH",
+    url: `/api/v1/members/${first.memberId}`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: { joined_on: "2026-12-31", exited_on: "2026-01-01" }
+  });
+  assert.equal(invalidDates.statusCode, 400);
+  assert.equal(invalidDates.json().error, "invalid_date_range");
 
   async function book(actor: TestActor, sessionId: string) {
     return app.inject({
