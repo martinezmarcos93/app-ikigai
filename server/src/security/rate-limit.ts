@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { Database } from "../db.js";
 
+let callsSinceCleanup = 0;
+
 export interface RateLimitResult {
   allowed: boolean;
   hits: number;
@@ -15,7 +17,7 @@ export function opaqueRateLimitKey(namespace: string, value: string): string {
 /**
  * Atomic PostgreSQL-backed fixed-window counter shared by all API instances.
  * The key must be opaque; do not persist raw IP addresses or email addresses.
- * Expired counters are pruned in the same statement to keep storage bounded.
+ * Expired counters are pruned opportunistically every 100 auth attempts.
  */
 export async function consumeSharedRateLimit(
   db: Database,
@@ -27,8 +29,13 @@ export async function consumeSharedRateLimit(
     throw new Error("Rate-limit settings must be positive integers.");
   }
 
+  callsSinceCleanup += 1;
+  if (callsSinceCleanup >= 100) {
+    callsSinceCleanup = 0;
+    await db.query("DELETE FROM auth_rate_limit_buckets WHERE expires_at < now()");
+  }
+
   const result = await db.query<{ hits: number; retry_after_seconds: number } & Record<string, unknown>>(
-    "WITH cleanup AS (DELETE FROM auth_rate_limit_buckets WHERE expires_at < now()) " +
     "INSERT INTO auth_rate_limit_buckets (bucket_key, window_started_at, hits, expires_at, updated_at) " +
     "VALUES ($1, now(), 1, now() + ($2 * interval '1 second'), now()) " +
     "ON CONFLICT (bucket_key) DO UPDATE SET " +
