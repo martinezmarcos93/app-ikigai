@@ -1,0 +1,35 @@
+name: Generate brand-derived PWA assets (temporary)
+
+on:
+  push:
+    branches: [feat/brand-assets-system]
+    paths: [.github/workflows/generate-assets.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/brand-assets-system
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned image-generation dependency
+        run: python -m pip install -r requirements-assets.txt
+      - name: Generate assets from the original Ikigai logo
+        run: python scripts/generate-pwa-icons.py
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/pwa assets/social
+          if git diff --cached --quiet; then
+            echo "Generated assets are already current."
+            exit 0
+          fi
+          git commit -m "assets: generate PWA and social images from brand logo"
+          git push origin HEAD:feat/brand-assets-system
