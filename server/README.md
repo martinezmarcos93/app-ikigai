@@ -39,7 +39,7 @@ npm run db:migrate
 
 The migration runner applies numbered SQL files once, uses a PostgreSQL advisory lock to avoid concurrent migration runners, and wraps each migration in a transaction. Test the migration against a disposable database before using any persistent environment. Do not point it at a production database.
 
-The initial schema includes profiles, roles, services/memberships, append-only account movements, class templates and dated sessions, recurring assignments, bookings, attendance, monthly coach obligations/payments, routines, sessions and audit events. Financial and audit rows are protected against update/delete; corrections must be represented by compensating records.
+The initial schema includes profiles, roles, services/memberships, append-only account movements, class templates and dated sessions, recurring assignments, bookings, attendance, monthly coach obligations/payments, routines, sessions and audit events. Member ledger entries, coach obligations, coach obligation adjustments, coach payments and audit rows are protected against update/delete. Correcting a monthly obligation requires an append-only adjustment with a reason; corrections to financial history must be represented by new records.
 
 ### Create the first administrator
 
