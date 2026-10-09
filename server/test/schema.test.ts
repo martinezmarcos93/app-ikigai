@@ -10,7 +10,7 @@ test("initial migration defines the core operational entities", () => {
     "users", "user_roles", "member_profiles", "coach_profiles", "services",
     "memberships", "ledger_entries", "class_templates", "class_sessions",
     "recurring_assignments", "bookings", "attendance_records", "coach_obligations",
-    "coach_payments", "exercises", "routines", "routine_versions",
+    "coach_obligation_adjustments", "coach_payments", "exercises", "routines", "routine_versions",
     "routine_exercises", "routine_assignments", "audit_events"
   ]) {
     assert.ok(sql.includes(`CREATE TABLE ${table} `), `missing table: ${table}`);
@@ -26,6 +26,8 @@ test("schema protects active booking uniqueness and capacity bounds", () => {
 
 test("financial and audit evidence is append-only", () => {
   assert.ok(sql.includes("CREATE TRIGGER ledger_entries_append_only"));
+  assert.ok(sql.includes("CREATE TRIGGER coach_obligations_append_only"));
+  assert.ok(sql.includes("CREATE TRIGGER coach_obligation_adjustments_append_only"));
   assert.ok(sql.includes("CREATE TRIGGER coach_payments_append_only"));
   assert.ok(sql.includes("CREATE TRIGGER audit_events_append_only"));
   assert.ok(sql.includes("reject_immutable_record_mutation"));
