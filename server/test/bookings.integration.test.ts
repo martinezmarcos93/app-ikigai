@@ -106,6 +106,38 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   const first = await createActor(pool, `Integration Member A ${suffix}`);
   const second = await createActor(pool, `Integration Member B ${suffix}`);
 
+  const profilePatch = await app.inject({
+    method: "PATCH",
+    url: `/api/v1/members/${first.memberId}`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${first.token}`,
+      "x-csrf-token": first.csrfToken
+    },
+    payload: { phone: "1198765432", emergency_contact_name: "Emergency Test" }
+  });
+  assert.equal(profilePatch.statusCode, 200);
+  assert.equal(profilePatch.json().member.phone, "1198765432");
+  assert.equal(profilePatch.json().member.dni, undefined);
+
+  const forbiddenProfilePatch = await app.inject({
+    method: "PATCH",
+    url: `/api/v1/members/${first.memberId}`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${first.token}`,
+      "x-csrf-token": first.csrfToken
+    },
+    payload: { status: "suspended" }
+  });
+  assert.equal(forbiddenProfilePatch.statusCode, 403);
+
+  const profileAudit = await pool.query(
+    "SELECT count(*)::int AS total FROM audit_events WHERE action = 'member.profile_updated' AND entity_id = $1",
+    [first.memberId]
+  );
+  assert.equal(profileAudit.rows[0]?.total, 1);
+
   async function book(actor: TestActor, sessionId: string) {
     return app.inject({
       method: "POST",
