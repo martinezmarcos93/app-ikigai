@@ -56,4 +56,4 @@ Usarlas con dimensiones responsivas y texto alternativo contextual cuando aporte
 - Símbolos SVG de interfaz: `../icons/ikigai-symbols.svg`
 - Iconos PWA rasterizados: `../pwa/`
 
-Los iconos de aplicación se generan a partir de la imagen fuente sin modificar el dibujo, manteniendo fondo negro y márgenes seguros. No se afirma que tengan fondo transparente.
+Los iconos de aplicación se generan a partir de la imagen fuente sin modificar el dibujo, manteniendo fondo negro y márgenes seguros. No se afirma que tengan fondo transparente. Las cuatro ilustraciones SVG funcionales se incluyen en el shell PWA porque la bienvenida y los estados de desconexión/error deben seguir disponibles cuando se pierde la red; la caché se versiona para forzar su actualización.

@@ -120,7 +120,7 @@ export function registerInvitationRoutes(
         if (!row) throw new Error("Invitation insert did not return a row.");
         await tx.query(
           "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,'user.invitation_created','user',$2,$3,$4::jsonb)",
-          [actor.userId, userId, request.id, JSON.stringify({ email, role, invitationId: row.id, expiresAt: expiresAt.toISOString() })]
+          [actor.userId, userId, request.id, JSON.stringify({ role, invitationId: row.id, expiresAt: expiresAt.toISOString() })]
         );
         return { id: String(row.id), userId, email, role, expiresAt: new Date(row.expires_at as string | Date).toISOString() };
       });
@@ -265,7 +265,7 @@ export function registerInvitationRoutes(
         await tx.query("UPDATE user_invitations SET accepted_at=now() WHERE id=$1", [invitation.id]);
         await tx.query(
           "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,'user.invitation_accepted','user',$2,$3,$4::jsonb)",
-          [userId, userId, request.id, JSON.stringify({ email: activated.rows[0].email })]
+          [userId, userId, request.id, JSON.stringify({ accountActivated: true })]
         );
         return { email: String(activated.rows[0].email) };
       });

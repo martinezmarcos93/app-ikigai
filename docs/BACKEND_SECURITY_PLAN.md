@@ -96,7 +96,7 @@ Usar respuestas de error consistentes (`400` entrada inválida, `401` sin sesió
 ### B2 — Identidad y autorización (primera versión implementada)
 - Login/logout, sesiones revocables, cookies seguras, CSRF, validación de origen y límite de intentos por proceso.
 - Lecturas y escrituras iniciales de perfiles con autorización por rol y alcance.
-- Pendiente: recuperación de contraseña, MFA si se justifica, almacenamiento distribuido de rate limits y revisión de seguridad independiente.
+- Pendiente: configuración del adaptador real de entrega de recuperación en el entorno desplegado, MFA si se justifica y revisión de seguridad independiente. El backend ya implementa tokens de recuperación de un solo uso y rate limits compartidos en PostgreSQL.
 
 ### B3 — Flujos operativos verticales (implementados parcialmente)
 - Reservas y cancelaciones transaccionales con capacidad, corte de 40 minutos, prevención de duplicados y promoción de lista de espera.
@@ -168,3 +168,33 @@ This is an executable foundation, not the production system. Resource-level auth
 4. Extend the transaction-capable repository and audited member-profile writes with integration tests for date constraints and conflict responses.
 5. Extend booking tests for cancellation cutoff, transaction rollback, retries and operational edge cases.
 6. Add PostgreSQL integration tests for ledger append-only behavior and role isolation before exposing production data.
+
+
+## Update — Fase 3 de hardening (2026-10-09)
+
+La matriz endpoint por endpoint está en [SECURITY_ROUTE_MATRIX.md](SECURITY_ROUTE_MATRIX.md). Se documentan los guards y los tests existentes, pero no se considera aprobada hasta que CI se ejecute y se revisen los resultados.
+
+Se añadieron los siguientes controles al backend:
+
+- Recuperación de contraseña: pantalla pública, solicitud con respuesta genérica, token aleatorio de 256 bits, persistencia exclusiva del SHA-256, vencimiento a los 30 minutos, revocación de tokens anteriores, consumo transaccional, cambio de contraseña y revocación de todas las sesiones activas. El enlace lleva el token en el fragmento URL (no se envía al servidor web en la petición inicial) y sólo se entrega mediante un webhook configurado; la respuesta API no contiene el token.
+- Configuración de producción: exige URL HTTPS del adaptador de entrega, token de autenticación de 32 caracteres o más y URL pública HTTPS cuya origin esté en la lista exacta de CORS. Las credenciales deben estar en el gestor de secretos del despliegue.
+- Rate limiting compartido: los endpoints sensibles usan ventanas fijas respaldadas por PostgreSQL para que las réplicas compartan el contador. La clave persistida es un digest de método, ruta e IP; no se persiste la IP en claro. Se conserva el límite local como defensa adicional.
+- Auditoría: se eliminaron emails de los payloads de auditoría de invitación y activación; la actualización de servicios registra campos cambiados y estado/precio, no el objeto completo.
+- Restauración: se añadió `server/scripts/backup-restore-check.sh`, que crea un dump custom, restaura en una base aislada, verifica esquema/historial y una fila marcador, y elimina la base temporal. CI ejecuta este ensayo en PostgreSQL descartable.
+
+### Contrato del adaptador de recuperación
+
+El endpoint configurado en `PASSWORD_RESET_DELIVERY_URL` recibe un POST HTTPS autenticado con Bearer token. Para una cuenta válida recibe `type=ikigai.password_reset`, `to`, `resetUrl`, `expiresAt` y `requestId`; para un email desconocido recibe `type=ikigai.password_reset_noop`, `to` y `requestId`. El adaptador debe encolar con rapidez, enviar correo sólo para el evento real y evitar registrar el token o la URL completa. No se incluye un proveedor de correo ficticio ni se exponen tokens por API para compensar una configuración faltante.
+
+### Puertas que siguen abiertas
+
+- Probar CI de extremo a extremo en el commit final, incluido el ensayo de restauración.
+- Configurar el adaptador real de entrega y verificar entrega/expiración en un entorno de prueba.
+- Elegir proveedor de infraestructura y definir backups automáticos cifrados, retención, permisos, RPO/RTO y recuperación ante desastre. El ensayo en CI no sustituye esa política de producción.
+- Completar una matriz negativa de autorización para todos los endpoints y obtener una revisión de seguridad independiente.
+- No usar datos reales ni declarar la aplicación lista para producción mientras estas puertas permanezcan abiertas.
+
+
+## Estado de endurecimiento transversal
+
+Los identificadores del rate limit compartido se derivan mediante HMAC-SHA-256 con `SESSION_SECRET`, no mediante un hash simple de IP/ruta. `TRUST_PROXY_HOPS` vale `0` por defecto y sólo debe elevarse cuando el ingreso esté restringido y se conozca la cadena exacta de proxies. La URL pública de recuperación debe ser HTTPS, no contener credenciales/query/fragmento y compartir origen con un valor explícito de `CORS_ORIGINS`.

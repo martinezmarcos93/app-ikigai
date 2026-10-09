@@ -4,8 +4,12 @@ export interface AppConfig {
   nodeEnv: NodeEnvironment;
   host: string;
   port: number;
+  trustProxyHops: number;
   corsOrigins: string[];
   sessionSecret: string;
+  passwordResetDeliveryUrl?: string;
+  passwordResetDeliveryToken?: string;
+  passwordResetPublicUrl?: string;
 }
 
 export type EnvironmentSource = Record<string, string | undefined>;
@@ -24,6 +28,12 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
 
   const host = (env.HOST ?? "127.0.0.1").trim();
   if (!host) throw new Error("HOST must not be empty.");
+
+  const rawTrustProxyHops = env.TRUST_PROXY_HOPS ?? "0";
+  const trustProxyHops = Number(rawTrustProxyHops);
+  if (!Number.isInteger(trustProxyHops) || trustProxyHops < 0 || trustProxyHops > 5) {
+    throw new Error("TRUST_PROXY_HOPS must be an integer between 0 and 5.");
+  }
 
   const rawOrigins = env.CORS_ORIGINS;
   if (rawEnv === "production" && !rawOrigins?.trim()) {
@@ -51,6 +61,43 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
     throw new Error("SESSION_SECRET must be explicitly configured with at least 32 characters in production.");
   }
   const sessionSecret = env.SESSION_SECRET ?? "development-only-session-secret-change-before-deploy";
+  const passwordResetDeliveryUrl = env.PASSWORD_RESET_DELIVERY_URL?.trim();
+  const passwordResetDeliveryToken = env.PASSWORD_RESET_DELIVERY_TOKEN?.trim();
+  const passwordResetPublicUrl = env.PASSWORD_RESET_PUBLIC_URL?.trim();
 
-  return { nodeEnv: rawEnv, host, port, corsOrigins, sessionSecret };
+  if (rawEnv === "production") {
+    if (!passwordResetDeliveryUrl || !passwordResetDeliveryToken || !passwordResetPublicUrl) {
+      throw new Error("PASSWORD_RESET_DELIVERY_URL, PASSWORD_RESET_DELIVERY_TOKEN, and PASSWORD_RESET_PUBLIC_URL must be configured in production.");
+    }
+    let delivery: URL;
+    let publicUrl: URL;
+    try {
+      delivery = new URL(passwordResetDeliveryUrl);
+      publicUrl = new URL(passwordResetPublicUrl);
+    } catch {
+      throw new Error("Password reset delivery and public URLs must be valid absolute URLs.");
+    }
+    if (delivery.protocol !== "https:" || publicUrl.protocol !== "https:") {
+      throw new Error("Password reset delivery and public URLs must use HTTPS in production.");
+    }
+    if (delivery.username || delivery.password || publicUrl.username || publicUrl.password) {
+      throw new Error("Password reset delivery and public URLs must not contain credentials.");
+    }
+    if (publicUrl.search || publicUrl.hash) {
+      throw new Error("PASSWORD_RESET_PUBLIC_URL must not contain a query string or fragment.");
+    }
+    if (passwordResetDeliveryToken.length < 32) {
+      throw new Error("PASSWORD_RESET_DELIVERY_TOKEN must contain at least 32 characters in production.");
+    }
+    if (!corsOrigins.includes(publicUrl.origin)) {
+      throw new Error("PASSWORD_RESET_PUBLIC_URL origin must be included in CORS_ORIGINS.");
+    }
+  }
+
+  return {
+    nodeEnv: rawEnv, host, port, trustProxyHops, corsOrigins, sessionSecret,
+    ...(passwordResetDeliveryUrl ? { passwordResetDeliveryUrl } : {}),
+    ...(passwordResetDeliveryToken ? { passwordResetDeliveryToken } : {}),
+    ...(passwordResetPublicUrl ? { passwordResetPublicUrl } : {})
+  };
 }

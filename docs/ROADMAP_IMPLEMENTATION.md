@@ -27,7 +27,7 @@
 - **Criterio de cierre:** documentación enlazada y no contradictoria; dependencias bloqueadas; CI verde en el commit de la fase; ninguna afirmación de producción sin evidencia.
 
 ### Fase 2 — Identidad visual, logo y assets de Ikigai
-**Prioridad visual explícita: máxima.** Primer sistema de tokens, PWA, sprite de iconos y cuatro ilustraciones SVG creados. La variante transparente del logo queda bloqueada por la ausencia de un maestro editable; no se falsea con borrado automático del negro.
+**Prioridad visual explícita: máxima.** Sistema de tokens, PWA, sprite de iconos y cuatro ilustraciones SVG creados. Bienvenida, lista de miembros vacía y errores de red/servidor ya muestran ilustraciones contextuales; la variante transparente del logo sigue bloqueada por la falta de un maestro editable.
 
 - [x] Inspeccionar el logo actual original: 720×690 px; composición centrada con nombre angular metálico, samurái con pesas, fondo rojo geométrico y fondo negro; documentar límites del JPG.
 - [x] Medir y documentar la paleta real: rojo dominante `#E31A20`, acento `#EC2124`, negro `#000000` y gris metálico aproximado `#808281`.
@@ -38,23 +38,31 @@
 - [x] Crear favicon y set PWA 192×192, 512×512 y maskable; preservar proporciones y zona segura.
 - [x] Crear e integrar un sprite SVG funcional en las navegaciones de demo y portal.
 - [x] Crear un primer conjunto de ilustraciones SVG transparentes para bienvenida, miembros vacíos, desconexión y error; documentar usos y límites.
-- [ ] Integrar las ilustraciones en pantallas concretas sólo tras revisar sus flujos y evitar imágenes decorativas redundantes.
+- [x] Integrar bienvenida en el login, miembros vacíos en la tabla de miembros y desconexión/error de servidor en avisos contextuales; el texto accionable se conserva.
+- [x] Incluir las cuatro ilustraciones pequeñas en el shell PWA y versionar la caché para que los estados de desconexión/error estén disponibles offline.
 - [x] Crear imagen Open Graph y guía de uso de marca, paleta, tipografía, tamaños y fondos permitidos.
 - [x] Actualizar manifest, metadatos, service worker y rutas de recursos tras generar los assets.
 - [x] Registrar procedencia de la marca y mantener los iconos esenciales como recursos locales.
 - **Criterio de cierre:** recursos versionados, transparencia comprobada, rutas validadas por CI, coherencia entre pantallas y revisión visual en tamaños pequeños y grandes. No se considera aprobado un rediseño que sustituya o distorsione el logo original.
 
 ### Fase 3 — Seguridad y robustez del backend
-- [ ] Completar matriz de autorización por rol y alcance, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
-- [ ] Implementar recuperación de contraseña con tokens de un solo uso, expiración, invalidación y respuestas que no permitan enumerar cuentas.
-- [ ] Sustituir limitación de intentos en memoria por almacenamiento compartido apto para múltiples instancias.
-- [ ] Revisar cookies, CSRF, validación de Origin, CORS, expiración/revocación de sesión, cabeceras y respuestas `no-store`.
-- [ ] Revisar validación de entrada, límites de tamaño, errores estables, idempotencia, transacciones y auditoría.
-- [ ] Confirmar que los eventos de auditoría no copian DNI, credenciales, tokens ni datos de contacto innecesarios.
-- [ ] Documentar secretos y configuración por entorno; nunca guardar secretos en el repositorio.
-- [ ] Configurar copias de seguridad y ensayar una restauración completa en un entorno descartable.
-- [ ] Ejecutar pruebas de seguridad y revisión independiente antes de datos reales.
-- **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; riesgos pendientes explícitos.
+**Estado: implementación en validación. No habilita todavía datos reales.**
+
+- [ ] Completar matriz de autorización por rol y alcance para todos los endpoints, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
+- [x] Añadir regresiones para el helper de alcance miembro/profesor/administración y comprobar en PostgreSQL que un profesor asignado puede gestionar asistencia mientras otro profesor queda bloqueado.
+- [x] Implementar recuperación de contraseña con token aleatorio de un solo uso, digest persistido, expiración de 30 minutos, invalidación de tokens previos, revocación de sesiones y respuesta que evita enumerar cuentas.
+- [x] Añadir la pantalla de solicitud/confirmación; el token viaja en el fragmento URL, se elimina de la barra al leerlo y la página no carga recursos de terceros.
+- [x] Exigir en producción un adaptador de entrega HTTPS autenticado para enviar el enlace de recuperación; la configuración del proveedor concreto sigue siendo una tarea de despliegue.
+- [x] Sustituir el rate limit sólo en memoria por un límite fijo compartido en PostgreSQL para login, recuperación y rutas administrativas sensibles; la clave se deriva mediante HMAC-SHA-256 con `SESSION_SECRET` y se limpian buckets antiguos.
+- [x] Añadir prueba de integración que usa dos instancias/pools independientes y comprueba que el sexto intento excede el límite compartido.
+- [x] Rechazar URLs públicas de recuperación con credenciales, query o fragmento preexistente; verificar HTTPS, origen CORS y clave del adaptador.
+- [x] Revisar cookies HttpOnly/SameSite/Secure, CSRF, Origin, CORS exacto, expiración y revocación de sesiones, cabeceras y respuestas `no-store`; conservar las defensas existentes y añadir controles de producción.
+- [x] Mantener esquemas de entrada estrictos, límite de cuerpo, errores estables, idempotencia, transacciones y auditoría; reducir payloads de auditoría que contenían emails o datos descriptivos innecesarios.
+- [x] Validar configuración por entorno y documentar secretos del proveedor de recuperación; no se agregan secretos reales al repositorio.
+- [x] Añadir un ensayo automatizado de backup/restore PostgreSQL que comprueba esquema, historial de migraciones y datos restaurados en una base descartable.
+- [ ] Confirmar el ensayo de backup/restore con CI verde en el commit final y definir el procedimiento de backup/restore para el proveedor de producción.
+- [ ] Completar revisión de autorización y seguridad independiente antes de datos reales.
+- **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
 - [ ] Inventariar cada pantalla y acción de la demo y asignar su estado: local, conectada, parcial o pendiente.

@@ -12,6 +12,7 @@ Documentación relacionada:
 - [Modelo de datos](docs/DATA_MODEL.md)
 - [Pruebas de aceptación](docs/ACCEPTANCE_TESTS.md)
 - [Plan de seguridad del backend](docs/BACKEND_SECURITY_PLAN.md)
+- [Matriz de autorización por endpoint](docs/SECURITY_ROUTE_MATRIX.md)
 - [Documentación de la API](server/README.md)
 
 ## Demo local
@@ -28,7 +29,7 @@ La demo contiene vistas de miembros, cuentas corrientes, obligaciones mensuales 
 
 ## Portal conectado a la API
 
-`portal.html` ofrece una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
+`portal.html` ofrece una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. La recuperación de contraseña está disponible en `reset-password.html`; el enlace lleva el token en el fragmento URL, vence a los 30 minutos y requiere configurar el adaptador HTTPS de entrega y `PASSWORD_RESET_PUBLIC_URL` en el servidor. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
 
 Para desarrollo, seguí [server/README.md](server/README.md): requiere Node.js 22 y PostgreSQL. En terminales separadas, ejecutá la API desde `server/` y el servidor estático desde la raíz; después abrí http://localhost:8000/portal.html. En localhost el portal apunta por defecto a la API en el puerto 3001.
 
@@ -46,7 +47,7 @@ La API usa TypeScript, Fastify y PostgreSQL. Incluye una primera implementación
 
 El workflow de GitHub Actions verifica sintaxis de JavaScript, reglas de producto, el manifiesto PWA, TypeScript, tests, build y migraciones contra PostgreSQL. El backend versiona `server/package-lock.json` y CI usa `npm ci` para instalar las dependencias de forma reproducible.
 
-Antes de usar datos reales faltan, entre otros puntos, ampliar las pruebas de autorización, recuperación de contraseña, limitación de intentos compartida entre instancias, revisión de seguridad, backups y restauración ensayada, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
+La Fase 3 agrega una pantalla de recuperación de contraseña, entrega por adaptador HTTPS configurado, rate limiting compartido en PostgreSQL, minimización de auditoría y un ensayo automatizado de backup/restore. Antes de usar datos reales faltan validar el pipeline final, configurar y probar el adaptador real, completar la matriz de autorización de todos los endpoints, obtener una revisión independiente y definir backups cifrados/retención/restauración del proveedor de producción, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
 
 ## Reglas del negocio que no deben alterarse accidentalmente
 

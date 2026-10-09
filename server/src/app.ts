@@ -15,6 +15,7 @@ import { registerRoutineRoutes } from "./routes/routines.js";
 import { registerMembershipRoutes } from "./routes/memberships.js";
 import { registerInvitationRoutes } from "./routes/invitations.js";
 import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
+import { createHmac } from "node:crypto";
 
 export interface AppDependencies {
   db?: Database;
@@ -27,6 +28,7 @@ export async function buildApp(
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: config.nodeEnv !== "test",
+    trustProxy: config.trustProxyHops || false,
     bodyLimit: 1_048_576,
     requestTimeout: 15_000
   });
@@ -49,6 +51,59 @@ export async function buildApp(
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
 
+  // A database-backed fixed-window limiter is shared by all replicas. It only
+  // covers sensitive endpoints; the plugin's local limits remain defense-in-depth.
+  if (dependencies.db) {
+    let rateLimitCleanupCounter = 0;
+    app.addHook("onRequest", async (request, reply) => {
+      const path = request.url.split("?")[0] ?? request.url;
+      const policy = path === "/api/v1/auth/login" ? { max: 5, seconds: 60 }
+        : path === "/api/v1/auth/password-reset/request" ? { max: 3, seconds: 3600 }
+        : path === "/api/v1/auth/password-reset/confirm" ? { max: 5, seconds: 3600 }
+        : path.startsWith("/api/v1/admin/invitations") ? { max: 10, seconds: 60 }
+        : path.startsWith("/api/v1/admin/users/") && (path.endsWith("/reset-access") || path.endsWith("/sessions/revoke"))
+          ? { max: 5, seconds: 60 }
+          : null;
+      if (!policy) return;
+      reply.header("Cache-Control", "no-store");
+
+      rateLimitCleanupCounter += 1;
+      if (rateLimitCleanupCounter % 100 === 0) {
+        await dependencies.db!.query("DELETE FROM rate_limit_buckets WHERE updated_at < now() - interval '24 hours'");
+      }
+      const routeKey = path
+        .replace(/^\/api\/v1\/admin\/invitations\/[^/]+\/(resend|revoke)$/, "/api/v1/admin/invitations/:id/$1")
+        .replace(/^\/api\/v1\/admin\/users\/[^/]+\/(reset-access|sessions\/revoke)$/, "/api/v1/admin/users/:id/$1");
+      const identity = `${request.method}:${routeKey}:${request.ip}`;
+      const key = createHmac("sha256", config.sessionSecret).update(identity).digest("hex");
+      const result = await dependencies.db!.query<{ request_count: number } & Record<string, unknown>>(
+        `INSERT INTO rate_limit_buckets (bucket_key, window_started_at, request_count, updated_at)
+         VALUES ($1, clock_timestamp(), 1, clock_timestamp())
+         ON CONFLICT (bucket_key) DO UPDATE SET
+           request_count = CASE
+             WHEN rate_limit_buckets.window_started_at <= clock_timestamp() - ($2 * interval '1 second') THEN 1
+             ELSE rate_limit_buckets.request_count + 1
+           END,
+           window_started_at = CASE
+             WHEN rate_limit_buckets.window_started_at <= clock_timestamp() - ($2 * interval '1 second') THEN clock_timestamp()
+             ELSE rate_limit_buckets.window_started_at
+           END,
+           updated_at = clock_timestamp()
+         RETURNING request_count`,
+        [key, policy.seconds]
+      );
+      const count = Number(result.rows[0]?.request_count ?? 1);
+      if (count > policy.max) {
+        reply.header("Cache-Control", "no-store");
+        reply.header("Retry-After", String(policy.seconds));
+        return reply.code(429).send({
+          error: "rate_limit_exceeded",
+          message: "Too many requests. Please try again later."
+        });
+      }
+    });
+  }
+
   app.get("/healthz", async () => ({ status: "ok" }));
   app.get("/api/v1/health", async () => ({
     status: "ok",
@@ -58,7 +113,7 @@ export async function buildApp(
 
   const appDb = dependencies.db ?? dependencies.transactionalDb;
   if (appDb) {
-    registerAuthRoutes(app, appDb, config);
+    registerAuthRoutes(app, appDb, config, dependencies.transactionalDb);
     registerMemberRoutes(app, appDb, config, dependencies.transactionalDb);
   }
   if (dependencies.transactionalDb) {

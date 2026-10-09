@@ -179,7 +179,13 @@ export function registerMembershipRoutes(
         if (!after) throw new Error("Service update did not return a row.");
         await tx.query(
           "INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, before_data, after_data) VALUES ($1,'service.updated','service',$2,$3,$4::jsonb,$5::jsonb)",
-          [actor.userId, request.params.id, request.id, JSON.stringify(before), JSON.stringify(after)]
+          [
+            actor.userId,
+            request.params.id,
+            request.id,
+            JSON.stringify({ changedFields: Object.keys(body) }),
+            JSON.stringify({ active: after.active, currentPrice: after.current_price })
+          ]
         );
         return after;
       });

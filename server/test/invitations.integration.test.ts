@@ -80,6 +80,12 @@ test("PostgreSQL invitations activate a scoped account once without storing the 
   });
   assert.equal(created.statusCode, 201);
   assert.equal(created.json().invitation.role, "member");
+  const creationAudit = await pool.query(
+    "SELECT after_data FROM audit_events WHERE action='user.invitation_created' AND entity_id=$1 ORDER BY created_at DESC LIMIT 1",
+    [created.json().invitation.userId]
+  );
+  assert.ok(creationAudit.rows[0]?.after_data);
+  assert.equal("email" in (creationAudit.rows[0]?.after_data as Record<string, unknown>), false);
   const originalToken = String(created.json().invitationToken);
   const originalInvitationId = String(created.json().invitation.id);
   assert.ok(originalToken.length >= 40);
@@ -132,6 +138,12 @@ test("PostgreSQL invitations activate a scoped account once without storing the 
   });
   assert.equal(accepted.statusCode, 200);
   assert.equal(accepted.json().accepted, true);
+  const acceptedAudit = await pool.query(
+    "SELECT after_data FROM audit_events WHERE action='user.invitation_accepted' AND entity_id=$1 ORDER BY created_at DESC LIMIT 1",
+    [created.json().invitation.userId]
+  );
+  assert.ok(acceptedAudit.rows[0]?.after_data);
+  assert.equal("email" in (acceptedAudit.rows[0]?.after_data as Record<string, unknown>), false);
 
   const activeUser = await pool.query(
     "SELECT status,password_hash FROM users WHERE email=$1",

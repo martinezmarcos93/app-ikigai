@@ -132,3 +132,36 @@
 - [ ] Repeating an identical assignment is idempotent; conflicting terms for the same member/version/start date return a conflict.
 - [ ] A member can read only their own assignments and cannot browse the full routine catalogue or create routines.
 - [ ] Assignment and routine-version changes are audited transactionally.
+
+
+## Fase 3 — Seguridad y recuperación de acceso
+
+- [ ] La solicitud de recuperación devuelve el mismo estado y texto para emails existentes y desconocidos; no expone el token ni confirma la existencia de una cuenta.
+- [ ] El token de recuperación se almacena sólo como SHA-256, vence a los 30 minutos, invalida tokens anteriores y no puede reutilizarse.
+- [ ] El token se entrega en el fragmento de URL; la página lo elimina del historial visible tras leerlo y no carga recursos de terceros.
+- [ ] Confirmar el cambio de contraseña revoca todas las sesiones activas y deja evidencia de auditoría sin incluir el token.
+- [ ] La recuperación requiere origen permitido; las solicitudes sensibles tienen respuestas no cacheables y rate limiting compartido entre instancias.
+- [ ] El límite compartido rechaza la cuarta solicitud de recuperación dentro de la ventana horaria, aunque se alternen dos instancias API.
+- [ ] Los eventos de auditoría no contienen emails, contraseñas, tokens, DNI ni teléfonos; se registran sólo identificadores, campos modificados y datos operativos necesarios.
+- [ ] El ensayo de backup/restore restaura esquema, historial de migraciones y datos en una base PostgreSQL descartable.
+- [ ] En producción, el adaptador de correo está configurado con HTTPS y secretos de despliegue; no se registra el enlace completo.
+- [ ] La revisión independiente, la política de backups de producción y las pruebas negativas completas de permisos están aprobadas antes de introducir datos reales.
+
+## Recuperación de contraseña
+
+- [ ] La solicitud devuelve una respuesta pública genérica para cuentas existentes y desconocidas.
+- [ ] La URL de recuperación lleva el token sólo en el fragmento; no aparece en la query ni en auditoría.
+- [ ] El token se almacena como digest, vence a los 30 minutos, es de un solo uso e invalida tokens anteriores.
+- [ ] Si falla la entrega, el token emitido queda revocado o inutilizable.
+- [ ] Completar recuperación cambia la contraseña y revoca todas las sesiones activas.
+- [ ] La pantalla lee el fragmento y lo elimina inmediatamente del historial del navegador.
+- [ ] La configuración de producción rechaza URL sin HTTPS, con credenciales, query/fragment o un origen fuera de CORS.
+- [ ] El rate limit compartido se verifica entre dos instancias API con pools PostgreSQL separados.
+- [ ] La restauración de backup se verifica en una base descartable; no se confunde con backups de producción configurados.
+
+## Autorización de asistencia y rutinas
+
+- [ ] El miembro puede leer sólo su propio historial de asistencia; el acceso cruzado devuelve `404`.
+- [ ] El profesor asignado a una sesión puede consultar y corregir asistencia; otro profesor no puede leer ni escribir esa sesión.
+- [ ] Los endpoints de rutinas permiten alcance propio del miembro y alcance del profesor sólo cuando existe una asignación vigente o reserva dentro de la ventana definida.
+- [ ] Los intentos de escritura de miembros en endpoints exclusivos de administración/profesores son rechazados en el servidor, aunque el cliente invoque la API directamente.

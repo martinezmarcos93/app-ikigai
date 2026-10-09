@@ -41,6 +41,31 @@ async function createActor(pool: pg.Pool, name: string, role: "admin" | "member"
   };
 }
 
+async function createCoachActor(pool: pg.Pool, name: string) {
+  const email = `attendance-coach-${randomUUID()}@example.test`;
+  const user = await pool.query(
+    "INSERT INTO users (email,password_hash,auth_provider,status) VALUES ($1,$2,'local','active') RETURNING id",
+    [email, "integration-test-placeholder-hash"]
+  );
+  const userId = String(user.rows[0]?.id);
+  await pool.query("INSERT INTO user_roles (user_id,role) VALUES ($1,'coach')", [userId]);
+  const profile = await pool.query(
+    "INSERT INTO coach_profiles (user_id,full_name,discipline,active) VALUES ($1,$2,'Test',true) RETURNING id",
+    [userId, name]
+  );
+  const token = randomBytes(32).toString("base64url");
+  await pool.query(
+    "INSERT INTO sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)",
+    [userId, createHash("sha256").update(token).digest("hex"), new Date(Date.now() + 60 * 60_000).toISOString()]
+  );
+  return {
+    userId,
+    coachId: String(profile.rows[0]?.id),
+    token,
+    csrfToken: csrfTokenFor(token, config.sessionSecret)
+  };
+}
+
 function headers(actor: { token: string; csrfToken: string }) {
   return {
     origin,
@@ -73,14 +98,12 @@ test("PostgreSQL attendance is historical, correctable, and scoped to the member
     "INSERT INTO services (name,active) VALUES ($1,true) RETURNING id",
     [`Attendance Service ${suffix}`]
   );
-  const coach = await pool.query(
-    "INSERT INTO coach_profiles (full_name,discipline,active) VALUES ($1,'Test',true) RETURNING id",
-    [`Attendance Coach ${suffix}`]
-  );
+  const coachActor = await createCoachActor(pool, `Attendance Coach ${suffix}`);
+  const otherCoach = await createCoachActor(pool, `Other Attendance Coach ${suffix}`);
   const template = await pool.query(
     `INSERT INTO class_templates (service_id,coach_id,weekday,local_start_time,duration_minutes,capacity,active)
      VALUES ($1,$2,$3,'18:00',60,10,true) RETURNING id`,
-    [service.rows[0]?.id, coach.rows[0]?.id, new Date().getUTCDay()]
+    [service.rows[0]?.id, coachActor.coachId, new Date().getUTCDay()]
   );
   const startsAt = new Date(Date.now() - 60 * 60_000);
   const endsAt = new Date(Date.now() - 30 * 60_000);
@@ -147,6 +170,37 @@ test("PostgreSQL attendance is historical, correctable, and scoped to the member
     payload: { records: [{ bookingId, attended: true }] }
   });
   assert.equal(memberWrite.statusCode, 404);
+
+  const assignedCoachRead = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions/${sessionId}/attendance`,
+    headers: { cookie: `ikigai_session=${coachActor.token}` }
+  });
+  assert.equal(assignedCoachRead.statusCode, 200);
+
+  const assignedCoachWrite = await app.inject({
+    method: "PUT",
+    url: `/api/v1/class-sessions/${sessionId}/attendance`,
+    headers: headers(coachActor),
+    payload: { records: [{ bookingId, attended: false }] }
+  });
+  assert.equal(assignedCoachWrite.statusCode, 200);
+  assert.equal(assignedCoachWrite.json().unchanged, 1);
+
+  const otherCoachRead = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions/${sessionId}/attendance`,
+    headers: { cookie: `ikigai_session=${otherCoach.token}` }
+  });
+  assert.equal(otherCoachRead.statusCode, 404);
+
+  const otherCoachWrite = await app.inject({
+    method: "PUT",
+    url: `/api/v1/class-sessions/${sessionId}/attendance`,
+    headers: headers(otherCoach),
+    payload: { records: [{ bookingId, attended: true }] }
+  });
+  assert.equal(otherCoachWrite.statusCode, 404);
 
   const records = await pool.query("SELECT count(*)::int AS total, bool_and(attended) AS all_attended FROM attendance_records WHERE booking_id=$1", [bookingId]);
   assert.equal(records.rows[0]?.total, 1);
