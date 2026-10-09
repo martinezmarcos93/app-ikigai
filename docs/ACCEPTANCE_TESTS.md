@@ -132,3 +132,17 @@
 - [ ] Repeating an identical assignment is idempotent; conflicting terms for the same member/version/start date return a conflict.
 - [ ] A member can read only their own assignments and cannot browse the full routine catalogue or create routines.
 - [ ] Assignment and routine-version changes are audited transactionally.
+
+
+## Fase 3 — Seguridad y recuperación de acceso
+
+- [ ] La solicitud de recuperación devuelve el mismo estado y texto para emails existentes y desconocidos; no expone el token ni confirma la existencia de una cuenta.
+- [ ] El token de recuperación se almacena sólo como SHA-256, vence a los 30 minutos, invalida tokens anteriores y no puede reutilizarse.
+- [ ] El token se entrega en el fragmento de URL; la página lo elimina del historial visible tras leerlo y no carga recursos de terceros.
+- [ ] Confirmar el cambio de contraseña revoca todas las sesiones activas y deja evidencia de auditoría sin incluir el token.
+- [ ] La recuperación requiere origen permitido; las solicitudes sensibles tienen respuestas no cacheables y rate limiting compartido entre instancias.
+- [ ] El límite compartido rechaza la cuarta solicitud de recuperación dentro de la ventana horaria, aunque se alternen dos instancias API.
+- [ ] Los eventos de auditoría no contienen emails, contraseñas, tokens, DNI ni teléfonos; se registran sólo identificadores, campos modificados y datos operativos necesarios.
+- [ ] El ensayo de backup/restore restaura esquema, historial de migraciones y datos en una base PostgreSQL descartable.
+- [ ] En producción, el adaptador de correo está configurado con HTTPS y secretos de despliegue; no se registra el enlace completo.
+- [ ] La revisión independiente, la política de backups de producción y las pruebas negativas completas de permisos están aprobadas antes de introducir datos reales.
