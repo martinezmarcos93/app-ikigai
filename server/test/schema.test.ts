@@ -42,6 +42,9 @@ test("sessions store only a digest of opaque tokens and support revocation/expir
 
 test("money uses exact numeric types and monthly obligations are period-scoped", () => {
   assert.ok(sql.includes("amount numeric(12,2)"));
+  assert.ok(sql.includes("direction text NOT NULL CHECK"));
+  assert.ok(sql.includes("ledger_idempotency_unique"));
+  assert.ok(sql.includes("request_hash char(64)"));
   assert.ok(sql.includes("UNIQUE(coach_id, period)"));
   assert.doesNotMatch(sql, /share\s+numeric|percentage_share/i);
 });
