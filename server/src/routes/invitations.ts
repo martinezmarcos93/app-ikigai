@@ -134,6 +134,68 @@ export function registerInvitationRoutes(
     }
   });
 
+  app.post<{ Params: { id: string } }>("/api/v1/admin/invitations/:id/resend", {
+    schema: {
+      params: { type: "object", required: ["id"], additionalProperties: false, properties: { id: { type: "string", format: "uuid" } } }
+    },
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } }
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
+    if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
+
+    const rawToken = randomBytes(32).toString("base64url");
+    const digest = tokenHash(rawToken);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    try {
+      const invitation = await transactionalDb.transaction(async (tx) => {
+        const currentResult = await tx.query(
+          "SELECT id,user_id,accepted_at FROM user_invitations WHERE id=$1 FOR UPDATE",
+          [request.params.id]
+        );
+        const current = currentResult.rows[0] as Record<string, unknown> | undefined;
+        if (!current) throw new InvitationError(404, "invitation_not_found", "The invitation was not found.");
+        if (current.accepted_at) throw new InvitationError(409, "invitation_already_accepted", "An accepted invitation cannot be resent.");
+
+        const userResult = await tx.query("SELECT id,email,status FROM users WHERE id=$1 FOR UPDATE", [current.user_id]);
+        const user = userResult.rows[0] as Record<string, unknown> | undefined;
+        if (!user || user.status !== "disabled") {
+          throw new InvitationError(409, "account_not_invitable", "This account is no longer awaiting activation.");
+        }
+
+        await tx.query(
+          "UPDATE user_invitations SET revoked_at=now() WHERE user_id=$1 AND accepted_at IS NULL AND revoked_at IS NULL",
+          [current.user_id]
+        );
+        const inserted = await tx.query(
+          "INSERT INTO user_invitations (user_id,token_hash,created_by,expires_at) VALUES ($1,$2,$3,$4) RETURNING id,expires_at",
+          [current.user_id, digest, actor.userId, expiresAt.toISOString()]
+        );
+        const row = inserted.rows[0];
+        if (!row) throw new Error("Replacement invitation insert did not return a row.");
+        await tx.query(
+          "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,'user.invitation_resent','user',$2,$3,$4::jsonb)",
+          [actor.userId, String(current.user_id), request.id, JSON.stringify({ invitationId: row.id, expiresAt: expiresAt.toISOString() })]
+        );
+        return {
+          id: String(row.id),
+          userId: String(current.user_id),
+          email: String(user.email),
+          expiresAt: new Date(row.expires_at as string | Date).toISOString()
+        };
+      });
+      return reply.code(201).send({
+        invitation,
+        invitationToken: rawToken,
+        delivery: "manual_secure_delivery_required"
+      });
+    } catch (error) {
+      return sendInvitationError(reply, error);
+    }
+  });
+
   app.post<{ Body: AcceptInvitationBody }>("/api/v1/auth/accept-invitation", {
     schema: {
       body: {
