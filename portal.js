@@ -422,11 +422,14 @@
     await Promise.all([loadMembers(),loadCoaches()]);
     const memberOpts = memberOptions();
     const coachOpts = coachOptions();
+    const memberInvite = memberOpts.length
+      ? form("Invitar a un miembro","invite-member",selectField("Perfil de miembro","memberId",memberOpts,memberOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")
+      : empty("Primero creá un perfil de miembro; después podrás vincularle un acceso.");
+    const coachInvite = coachOpts.length
+      ? form("Invitar a un profesor","invite-coach",selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")
+      : empty("Primero creá un perfil de profesor; después podrás vincularle un acceso.");
     $("#pageContent").innerHTML = `
-      <div class="two-col">
-        ${form("Invitar a un miembro","invite-member",selectField("Perfil de miembro","memberId",memberOpts,memberOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")}
-        ${form("Invitar a un profesor","invite-coach",selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")}
-      </div>
+      <div class="two-col">${memberInvite}${coachInvite}</div>
       <div id="invitationResult" style="margin-top:16px"></div>
       <p class="footer-note">La API no envía correos todavía. El token aparece una sola vez en esta pantalla: entregalo por un canal seguro y no lo incluyas en capturas o mensajes públicos. Vence a las 24 horas.</p>`;
   }
