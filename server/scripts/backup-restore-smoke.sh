@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "\${DATABASE_URL:?Set DATABASE_URL to a disposable local PostgreSQL database}"
-: "\${RESTORE_DATABASE_URL:?Set RESTORE_DATABASE_URL to a local maintenance database, usually postgres}"
+: "${DATABASE_URL:?Set DATABASE_URL to a disposable local PostgreSQL database}"
+: "${RESTORE_DATABASE_URL:?Set RESTORE_DATABASE_URL to a local maintenance database, usually postgres}"
 
 check_local_url() {
   node --input-type=module - "$1" <<'NODE'
@@ -36,7 +36,7 @@ if [ "$SOURCE_DB" = "$RESTORE_ADMIN_DB" ]; then
 fi
 
 RESTORE_DB_NAME="ikigai_restore_smoke_$(date +%s)_$$"
-BACKUP_FILE="$(mktemp "\${TMPDIR:-/tmp}/ikigai-backup-XXXXXX.dump")"
+BACKUP_FILE="$(mktemp "${TMPDIR:-/tmp}/ikigai-backup-XXXXXX.dump")"
 RESTORE_URL="$(node --input-type=module - "$RESTORE_DATABASE_URL" "$RESTORE_DB_NAME" <<'NODE'
 const url = new URL(process.argv[2]);
 url.pathname = "/" + process.argv[3];
