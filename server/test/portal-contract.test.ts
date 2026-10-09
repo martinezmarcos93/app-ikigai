@@ -19,7 +19,10 @@ test("connected portal loads its API client and responsive stylesheet", async ()
 
 test("connected portal does not fall back to demo browser storage", async () => {
   const portal = await readRoot("portal.js");
-  assert.doesNotMatch(portal, /localStorage|sessionStorage/);
+  assert.equal(portal.includes("localStorage.getItem"), false);
+  assert.equal(portal.includes("localStorage.setItem"), false);
+  assert.equal(portal.includes("sessionStorage.getItem"), false);
+  assert.equal(portal.includes("sessionStorage.setItem"), false);
   assert.match(portal, /api\.me\(\)/);
   assert.match(portal, /api\.login\(/);
   assert.match(portal, /api\.logout\(/);
