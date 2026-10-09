@@ -158,9 +158,10 @@ CREATE TABLE bookings (
   status booking_status NOT NULL DEFAULT 'confirmed',
   created_at timestamptz NOT NULL DEFAULT now(),
   cancelled_at timestamptz,
-  promoted_at timestamptz,
-  UNIQUE (session_id, member_id)
+  promoted_at timestamptz
 );
+CREATE UNIQUE INDEX bookings_active_member_session_idx
+  ON bookings (session_id, member_id) WHERE status IN ('confirmed', 'waitlist');
 CREATE INDEX bookings_session_status_idx ON bookings (session_id, status, created_at);
 CREATE INDEX bookings_member_idx ON bookings (member_id, created_at DESC);
 
