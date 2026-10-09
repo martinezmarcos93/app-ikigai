@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Sin miembros todavía</title><desc id="desc">Tres figuras geométricas estilizadas con acentos rojos y grises.</desc>
+  <g stroke="#303034" stroke-width="2"><path d="M46 178H274"/><path d="M64 178v-14m192 14v-14"/></g>
+  <g stroke="#E31A20" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="160" cy="63" r="23"/><path d="M119 143v-13c0-20 18-36 41-36s41 16 41 36v13"/><path d="M132 112l-12 13m68-13 12 13"/></g>
+  <g stroke="#808281" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="91" cy="91" r="15"/><path d="M65 147v-7c0-13 12-24 26-24 8 0 15 3 20 9"/><circle cx="229" cy="91" r="15"/><path d="M255 147v-7c0-13-12-24-26-24-8 0-15 3-20 9"/></g>
+  <path d="M143 64h34M160 47v34" stroke="#E31A20" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+  <path d="M48 49h25m-12-12v24M247 45h24m-12-12v24" stroke="#7C090F" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="50" cy="122" r="3" fill="#E31A20"/><circle cx="270" cy="122" r="3" fill="#E31A20"/>
+</svg>
