@@ -80,16 +80,48 @@ test("PostgreSQL invitations activate a scoped account once without storing the 
   });
   assert.equal(created.statusCode, 201);
   assert.equal(created.json().invitation.role, "member");
-  const rawToken = String(created.json().invitationToken);
-  assert.ok(rawToken.length >= 40);
+  const originalToken = String(created.json().invitationToken);
+  const originalInvitationId = String(created.json().invitation.id);
+  assert.ok(originalToken.length >= 40);
+
+  const originalStored = await pool.query(
+    "SELECT token_hash,revoked_at FROM user_invitations WHERE id=$1",
+    [originalInvitationId]
+  );
+  assert.equal(originalStored.rows[0]?.token_hash, createHash("sha256").update(originalToken).digest("hex"));
+  assert.notEqual(originalStored.rows[0]?.token_hash, originalToken);
+
+  const resent = await app.inject({
+    method: "POST",
+    url: `/api/v1/admin/invitations/${originalInvitationId}/resend`,
+    headers: adminHeaders
+  });
+  assert.equal(resent.statusCode, 201);
+  const rawToken = String(resent.json().invitationToken);
+  const replacementInvitationId = String(resent.json().invitation.id);
+  assert.notEqual(replacementInvitationId, originalInvitationId);
+
+  const revokedOriginal = await pool.query(
+    "SELECT revoked_at FROM user_invitations WHERE id=$1",
+    [originalInvitationId]
+  );
+  assert.ok(revokedOriginal.rows[0]?.revoked_at);
 
   const stored = await pool.query(
     "SELECT i.token_hash,u.status,u.email FROM user_invitations i JOIN users u ON u.id=i.user_id WHERE i.id=$1",
-    [created.json().invitation.id]
+    [replacementInvitationId]
   );
   assert.equal(stored.rows[0]?.token_hash, createHash("sha256").update(rawToken).digest("hex"));
   assert.notEqual(stored.rows[0]?.token_hash, rawToken);
   assert.equal(stored.rows[0]?.status, "disabled");
+
+  const oldTokenAttempt = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/accept-invitation",
+    headers: { origin },
+    payload: { token: originalToken, password: "a-long-test-password-2026" }
+  });
+  assert.equal(oldTokenAttempt.statusCode, 400);
 
   const password = "a-long-test-password-2026";
   const accepted = await app.inject({
@@ -120,5 +152,5 @@ test("PostgreSQL invitations activate a scoped account once without storing the 
     "SELECT action FROM audit_events WHERE entity_type='user' AND entity_id=$1 ORDER BY action",
     [created.json().invitation.userId]
   );
-  assert.deepEqual(audit.rows.map((row) => row.action), ["user.invitation_accepted", "user.invitation_created"]);
+  assert.deepEqual(audit.rows.map((row) => row.action), ["user.invitation_accepted", "user.invitation_created", "user.invitation_resent"]);
 });
