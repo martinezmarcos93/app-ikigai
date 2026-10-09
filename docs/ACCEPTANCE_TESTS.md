@@ -76,3 +76,13 @@
 - [ ] Cancelling a confirmed booking before cutoff promotes the oldest waiting booking in the same transaction.
 - [ ] Cancelling a waitlisted booking does not promote another member.
 - [ ] A failed booking/cancellation transaction leaves no partial state changes.
+
+
+## Member profile write authorization
+- [ ] An active member can update only their own phone, address and emergency contact fields.
+- [ ] A member cannot change their status, name, email, DNI, join/exit dates or internal notes.
+- [ ] An administrator can update operational profile fields through a validated allowlist.
+- [ ] Profile updates require an allowed Origin and a valid CSRF token.
+- [ ] Profile changes and audit records commit or roll back together.
+- [ ] Audit records list changed fields and status transitions without copying contact details or DNI into the audit payload.
+- [ ] Invalid date ranges and unique/conflict errors return stable client errors rather than generic server errors.
