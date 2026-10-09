@@ -141,6 +141,9 @@ Usar respuestas de error consistentes (`400` entrada inválida, `401` sin sesió
 The first backend foundation has been added under `server/`:
 - Node.js 22+, TypeScript strict checks, Fastify, security headers and exact-origin CORS configuration.
 - Health endpoints: `GET /healthz` and `GET /api/v1/health`.
+- Local email/password login with scrypt hashes, opaque server-side sessions stored as SHA-256 token digests, seven-day expiry, revocation, HttpOnly/SameSite=Strict cookies, HMAC-derived CSRF tokens, Origin checks and in-memory per-IP rate limiting.
+- A one-time environment-based administrator bootstrap command.
+- Read-only member endpoints: admin-only paginated list and profile reads scoped to administrators, the member themselves, or an assigned coach; responses minimize fields by role.
 - Local email/password login using scrypt password hashes, generic invalid-credential responses, and a one-time administrator bootstrap command.
 - Opaque server-side sessions with SHA-256 token digests, seven-day expiry, revocation, HttpOnly/SameSite=Strict cookies, CSRF HMAC tokens, strict Origin checks on authentication mutations, and per-IP in-memory login rate limiting.
 - Pure booking decision helpers for the 40-minute cutoff, capacity, duplicate active booking rejection and waitlist eligibility, with unit tests.
@@ -148,13 +151,13 @@ The first backend foundation has been added under `server/`:
 - Transactional, advisory-lock-protected SQL migration runner.
 - CI typecheck/test/build plus a disposable PostgreSQL migration and repeat-run check.
 
-This is an executable foundation, not the production system. Resource-level authorization middleware, password recovery, a shared rate-limit store for multiple replicas, business data endpoints, transactional booking repository, audit-writing integration, backups and deployment are still pending. The current login/session implementation needs successful CI and PostgreSQL migration checks before it should be treated as a stable foundation. The pure booking rules are not yet connected to database transactions; no production booking endpoint should be added before that integration is designed and tested.
+This is an executable foundation, not the production system. Resource-level authorization exists only for read-only member profiles; write authorization and the remaining business resources are pending. Password recovery, a shared rate-limit store for multiple replicas, transactional booking repository, audit-writing integration, backups and deployment are still pending. The current login/session implementation needs successful CI and PostgreSQL migration checks before it should be treated as a stable foundation. The pure booking rules are not yet connected to database transactions; no production booking endpoint should be added before that integration is designed and tested.
 
 ## Implementation sequence updated
 
 1. Complete this baseline with CI results and correct any migration/type/test failures.
-2. Implement authentication and secure sessions; decide whether to store local password hashes or delegate identity to a managed provider before writing login flows.
-3. Add role/scope authorization primitives and negative tests for cross-member/cross-coach access.
-4. Add repository/transaction layer and implement the first protected vertical slice (member profile read/update).
+2. Finish the authentication review, add password recovery and decide the deployment-grade shared rate-limit store.
+3. Expand role/scope authorization and negative tests for every new endpoint; member profile reads now have initial coverage.
+4. Add a transaction-capable repository and audited member-profile writes.
 5. Implement booking transactions with row/advisory locking, capacity enforcement, cutoff enforcement and waitlist promotion.
 6. Add PostgreSQL integration tests for concurrency, ledger append-only behavior and role isolation before exposing production data.
