@@ -1,0 +1,156 @@
+(() => {
+  "use strict";
+
+  class ApiError extends Error {
+    constructor(status, code, message, details) {
+      super(message || "La solicitud no pudo completarse.");
+      this.name = "ApiError";
+      this.status = status;
+      this.code = code || "api_error";
+      this.details = details;
+    }
+  }
+
+  function resolveBaseUrl() {
+    const requested = new URLSearchParams(window.location.search).get("apiBase");
+    const candidate = new URL(requested || "/api/v1", window.location.href);
+    const sameOrigin = candidate.origin === window.location.origin;
+    const localDevOrigin = window.location.protocol === "http:"
+      && candidate.protocol === "http:"
+      && candidate.hostname === window.location.hostname
+      && ["localhost", "127.0.0.1"].includes(candidate.hostname);
+    if (!sameOrigin && !localDevOrigin) {
+      throw new Error("Por seguridad, la API debe compartir origen o usar el mismo host local durante desarrollo.");
+    }
+    candidate.pathname = candidate.pathname.replace(/\/+$/, "");
+    if (!candidate.pathname.endsWith("/api/v1")) candidate.pathname += "/api/v1";
+    candidate.search = "";
+    candidate.hash = "";
+    return candidate.href.replace(/\/+$/, "");
+  }
+
+  let baseUrl = null;
+  let configurationError = null;
+  let csrfToken = null;
+  let currentUser = null;
+  try {
+    baseUrl = resolveBaseUrl();
+  } catch (error) {
+    configurationError = error instanceof Error ? error.message : "Configuración de API inválida.";
+  }
+
+  async function request(path, options = {}) {
+    if (!baseUrl) throw new ApiError(0, "api_configuration", configurationError || "No se pudo configurar la API.");
+    const method = String(options.method || "GET").toUpperCase();
+    const headers = { Accept: "application/json", ...(options.headers || {}) };
+    const init = { method, credentials: "include", headers, cache: "no-store" };
+    if (options.body !== undefined) {
+      headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(options.body);
+    }
+    if (!["GET", "HEAD", "OPTIONS"].includes(method) && csrfToken && options.skipCsrf !== true) {
+      headers["X-CSRF-Token"] = csrfToken;
+    }
+
+    let response;
+    try {
+      response = await fetch(baseUrl + path, init);
+    } catch {
+      throw new ApiError(0, "network_error", "No se pudo conectar con la API. Verificá que el backend esté ejecutándose y que la URL de API sea correcta.");
+    }
+
+    let payload = null;
+    if (response.status !== 204) {
+      const text = await response.text();
+      if (text) {
+        try { payload = JSON.parse(text); }
+        catch { payload = { message: "La API devolvió una respuesta no válida." }; }
+      }
+    }
+    if (!response.ok) {
+      if (response.status === 401) {
+        currentUser = null;
+        csrfToken = null;
+      }
+      throw new ApiError(
+        response.status,
+        payload && payload.error,
+        payload && payload.message || "La solicitud no pudo completarse.",
+        payload
+      );
+    }
+    return payload;
+  }
+
+  async function login(email, password) {
+    const result = await request("/auth/login", {
+      method: "POST",
+      body: { email: String(email).trim(), password },
+      skipCsrf: true
+    });
+    csrfToken = result.csrfToken || null;
+    currentUser = result.user || null;
+    return result;
+  }
+
+  async function me() {
+    const result = await request("/auth/me");
+    csrfToken = result.csrfToken || null;
+    currentUser = result.user || null;
+    return result;
+  }
+
+  async function logout() {
+    try {
+      await request("/auth/logout", { method: "POST", body: {} });
+    } finally {
+      currentUser = null;
+      csrfToken = null;
+    }
+  }
+
+  const id = value => encodeURIComponent(String(value));
+  const api = {
+    ApiError,
+    get baseUrl() { return baseUrl; },
+    get configurationError() { return configurationError; },
+    get user() { return currentUser; },
+    request,
+    login,
+    me,
+    logout,
+    listMembers: (limit = 100, offset = 0) => request(`/members?limit=${limit}&offset=${offset}`),
+    getMember: memberId => request(`/members/${id(memberId)}`),
+    createMember: body => request("/members", { method: "POST", body }),
+    updateMember: (memberId, body) => request(`/members/${id(memberId)}`, { method: "PATCH", body }),
+    listServices: () => request("/services"),
+    createService: body => request("/services", { method: "POST", body }),
+    updateService: (serviceId, body) => request(`/services/${id(serviceId)}`, { method: "PATCH", body }),
+    listMemberships: memberId => request(`/members/${id(memberId)}/memberships`),
+    createMembership: (memberId, body) => request(`/members/${id(memberId)}/memberships`, { method: "POST", body }),
+    endMembership: (membershipId, endedOn) => request(`/memberships/${id(membershipId)}/end`, { method: "POST", body: { endedOn } }),
+    listLedger: memberId => request(`/members/${id(memberId)}/ledger-entries`),
+    createLedgerEntry: (memberId, body, idempotencyKey) => request(`/members/${id(memberId)}/ledger-entries`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body }),
+    listCoaches: () => request("/coaches"),
+    createCoach: body => request("/coaches", { method: "POST", body }),
+    getCoachObligations: (coachId, period) => request(`/coaches/${id(coachId)}/obligations?period=${encodeURIComponent(period)}`),
+    createCoachObligation: (coachId, body) => request(`/coaches/${id(coachId)}/obligations`, { method: "POST", body }),
+    recordCoachPayment: (obligationId, body, idempotencyKey) => request(`/coach-obligations/${id(obligationId)}/payments`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body }),
+    createCoachAdjustment: (obligationId, body, idempotencyKey) => request(`/coach-obligations/${id(obligationId)}/adjustments`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body }),
+    createInvitation: body => request("/admin/invitations", { method: "POST", body }),
+    resendInvitation: invitationId => request(`/admin/invitations/${id(invitationId)}/resend`, { method: "POST", body: {} }),
+    revokeInvitation: invitationId => request(`/admin/invitations/${id(invitationId)}/revoke`, { method: "POST", body: {} }),
+    resetUserAccess: (userId, reason) => request(`/admin/users/${id(userId)}/reset-access`, { method: "POST", body: { reason } }),
+    revokeUserSessions: userId => request(`/admin/users/${id(userId)}/sessions/revoke`, { method: "POST", body: {} }),
+    listRoutines: () => request("/routines"),
+    createExercise: body => request("/exercises", { method: "POST", body }),
+    createRoutine: body => request("/routines", { method: "POST", body }),
+    createRoutineVersion: (routineId, body) => request(`/routines/${id(routineId)}/versions`, { method: "POST", body }),
+    listRoutineAssignments: memberId => request(`/members/${id(memberId)}/routine-assignments`),
+    assignRoutine: (memberId, body) => request(`/members/${id(memberId)}/routine-assignments`, { method: "POST", body }),
+    listAttendance: memberId => request(`/members/${id(memberId)}/attendance`),
+    updateAttendance: (sessionId, records) => request(`/class-sessions/${id(sessionId)}/attendance`, { method: "PUT", body: { records } })
+  };
+
+  window.IkigaiApi = Object.freeze(api);
+})();
