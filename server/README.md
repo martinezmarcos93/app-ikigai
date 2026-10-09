@@ -18,7 +18,7 @@ This directory contains the first executable backend slice. It serves health che
 
 ```bash
 cd server
-npm install
+npm ci
 cp .env.example .env
 npm run check
 npm test
