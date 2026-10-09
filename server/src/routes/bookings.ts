@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
 import {
@@ -48,7 +48,7 @@ function toIso(value: string | Date): string {
   return new Date(value).toISOString();
 }
 
-function sendRuleError(reply: Parameters<Parameters<FastifyInstance["post"]>[1]>[1], error: BookingRuleError) {
+function sendRuleError(reply: FastifyReply, error: BookingRuleError) {
   return reply.code(error.statusCode).send({
     error: error.errorCode,
     message: error.message
