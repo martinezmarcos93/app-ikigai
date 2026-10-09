@@ -28,6 +28,7 @@ export async function buildApp(
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: config.nodeEnv !== "test",
+    trustProxy: config.trustProxyHops || false,
     bodyLimit: 1_048_576,
     requestTimeout: 15_000
   });
