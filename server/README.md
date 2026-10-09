@@ -1,6 +1,6 @@
 # Ikigai Training API (foundation)
 
-This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Booking, routine, and financial data workflows are not exposed yet.
+This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Routine and financial data workflows are not exposed yet. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
 
 ## Requirements
 
@@ -28,6 +28,8 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/auth/logout`: CSRF- and origin-checked session revocation.
 - `GET /api/v1/members?limit=&offset=`: administrator-only paginated member list.
 - `GET /api/v1/members/:id`: administrator, self-member, or assigned-coach access with role-specific field minimization.
+- `POST /api/v1/class-sessions/:id/bookings`: active members reserve their own place; capacity and duplicate checks run inside a PostgreSQL transaction.
+- `POST /api/v1/bookings/:id/cancel`: member-owner or administrator cancellation before the 40-minute cutoff, with transactional waitlist promotion.
 
 Set `CORS_ORIGINS` to exact comma-separated origins. Production startup fails closed if it is missing, if `SESSION_SECRET` is absent or shorter than 32 characters, or if `DATABASE_URL` is missing. Use a high-entropy secret from the hosting secret manager. Never use `*` for origins when credentials are enabled. Keep the server bound to localhost for local development unless a deliberate network deployment requires otherwise. The frontend and API should be deployed under the same site so the strict same-site session cookie is sent as expected.
 
@@ -51,4 +53,4 @@ Apply migrations first. Then set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (12–128 ch
 
 Authentication is still incomplete and not yet ready for production. Login, server-side opaque sessions, session introspection, logout revocation, per-route in-memory rate limiting, strict cookie settings, origin checks and CSRF token checks now exist. Resource-level authorization is now implemented for read-only member profiles and the administrator list, but update endpoints, other business resources, password recovery, and a shared rate-limit store for multiple replicas are still pending. Do not create real users or load real member/financial data yet. The health endpoints deliberately expose no database details or secrets.
 
-The booking domain module is pure logic with unit tests; it is not yet connected to a database transaction or booking endpoint. Member-profile reads enforce roles and coach/member scope on the server; member and coach responses omit fields they do not need. Login stores only a SHA-256 digest of the opaque session token. The session cookie is HttpOnly, SameSite=Strict and Secure in production; the CSRF token is derived with HMAC and checked on logout. A future booking endpoint must enforce the same rules inside a database transaction and must lock/serialize capacity checks to prevent two concurrent requests from overbooking a class. Tests in this stage are unit, application-injection and static-schema tests; they do not replace PostgreSQL integration tests.
+The booking domain module is connected to PostgreSQL-backed booking/cancellation endpoints. Integration tests exercise concurrent requests against a disposable PostgreSQL database; these tests must remain green before expanding the booking API. Member-profile reads enforce roles and coach/member scope on the server; member and coach responses omit fields they do not need. Login stores only a SHA-256 digest of the opaque session token. The session cookie is HttpOnly, SameSite=Strict and Secure in production; the CSRF token is derived with HMAC and checked on logout. A future booking endpoint must enforce the same rules inside a database transaction and must lock/serialize capacity checks to prevent two concurrent requests from overbooking a class. Tests in this stage are unit, application-injection and static-schema tests; they do not replace PostgreSQL integration tests.
