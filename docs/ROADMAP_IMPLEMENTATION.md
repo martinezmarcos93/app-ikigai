@@ -53,8 +53,8 @@
 - [ ] Revisar validación de entrada, límites de tamaño, errores estables, idempotencia, transacciones y auditoría.
 - [ ] Revisar de forma sistemática que los eventos de auditoría no copien DNI, credenciales, tokens ni datos de contacto innecesarios; la nueva recuperación sólo audita usuario y cantidad de sesiones revocadas.
 - [ ] Documentar secretos y configuración por entorno; nunca guardar secretos en el repositorio.
-- [ ] Configurar copias de seguridad y ensayar una restauración completa en un entorno descartable.
-- [ ] Ejecutar pruebas de seguridad y revisión independiente antes de datos reales.
+- [x] Añadir prueba automatizada de dump/restauración en una base PostgreSQL local descartable dentro de CI.\n- [ ] Configurar backups de producción, retención, alertas y calendario de restauración tras elegir proveedor.
+- [ ] Ejecutar revisión de seguridad independiente antes de datos reales; la matriz de autorización y las pruebas negativas deben ampliarse antes del cierre.
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
