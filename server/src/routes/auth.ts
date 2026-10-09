@@ -18,6 +18,8 @@ interface UserRow extends Record<string, unknown> {
   id: string;
   email: string;
   password_hash: string;
+  member_id?: string | null;
+  coach_id?: string | null;
 }
 
 interface SessionRow extends Record<string, unknown> {
@@ -25,6 +27,8 @@ interface SessionRow extends Record<string, unknown> {
   id: string;
   email: string;
   roles: string[];
+  member_id?: string | null;
+  coach_id?: string | null;
 }
 
 function tokenHash(token: string): string {
@@ -58,16 +62,18 @@ async function currentSession(
   if (!token || token.length > 128) return null;
 
   const result = await db.query<SessionRow>(
-    `SELECT s.id AS session_id, u.id, u.email,
+    `SELECT s.id AS session_id, u.id, u.email, mp.id AS member_id, cp.id AS coach_id,
             array_remove(array_agg(DISTINCT ur.role), NULL) AS roles
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.revoked_at IS NULL
+       LEFT JOIN member_profiles mp ON mp.user_id = u.id
+       LEFT JOIN coach_profiles cp ON cp.user_id = u.id
       WHERE s.token_hash = $1
         AND s.revoked_at IS NULL
         AND s.expires_at > now()
         AND u.status = 'active'
-      GROUP BY s.id, u.id, u.email
+      GROUP BY s.id, u.id, u.email, mp.id, cp.id
       LIMIT 1`,
     [tokenHash(token)]
   );
@@ -105,9 +111,11 @@ export function registerAuthRoutes(
       const password = request.body.password;
 
       const result = await db.query<UserRow>(
-        `SELECT id, email, password_hash
-           FROM users
-          WHERE email = $1 AND status = 'active' AND auth_provider = 'local'
+        `SELECT u.id, u.email, u.password_hash, mp.id AS member_id, cp.id AS coach_id
+           FROM users u
+           LEFT JOIN member_profiles mp ON mp.user_id = u.id
+           LEFT JOIN coach_profiles cp ON cp.user_id = u.id
+          WHERE u.email = $1 AND u.status = 'active' AND u.auth_provider = 'local'
           LIMIT 1`,
         [email]
       );
@@ -150,7 +158,7 @@ export function registerAuthRoutes(
 
       setSessionCookie(reply, token, config);
       return reply.code(200).send({
-        user: { id: user.id, email: user.email, roles },
+        user: { id: user.id, email: user.email, roles, memberId: user.member_id ?? null, coachId: user.coach_id ?? null },
         csrfToken: csrfTokenFor(token, config.sessionSecret),
         expiresAt: expiresAt.toISOString()
       });
@@ -171,7 +179,9 @@ export function registerAuthRoutes(
       user: {
         id: session.row.id,
         email: session.row.email,
-        roles: session.row.roles ?? []
+        roles: session.row.roles ?? [],
+        memberId: session.row.member_id ?? null,
+        coachId: session.row.coach_id ?? null
       },
       csrfToken: csrfTokenFor(session.token, config.sessionSecret)
     });
