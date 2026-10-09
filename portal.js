@@ -537,7 +537,7 @@
           if (!["debit","credit"].includes(String(direction).trim().toLowerCase())) throw new Error("El ajuste necesita dirección debit o credit.");
           payload.direction = String(direction).trim().toLowerCase();
         }
-        const key = `ledger-${crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random().toString(36).slice(2)}`;
+        const key = api.idempotencyKeyFor(formNode,"ledger",payload);
         await api.createLedgerEntry(memberId(),payload,key);
         showNotice("Movimiento registrado.", "success"); await renderView("accounts"); return;
       }
@@ -552,17 +552,15 @@
         showNotice("Obligación mensual configurada.", "success"); await renderCoachFinance(state.selectedCoach); return;
       }
       if (kind === "coach-payment") {
-        const key = `coach-payment-${crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random().toString(36).slice(2)}`;
-        await api.recordCoachPayment($("#coachFinanceMount").dataset.obligationId || "",{
-          amount:v("amount"),paid_on:v("paid_on"),payment_method:v("payment_method"),reference:optional("reference")
-        },key);
+        const payload = { amount:v("amount"),paid_on:v("paid_on"),payment_method:v("payment_method"),reference:optional("reference") };
+        const key = api.idempotencyKeyFor(formNode,"coach-payment",payload);
+        await api.recordCoachPayment($("#coachFinanceMount").dataset.obligationId || "",payload,key);
         showNotice("Pago registrado.", "success"); await renderCoachFinance(state.selectedCoach); return;
       }
       if (kind === "coach-adjustment") {
-        const key = `coach-adjust-${crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random().toString(36).slice(2)}`;
-        await api.createCoachAdjustment($("#coachFinanceMount").dataset.obligationId || "",{
-          amount_delta:v("amount_delta"),reason:v("reason")
-        },key);
+        const payload = { amount_delta:v("amount_delta"),reason:v("reason") };
+        const key = api.idempotencyKeyFor(formNode,"coach-adjustment",payload);
+        await api.createCoachAdjustment($("#coachFinanceMount").dataset.obligationId || "",payload,key);
         showNotice("Ajuste registrado.", "success"); await renderCoachFinance(state.selectedCoach); return;
       }
       if (kind === "invite-member" || kind === "invite-coach") {
