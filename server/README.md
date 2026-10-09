@@ -28,6 +28,11 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/auth/logout`: CSRF- and origin-checked session revocation.
 - `GET /api/v1/members?limit=&offset=`: administrator-only paginated member list.
 - `GET /api/v1/members/:id`: administrator, self-member, or assigned-coach access with role-specific field minimization.
+- `GET /api/v1/services`: authenticated service catalogue; inactive services are visible only to administration.
+- `POST /api/v1/services` and `PATCH /api/v1/services/:id`: administrator-only service creation and audited changes. Current price changes do not rewrite agreed membership prices.
+- `GET /api/v1/members/:id/memberships`: administrator or the member themselves can read membership history.
+- `POST /api/v1/members/:id/memberships`: administrator-only membership creation, validates service/date/price, records audit, and replays matching duplicate requests safely.
+- `POST /api/v1/memberships/:id/end`: administrator-only, audited membership termination; does not automatically create charges, refunds or penalties.
 - `PATCH /api/v1/members/:id`: audited transactional profile update; members may edit only their own contact details, while administrators may edit the full operational profile.
 - `GET /api/v1/members/:id/ledger-entries`: account history and exact debit/credit balance for administrators or the member themselves.
 - `POST /api/v1/members/:id/ledger-entries`: administrator-only charge, payment, adjustment or refund with idempotency key, audit record and exact decimal amounts. Payment responses identify receipts as internal, not fiscal invoices.
