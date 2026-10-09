@@ -35,9 +35,12 @@ test("password reset is generic, single-use, expires, invalidates previous token
   globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
     assert.equal(init?.method, "POST");
     assert.equal(new Headers(init?.headers).get("authorization"), `Bearer ${config.passwordResetDeliveryToken}`);
-    const payload = JSON.parse(String(init?.body)) as { to: string; resetUrl: string; type: string };
-    assert.equal(payload.type, "ikigai.password_reset");
-    resetUrl = payload.resetUrl;
+    const payload = JSON.parse(String(init?.body)) as { to: string; resetUrl?: string; type: string };
+    assert.ok(["ikigai.password_reset", "ikigai.password_reset_noop"].includes(payload.type));
+    if (payload.type === "ikigai.password_reset") {
+      assert.ok(payload.resetUrl);
+      resetUrl = payload.resetUrl!;
+    }
     return new Response(null, { status: 202 });
   }) as typeof fetch;
 
