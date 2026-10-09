@@ -249,7 +249,7 @@ export function registerMemberRoutes(
       }
       if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
 
-      const normalized: Partial<PatchMemberBody> = {};
+      const normalized: Record<string, string> = {};
       for (const [key, value] of bodyEntries) {
         if (typeof value !== "string") continue;
         const typedKey = key as keyof PatchMemberBody;
