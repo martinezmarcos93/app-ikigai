@@ -1,6 +1,6 @@
 # Ikigai Training API (foundation)
 
-This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Routine and financial data workflows are not exposed yet. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
+This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Membership management, routine workflows, coach obligation/payment workflows and fiscal invoicing are not exposed yet. Member account history and idempotent ledger movements are available through the API. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
 
 ## Requirements
 
@@ -29,6 +29,8 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `GET /api/v1/members?limit=&offset=`: administrator-only paginated member list.
 - `GET /api/v1/members/:id`: administrator, self-member, or assigned-coach access with role-specific field minimization.
 - `PATCH /api/v1/members/:id`: audited transactional profile update; members may edit only their own contact details, while administrators may edit the full operational profile.
+- `GET /api/v1/members/:id/ledger-entries`: account history and exact debit/credit balance for administrators or the member themselves.
+- `POST /api/v1/members/:id/ledger-entries`: administrator-only charge, payment, adjustment or refund with idempotency key, audit record and exact decimal amounts. Payment responses identify receipts as internal, not fiscal invoices.
 - `POST /api/v1/class-sessions/:id/bookings`: active members reserve their own place; capacity and duplicate checks run inside a PostgreSQL transaction.
 - `POST /api/v1/bookings/:id/cancel`: member-owner or administrator cancellation before the 40-minute cutoff, with transactional waitlist promotion.
 
@@ -44,7 +46,7 @@ npm run db:migrate
 
 The migration runner applies numbered SQL files once, uses a PostgreSQL advisory lock to avoid concurrent migration runners, and wraps each migration in a transaction. Test the migration against a disposable database before using any persistent environment. Do not point it at a production database.
 
-The initial schema includes profiles, roles, services/memberships, append-only account movements, class templates and dated sessions, recurring assignments, bookings, attendance, monthly coach obligations/payments, routines, sessions and audit events. Member ledger entries, coach obligations, coach obligation adjustments, coach payments and audit rows are protected against update/delete. Correcting a monthly obligation requires an append-only adjustment with a reason; corrections to financial history must be represented by new records.
+The initial schema includes profiles, roles, services/memberships, append-only account movements with debit/credit direction and idempotency, class templates and dated sessions, recurring assignments, bookings, attendance, monthly coach obligations/adjustments/payments, routines, sessions and audit events. Member ledger entries, coach obligations, coach obligation adjustments, coach payments and audit rows are protected against update/delete. Correcting a monthly obligation requires an append-only adjustment with a reason; corrections to financial history must be represented by new records.
 
 ### Create the first administrator
 
