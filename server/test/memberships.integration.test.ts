@@ -88,7 +88,7 @@ test("PostgreSQL membership lifecycle preserves agreed prices and audits termina
     method: "POST",
     url: `/api/v1/members/${member.memberId}/memberships`,
     headers: adminHeaders,
-    payload: createPayload
+    payload: { ...createPayload, agreedPrice: "45000" }
   });
   assert.equal(replay.statusCode, 200);
   assert.equal(replay.json().replayed, true);
