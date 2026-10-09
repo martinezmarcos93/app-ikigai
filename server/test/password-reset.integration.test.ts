@@ -139,3 +139,64 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   assert.equal(expired.statusCode, 400);
   assert.equal(expired.json().error, "invalid_or_expired_reset_token");
 });
+
+test("password reset delivery failures invalidate the token without revealing account state", {
+  skip: !integrationEnabled
+}, async (t: TestContext) => {
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 4,
+    connectionTimeoutMillis: 5_000,
+    application_name: "ikigai-password-reset-delivery-failure-test"
+  });
+  const db = new PostgresDatabase(pool);
+  let deliveredUrl = "";
+  const app = await buildApp(config, {
+    db,
+    transactionalDb: db,
+    passwordResetBaseUrl: "https://gym.example.com/reset-password",
+    passwordResetDelivery: async (_email, url) => {
+      deliveredUrl = url;
+      throw new Error("simulated email provider outage");
+    }
+  });
+  t.after(async () => {
+    await app.close();
+    await pool.end();
+  });
+
+  const email = "password-reset-delivery-" + randomUUID() + "@example.test";
+  await pool.query(
+    "INSERT INTO users (email,password_hash,auth_provider,status) VALUES ($1,$2,'local','active')",
+    [email, await hashPassword("delivery-test-password-2026")]
+  );
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/password-reset/request",
+    headers: { origin },
+    payload: { email }
+  });
+  assert.equal(response.statusCode, 202);
+  assert.equal(response.headers["cache-control"], "no-store");
+  assert.deepEqual(response.json(), {
+    message: "If an eligible account exists, instructions will be sent to its registered email address."
+  });
+
+  const rawToken = new URL(deliveredUrl).searchParams.get("token");
+  assert.ok(rawToken);
+  const stored = await pool.query(
+    "SELECT used_at FROM password_reset_tokens WHERE token_hash=$1",
+    [digest(rawToken!)]
+  );
+  assert.equal(stored.rows.length, 1);
+  assert.ok(stored.rows[0]?.used_at);
+
+  const attempt = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/password-reset/complete",
+    headers: { origin },
+    payload: { token: rawToken, password: "cannot-use-delivery-failed-token-2026" }
+  });
+  assert.equal(attempt.statusCode, 400);
+  assert.equal(attempt.json().error, "invalid_or_expired_reset_token");
+});
