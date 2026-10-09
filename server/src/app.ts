@@ -69,7 +69,10 @@ export async function buildApp(
       if (rateLimitCleanupCounter % 100 === 0) {
         await dependencies.db!.query("DELETE FROM rate_limit_buckets WHERE updated_at < now() - interval '24 hours'");
       }
-      const identity = `${request.method}:${path}:${request.ip}`;
+      const routeKey = path
+        .replace(/^\/api\/v1\/admin\/invitations\/[^/]+\/(resend|revoke)$/, "/api/v1/admin/invitations/:id/$1")
+        .replace(/^\/api\/v1\/admin\/users\/[^/]+\/(reset-access|sessions\/revoke)$/, "/api/v1/admin/users/:id/$1");
+      const identity = `${request.method}:${routeKey}:${request.ip}`;
       const key = createHash("sha256").update(identity).digest("hex");
       const result = await dependencies.db!.query<{ request_count: number } & Record<string, unknown>>(
         `INSERT INTO rate_limit_buckets (bucket_key, window_started_at, request_count, updated_at)
