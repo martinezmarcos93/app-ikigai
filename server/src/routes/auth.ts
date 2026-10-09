@@ -84,15 +84,19 @@ async function currentSession(
   return { row, token };
 }
 
+export type PasswordResetDelivery = (email: string, resetUrl: string) => Promise<void>;
+
 export function registerAuthRoutes(
   app: FastifyInstance,
   db: Database,
-  config: AppConfig
+  config: AppConfig,
+  transactionalDb?: TransactionalDatabase,
+  passwordResetDelivery?: PasswordResetDelivery,
+  passwordResetBaseUrl?: string
 ): void {
   app.post<{ Body: LoginBody }>(
     "/api/v1/auth/login",
     {
-      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
