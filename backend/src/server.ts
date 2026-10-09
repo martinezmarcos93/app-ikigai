@@ -7,7 +7,7 @@ const config = loadConfig();
 assertNoLocalEnvFileInProduction(process.cwd(), config.nodeEnv);
 const pool = new Pool({
   connectionString: config.databaseUrl,
-  ssl: config.databaseSsl ? { rejectUnauthorized: true } : undefined,
+  ...(config.databaseSsl ? { ssl: { rejectUnauthorized: true } } : {}),
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
