@@ -93,27 +93,29 @@ Usar respuestas de error consistentes (`400` entrada inválida, `401` sin sesió
 - Pruebas unitarias/API y workflow CI que instala PostgreSQL, aplica la migración, verifica tipos, ejecuta tests y compila.
 - Pendiente: ejecución verde de CI, pruebas de integración contra PostgreSQL desde la API y revisión de seguridad independiente.
 
-### B2 — Identidad y autorización
-- Login, logout, recuperación, sesiones y rate limiting.
-- Middleware de rol y funciones de alcance reutilizables.
-- Pruebas negativas de IDOR/BOLA: un miembro y un profesor intentan acceder a recursos ajenos.
-- Revisar CSRF, CORS, cookies, cabeceras, logs y secretos.
+### B2 — Identidad y autorización (primera versión implementada)
+- Login/logout, sesiones revocables, cookies seguras, CSRF, validación de origen y límite de intentos por proceso.
+- Lecturas y escrituras iniciales de perfiles con autorización por rol y alcance.
+- Pendiente: recuperación de contraseña, MFA si se justifica, almacenamiento distribuido de rate limits y revisión de seguridad independiente.
 
-### B3 — Primer flujo vertical
-- Implementar primero lectura/edición de miembros para administración, y lectura propia para miembro.
-- Añadir agenda y reserva transaccional después de probar autorización.
-- Mantener los flujos restantes en la demo hasta migrarlos individualmente; evitar una migración total de golpe.
+### B3 — Flujos operativos verticales (implementados parcialmente)
+- Reservas y cancelaciones transaccionales con capacidad, corte de 40 minutos, prevención de duplicados y promoción de lista de espera.
+- Cuenta corriente con movimientos idempotentes y auditoría.
+- Asistencia histórica, catálogo de ejercicios, rutinas versionadas y asignaciones con permisos de alcance.
+- Obligaciones mensuales fijas de profesores, pagos parciales y ajustes trazables.
+- Pendiente: membresías operativas completas, notificaciones y conexión progresiva de la PWA con la API.
 
-### B4 — Finanzas, asistencia y rutinas
-- Migrar movimientos contables sin alterar historia.
-- Migrar asistencia sólo si hay registros verificables; no inferirla de contadores.
-- Migrar obligaciones/pagos de profesores sin recuperar porcentajes antiguos como deudas.
-- Incorporar auditoría y exportaciones autorizadas.
+### B4 — Integridad y cobertura de pruebas (en progreso)
+- Ejecutar y mantener verde CI: tipos, pruebas unitarias, pruebas API y migraciones PostgreSQL.
+- Ampliar pruebas negativas de permisos para cada endpoint y pruebas de fallos/reintentos.
+- Verificar inmutabilidad de los movimientos y auditoría en escenarios de concurrencia.
+- Añadir pruebas de integración para cada flujo financiero y de asistencia que no esté cubierto.
 
-### B5 — Preproducción
-- Restaurar un backup en entorno aislado.
+### B5 — Preproducción (pendiente)
+- Restaurar un backup en entorno aislado y documentar RPO/RTO.
 - Pruebas en navegadores Android reales y distintos tamaños.
-- Pruebas de carga básica, doble reserva simultánea, expiración de sesión, permisos cruzados y recuperación.
+- Pruebas de carga básica, doble reserva simultánea, expiración/revocación de sesión y permisos cruzados.
+- Elegir hosting y secretos, configurar monitoreo, retención de logs y alertas.
 - Aprobación explícita antes de cargar datos reales.
 
 ## Criterios de salida de seguridad
@@ -155,7 +157,7 @@ The first backend foundation has been added under `server/`:
 - Transactional, advisory-lock-protected SQL migration runner.
 - CI typecheck/test/build plus a disposable PostgreSQL migration and repeat-run check.
 
-This is an executable foundation, not the production system. Resource-level authorization exists only for read-only member profiles; write authorization and the remaining business resources are pending. Password recovery, a shared rate-limit store for multiple replicas, transactional booking repository, audit-writing integration, backups and deployment are still pending. The current login/session implementation needs successful CI and PostgreSQL migration checks before it should be treated as a stable foundation. Booking rules are now connected to the initial transactional endpoints, with PostgreSQL concurrency integration coverage. Before production use, the implementation still needs broader failure/retry tests, audit events and operational monitoring.
+This is an executable foundation, not the production system. Resource-level authorization exists for member profile reads/writes and the current booking, ledger, coach, attendance and routine endpoints; it still needs broader negative testing and independent review. Password recovery, a shared rate-limit store for multiple replicas, transactional booking repository, audit-writing integration, backups and deployment are still pending. The current login/session implementation needs successful CI and PostgreSQL migration checks before it should be treated as a stable foundation. Booking rules are connected to transactional endpoints with PostgreSQL concurrency integration coverage. Before production use, the implementation still needs broader failure/retry tests, a completed audit review, tested backup restoration and operational monitoring.
 
 ## Implementation sequence updated
 
