@@ -62,7 +62,7 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
   }
   const sessionSecret = env.SESSION_SECRET ?? "development-only-session-secret-change-before-deploy";
   const passwordResetDeliveryUrl = env.PASSWORD_RESET_DELIVERY_URL?.trim();
-  const passwordResetDeliveryToken = env.PASSWORD_RESET_DELIVERY_TOKEN;
+  const passwordResetDeliveryToken = env.PASSWORD_RESET_DELIVERY_TOKEN?.trim();
   const passwordResetPublicUrl = env.PASSWORD_RESET_PUBLIC_URL?.trim();
 
   if (rawEnv === "production") {
@@ -79,6 +79,12 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
     }
     if (delivery.protocol !== "https:" || publicUrl.protocol !== "https:") {
       throw new Error("Password reset delivery and public URLs must use HTTPS in production.");
+    }
+    if (delivery.username || delivery.password || publicUrl.username || publicUrl.password) {
+      throw new Error("Password reset delivery and public URLs must not contain credentials.");
+    }
+    if (publicUrl.search || publicUrl.hash) {
+      throw new Error("PASSWORD_RESET_PUBLIC_URL must not contain a query string or fragment.");
     }
     if (passwordResetDeliveryToken.length < 32) {
       throw new Error("PASSWORD_RESET_DELIVERY_TOKEN must contain at least 32 characters in production.");
