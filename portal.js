@@ -433,6 +433,24 @@
       <div id="invitationResult" style="margin-top:16px"></div>
       <p class="footer-note">La API no envía correos todavía. El token aparece una sola vez en esta pantalla: entregalo por un canal seguro y no lo incluyas en capturas o mensajes públicos. Vence a las 24 horas.</p>`;
   }
+  async function renderInstitutionSettings() {
+    if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+    setPage("Configuración institucional");
+    setLoading("Consultando la configuración guardada en el servidor…");
+    const result = await api.getInstitutionSettings();
+    const settings = result.settings || {};
+    $( "#pageContent" ).innerHTML = `
+      ${form("Configuración institucional","institution-settings",
+        field("Nombre del gimnasio","institution_name","text",{value:settings.institution_name || "",max:120,wide:true})+
+        field("Correo de contacto","contact_email","email",{value:settings.contact_email || "",max:254})+
+        field("Teléfono de contacto","contact_phone","tel",{value:settings.contact_phone || "",max:40})+
+        field("Dirección","address","text",{value:settings.address || "",max:300,wide:true})+
+        field("Horarios y observaciones","opening_hours","text",{value:settings.opening_hours || "",max:1000,wide:true,placeholder:"Ingresá únicamente los horarios confirmados"}),
+        "Guardar configuración",
+        "Los campos vacíos quedan como no configurados. Los cambios se guardan en PostgreSQL, no en el navegador.") }
+      <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}. No se precargan teléfonos, direcciones ni horarios ficticios.</p>`;
+  }
+
   async function renderMyRoutine() {
     if (!isMember() || !state.user.memberId) throw new Error("Esta sección es exclusiva del perfil de miembro.");
     setPage("Mi rutina");
@@ -506,6 +524,7 @@
       else if (view === "attendance") await renderAttendance();
       else if (view === "coaches") await renderCoaches();
       else if (view === "invitations") await renderInvitations();
+      else if (view === "institution-settings") await renderInstitutionSettings();
       else renderDenied("No disponible","Esta sección todavía no está conectada.");
     } catch (error) {
       if (error?.status === 401) { setUnauthenticated(); showNotice("La sesión venció. Iniciá sesión otra vez."); return; }
@@ -520,6 +539,25 @@
     const optional = name => v(name) || undefined;
     const body = Object.fromEntries(new FormData(formNode).entries());
     const btn = formNode.querySelector('button[type="submit"]');
+    if (kind === "institution-settings") {
+      if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+      try {
+        await api.updateInstitutionSettings({
+          institution_name: v("institution_name"),
+          contact_email: v("contact_email"),
+          contact_phone: v("contact_phone"),
+          address: v("address"),
+          opening_hours: v("opening_hours")
+        });
+        await renderView("institution-settings");
+        showNotice("Configuración institucional guardada en el servidor.", "success");
+      } catch (error) {
+        showError(error);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "Guardar configuración"; }
+      }
+      return;
+    }
     if (btn) { btn.disabled = true; btn.textContent = "Procesando…"; }
     try {
       if (kind === "select-member") {
