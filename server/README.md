@@ -1,6 +1,6 @@
 # Ikigai Training API (foundation)
 
-This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Membership management, routine workflows, coach obligation/payment workflows and fiscal invoicing are not exposed yet. Member account history and idempotent ledger movements are available through the API. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
+This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Membership management, routine workflows, attendance and fiscal invoicing are not exposed yet. Member account history, idempotent ledger movements and coach monthly obligations/payments/adjustments are available through the API. The coach financial model is a fixed monthly obligation for use of the space; it is not derived from bookings, attendance or percentage shares. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
 
 ## Requirements
 
@@ -31,6 +31,11 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `PATCH /api/v1/members/:id`: audited transactional profile update; members may edit only their own contact details, while administrators may edit the full operational profile.
 - `GET /api/v1/members/:id/ledger-entries`: account history and exact debit/credit balance for administrators or the member themselves.
 - `POST /api/v1/members/:id/ledger-entries`: administrator-only charge, payment, adjustment or refund with idempotency key, audit record and exact decimal amounts. Payment responses identify receipts as internal, not fiscal invoices.
+- `GET/POST /api/v1/coaches`: administrator coach directory and audited coach creation.
+- `GET /api/v1/coaches/:id/obligations?period=YYYY-MM`: administrator or that coach can view the fixed monthly obligation, adjustments, partial payments and balance. An unconfigured obligation returns `balance: null`.
+- `POST /api/v1/coaches/:id/obligations`: configure one fixed obligation per coach and month; same terms replay safely, conflicting terms return 409.
+- `POST /api/v1/coach-obligations/:id/payments`: record partial or excess payments with idempotency keys and an internal-receipt label.
+- `POST /api/v1/coach-obligations/:id/adjustments`: append a signed correction with reason and idempotency key.
 - `POST /api/v1/class-sessions/:id/bookings`: active members reserve their own place; capacity and duplicate checks run inside a PostgreSQL transaction.
 - `POST /api/v1/bookings/:id/cancel`: member-owner or administrator cancellation before the 40-minute cutoff, with transactional waitlist promotion.
 
