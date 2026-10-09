@@ -7,6 +7,7 @@ import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { PostgresDatabase } from "../src/db/postgres.js";
 import { csrfTokenFor } from "../src/security/csrf.js";
+import { verifyPassword } from "../src/security/password.js";
 
 const integrationEnabled = process.env.IKIGAI_INTEGRATION_TESTS === "1" && Boolean(process.env.DATABASE_URL);
 const origin = "https://admin-security-integration.example.com";
@@ -98,4 +99,34 @@ test("administrator can revoke another user's sessions and the operation is idem
     [target.userId]
   );
   assert.equal(audit.rows[0]?.total, 1);
+
+  const reset = await app.inject({
+    method: "POST",
+    url: `/api/v1/admin/users/${target.userId}/reset-access`,
+    headers: adminHeaders,
+    payload: { reason: "Member lost access to the account" }
+  });
+  assert.equal(reset.statusCode, 201);
+  assert.equal(reset.json().revokedSessions, 0);
+  const resetToken = String(reset.json().invitationToken);
+
+  const disabled = await pool.query("SELECT status FROM users WHERE id=$1", [target.userId]);
+  assert.equal(disabled.rows[0]?.status, "disabled");
+
+  const accepted = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/accept-invitation",
+    headers: { origin },
+    payload: { token: resetToken, password: "new-secure-password-2026" }
+  });
+  assert.equal(accepted.statusCode, 200);
+  const reactivated = await pool.query("SELECT status,password_hash FROM users WHERE id=$1", [target.userId]);
+  assert.equal(reactivated.rows[0]?.status, "active");
+  assert.equal(await verifyPassword("new-secure-password-2026", String(reactivated.rows[0]?.password_hash)), true);
+
+  const resetAudit = await pool.query(
+    "SELECT count(*)::int AS total FROM audit_events WHERE action='user.access_reset_invited' AND entity_id=$1",
+    [target.userId]
+  );
+  assert.equal(resetAudit.rows[0]?.total, 1);
 });
