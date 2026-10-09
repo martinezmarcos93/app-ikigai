@@ -4,6 +4,10 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 
 ## Matriz por endpoint
 
+| `GET /api/v1/admin/institution-settings` | Administración | Configuración institucional de la instalación | No; `Cache-Control: no-store` | `institutional-settings.test.ts` (contrato estático; ejecución CI pendiente) |
+| `PATCH /api/v1/admin/institution-settings` | Administración | Esquema estricto; campos vacíos representan no configurado | CSRF + transacción + auditoría minimizada; `no-store` | `institutional-settings.test.ts` (contrato estático; ejecución CI pendiente) |
+| `POST /api/v1/admin/users/link-coach` | Administración | Sólo cuenta admin activa; email de perfil y cuenta debe coincidir; perfil no vinculado a otra cuenta | CSRF + transacción + auditoría; añade coach sin revocar admin | `admin-role-link.test.ts` (contrato estático; ejecución CI pendiente) |
+
 | Endpoint | Identidad / rol permitido | Control de alcance o condición | Escritura protegida | Cobertura de prueba existente |
 | --- | --- | --- | --- | --- |
 | `POST /api/v1/auth/login` | Público | Credenciales locales activas; respuesta genérica | Origin + rate limit | `auth.test.ts` |
