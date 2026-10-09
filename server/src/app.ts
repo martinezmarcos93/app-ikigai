@@ -64,6 +64,7 @@ export async function buildApp(
           ? { max: 5, seconds: 60 }
           : null;
       if (!policy) return;
+      reply.header("Cache-Control", "no-store");
 
       rateLimitCleanupCounter += 1;
       if (rateLimitCleanupCounter % 100 === 0) {
