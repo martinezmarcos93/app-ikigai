@@ -81,16 +81,17 @@ Usar respuestas de error consistentes (`400` entrada inválida, `401` sin sesió
 
 ## Secuencia de implementación
 
-### B0 — Contratos y seguridad (este documento)
-- Acordar modelo de amenazas, roles, entidades, reglas transaccionales y contratos API.
-- Resolver proveedor de despliegue, base de datos, autenticación, dominio y política de backups.
-- Mantener la demo actual ejecutable.
+### B0 — Contratos y seguridad (documentado)
+- Modelo de amenazas, roles, entidades, invariantes transaccionales y contratos API definidos.
+- Proveedor de despliegue, dominio y política operativa de backups aún por seleccionar.
+- La demo permanece separada y ejecutable.
 
-### B1 — Backend mínimo y migraciones
-- Crear estructura TypeScript, configuración reproducible, validación de entorno y migraciones PostgreSQL.
-- Implementar health check sin filtrar configuración.
-- Añadir pruebas de migraciones desde base vacía y rollback/recuperación donde aplique.
-- No exponer endpoints de datos hasta tener autenticación y autorización.
+### B1 — Backend mínimo y migraciones (fundación implementada; falta validar CI)
+- Estructura TypeScript/Fastify, configuración de entorno y entrada de proceso.
+- Migración PostgreSQL inicial con perfiles, usuarios, sesiones, membresías, movimientos, agenda, reservas, asistencia, obligaciones, rutinas y auditoría.
+- Health check, autenticación por cookie de sesión de servidor y endpoints iniciales de miembros.
+- Pruebas unitarias/API y workflow CI que instala PostgreSQL, aplica la migración, verifica tipos, ejecuta tests y compila.
+- Pendiente: ejecución verde de CI, pruebas de integración contra PostgreSQL desde la API y revisión de seguridad independiente.
 
 ### B2 — Identidad y autorización
 - Login, logout, recuperación, sesiones y rate limiting.
