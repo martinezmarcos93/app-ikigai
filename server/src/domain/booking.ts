@@ -20,6 +20,18 @@ export type BookingEvaluation =
   | { allowed: true; status: BookingDecision }
   | { allowed: false; reason: BookingRejection };
 
+export function isBeforeBookingCutoff(
+  startsAt: string,
+  now: string,
+  cutoffMinutes = 40
+): boolean {
+  const startsAtMs = Date.parse(startsAt);
+  const nowMs = Date.parse(now);
+  if (!Number.isFinite(startsAtMs) || !Number.isFinite(nowMs)) return false;
+  if (!Number.isInteger(cutoffMinutes) || cutoffMinutes < 0 || cutoffMinutes > 24 * 60) return false;
+  return nowMs < startsAtMs - cutoffMinutes * 60_000;
+}
+
 export function isValidCapacity(capacity: number): boolean {
   return Number.isInteger(capacity) && capacity >= 1 && capacity <= 30;
 }
