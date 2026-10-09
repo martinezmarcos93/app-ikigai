@@ -32,7 +32,7 @@
 ## Contrato transversal observado
 
 - `api-client.js` concentra la URL base, el envío JSON, las cookies de sesión, CSRF, `cache: no-store` y la normalización de errores en `ApiError`.
-- Las escrituras no se reintentan automáticamente. Las operaciones financieras y otras operaciones idempotentes deben conservar una clave estable durante un reintento de la misma acción; generar una clave nueva en un segundo envío representa una operación nueva.
+- Las escrituras no se reintentan automáticamente. En los formularios financieros, la clave idempotente queda asociada en memoria al formulario y al payload: se conserva si se repite el mismo envío tras un error incierto y cambia si cambia el payload. La clave no se persiste en `localStorage`.
 - La sesión y el token CSRF viven en memoria del cliente; no deben copiarse a `localStorage`, URL, logs ni telemetría.
 - Las vistas deben distinguir carga, estado vacío, falta de permisos, sesión vencida y error de red/servidor. No conservar como “actualizados” datos antiguos tras fallar una escritura.
 - No se debe cambiar el contrato de respuesta del servidor desde el frontend por conveniencia. Si un endpoint no cumple el contrato esperado, corregirlo con pruebas del lado API.
