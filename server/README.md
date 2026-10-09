@@ -2,6 +2,13 @@
 
 This directory contains the first executable backend slice. It serves health checks, authentication/session routes, member-profile reads and scoped profile updates. Basic membership lifecycle endpoints are available; automated recurring billing, proration and fiscal invoicing are not exposed yet. Exercise cataloguing, immutable routine versions and role-scoped member assignments are implemented. Attendance recording/correction and member attendance history are available with server-side scope checks and audit events. Member account history, idempotent ledger movements and coach monthly obligations/payments/adjustments are available through the API. The coach financial model is a fixed monthly obligation for use of the space; it is not derived from bookings, attendance or percentage shares. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
 
+## Security and operations
+
+- In production, configure `PASSWORD_RESET_DELIVERY_URL`, `PASSWORD_RESET_DELIVERY_TOKEN` (32+ characters) and `PASSWORD_RESET_PUBLIC_URL`; both URLs must use HTTPS and the public URL origin must appear in `CORS_ORIGINS`. The delivery endpoint receives a JSON payload with `type`, `to`, `resetUrl`, `expiresAt` and `requestId`, authenticated with a bearer token. It must send the email without logging the token or full URL.
+- Sensitive authentication/admin endpoints use a PostgreSQL-backed shared fixed-window limiter; the bucket key is a SHA-256 digest of route/method/IP rather than a stored raw IP. Old buckets should be pruned periodically by the deployment's maintenance job.
+- Run `bash scripts/backup-restore-check.sh` only against a disposable development/test database. It creates a custom-format dump, restores it into a separate database, verifies schema history and a marker row, then drops the restored database. It is a CI restoration rehearsal, not a production backup policy.
+- The provider-specific backup schedule, retention, encryption, restore access, RPO/RTO and an independent security review remain release gates.
+
 ## Requirements
 
 - Node.js 22+
@@ -23,7 +30,9 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 
 - `GET /healthz`: minimal process health.
 - `GET /api/v1/health`: versioned API health.
-- `POST /api/v1/auth/login`: local email/password login with server-side session creation and rate limiting.
+- `POST /api/v1/auth/login`: local email/password login with server-side session creation and layered per-IP rate limiting (shared PostgreSQL window plus process-local guard).
+- `POST /api/v1/auth/password-reset/request`: generic `202` response to avoid account enumeration; creates a 30-minute single-use token digest and delivers the reset URL through the configured HTTPS webhook.
+- `POST /api/v1/auth/password-reset/confirm`: consumes the reset token transactionally, changes the password, invalidates other reset tokens and revokes all active sessions.
 - `GET /api/v1/auth/me`: current user, current roles, linked member/coach profile IDs, and CSRF token.
 - `POST /api/v1/auth/logout`: CSRF- and origin-checked session revocation.
 - `POST /api/v1/admin/invitations`: administrator-only invitation for an unlinked member or coach profile. The disabled account is activated only after acceptance.
