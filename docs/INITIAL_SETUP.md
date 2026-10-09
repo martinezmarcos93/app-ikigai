@@ -64,6 +64,8 @@ Abrir `http://localhost:8000/`; la entrada principal dirige al portal conectado.
 
 La lista de primera puesta en marcha del portal orienta sobre servicios, profesores y miembros que aún faltan. No reemplaza la revisión humana de los datos.
 
+**Límite actual:** todavía no existe una pantalla ni un endpoint para configurar los datos institucionales del gimnasio (contacto, dirección, horarios y preferencias generales). No se deben mostrar datos de ejemplo como si fueran reales ni asumir que estos campos ya quedaron configurados. Ese módulo debe implementarse con persistencia en servidor antes de depender de él en la operación diaria.
+
 ## 6. Roles y límites actuales
 
 - **Administración:** alta y gestión operativa, servicios, cuentas, profesores e invitaciones, según los permisos de servidor.
