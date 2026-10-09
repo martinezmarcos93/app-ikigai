@@ -13,6 +13,7 @@ Documentación relacionada:
 - [Pruebas de aceptación](docs/ACCEPTANCE_TESTS.md)
 - [Plan de seguridad del backend](docs/BACKEND_SECURITY_PLAN.md)
 - [Matriz de autorización por endpoint](docs/SECURITY_ROUTE_MATRIX.md)
+- [Copias de seguridad y restauración](docs/OPERATIONS_BACKUP_RESTORE.md)
 - [Documentación de la API](server/README.md)
 
 ## Demo local
