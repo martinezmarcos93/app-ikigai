@@ -19,6 +19,8 @@ import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
 export interface AppDependencies {
   db?: Database;
   transactionalDb?: TransactionalDatabase;
+  passwordResetDelivery?: (email: string, resetUrl: string) => Promise<void>;
+  passwordResetBaseUrl?: string;
 }
 
 export async function buildApp(
@@ -58,7 +60,7 @@ export async function buildApp(
 
   const appDb = dependencies.db ?? dependencies.transactionalDb;
   if (appDb) {
-    registerAuthRoutes(app, appDb, config);
+    registerAuthRoutes(app, appDb, config, dependencies.transactionalDb, dependencies.passwordResetDelivery, dependencies.passwordResetBaseUrl);
     registerMemberRoutes(app, appDb, config, dependencies.transactionalDb);
   }
   if (dependencies.transactionalDb) {
