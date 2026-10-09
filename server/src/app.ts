@@ -11,8 +11,8 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     disableRequestLogging: config.nodeEnv === "test"
   });
 
-  await app.register(helmet, {
-    contentSecurityPolicy: config.nodeEnv === "production" ? undefined : false
+  await app.register(helmet, config.nodeEnv === "production" ? {} : {
+    contentSecurityPolicy: false
   });
 
   await app.register(cors, {
