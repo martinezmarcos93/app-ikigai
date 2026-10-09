@@ -29,6 +29,10 @@ test("connected portal does not fall back to demo browser storage", async () => 
   assert.match(portal, /data-form="create-ledger"/);
   assert.match(portal, /data-form="create-membership"/);
   assert.match(portal, /data-form="invite-member"/);
+  assert.match(portal, /async function renderMyRoutine/);
+  assert.match(portal, /async function renderAttendance/);
+  assert.match(portal, /api\.listRoutineAssignments/);
+  assert.match(portal, /api\.listAttendance/);
 });
 
 test("API client sends cookies, CSRF tokens, and disables response caching", async () => {
