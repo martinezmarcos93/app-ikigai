@@ -139,6 +139,36 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(profileAudit.rows[0]?.total, 1);
 
   const admin = await createActor(pool, `Integration Admin ${suffix}`, "admin");
+  const createdProfile = await app.inject({
+    method: "POST",
+    url: "/api/v1/members",
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: { full_name: `Created Member ${suffix}`, email: `created-${suffix}@example.test`, phone: "1111222233" }
+  });
+  assert.equal(createdProfile.statusCode, 201);
+  assert.equal(createdProfile.json().member.status, "trial");
+  const createdProfileAudit = await pool.query(
+    "SELECT count(*)::int AS total FROM audit_events WHERE action = 'member.created' AND entity_id = $1",
+    [createdProfile.json().member.id]
+  );
+  assert.equal(createdProfileAudit.rows[0]?.total, 1);
+
+  const memberCreateDenied = await app.inject({
+    method: "POST",
+    url: "/api/v1/members",
+    headers: {
+      origin,
+      cookie: `ikigai_session=${first.token}`,
+      "x-csrf-token": first.csrfToken
+    },
+    payload: { full_name: "Should Not Be Created" }
+  });
+  assert.equal(memberCreateDenied.statusCode, 403);
+
   const invalidDates = await app.inject({
     method: "PATCH",
     url: `/api/v1/members/${first.memberId}`,
