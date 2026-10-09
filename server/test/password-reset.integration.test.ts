@@ -73,6 +73,8 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   assert.ok(deliveredUrl);
   const rawToken = new URLSearchParams(new URL(deliveredUrl).hash.slice(1)).get("token");
   assert.ok(rawToken);
+  assert.equal(new URL(deliveredUrl).searchParams.has("token"), false);
+  assert.equal(new URLSearchParams(new URL(deliveredUrl).hash.slice(1)).get("token"), rawToken);
   const stored = await pool.query(
     "SELECT token_hash FROM password_reset_tokens WHERE user_id=$1",
     [userId]
@@ -184,6 +186,8 @@ test("password reset delivery failures invalidate the token without revealing ac
 
   const rawToken = new URLSearchParams(new URL(deliveredUrl).hash.slice(1)).get("token");
   assert.ok(rawToken);
+  assert.equal(new URL(deliveredUrl).searchParams.has("token"), false);
+  assert.equal(new URLSearchParams(new URL(deliveredUrl).hash.slice(1)).get("token"), rawToken);
   const stored = await pool.query(
     "SELECT used_at FROM password_reset_tokens WHERE token_hash=$1",
     [digest(rawToken!)]
