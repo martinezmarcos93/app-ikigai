@@ -84,6 +84,7 @@ test("password reset is generic, single-use, expires, invalidates previous token
   assert.equal(request.headers["cache-control"], "no-store");
   assert.match(request.json().message, /If an eligible account exists/);
   assert.ok(resetUrl);
+  assert.equal(new URL(resetUrl).searchParams.has("token"), false);
   const token = new URLSearchParams(new URL(resetUrl).hash.slice(1)).get("token");
   assert.ok(token);
 
