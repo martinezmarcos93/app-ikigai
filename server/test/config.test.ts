@@ -7,6 +7,7 @@ test("development defaults are local and explicit", () => {
     nodeEnv: "development",
     host: "127.0.0.1",
     port: 3001,
+    trustProxyHops: 0,
     corsOrigins: ["http://localhost:8000", "http://127.0.0.1:8000"],
     sessionSecret: "development-only-session-secret-change-before-deploy"
   });
@@ -71,4 +72,12 @@ test("production requires a secure configured password reset delivery provider",
     }),
     /must use HTTPS/
   );
+});
+
+
+test("trusted proxy hops must be explicit, bounded integers", () => {
+  assert.equal(loadConfig({ NODE_ENV: "production", TRUST_PROXY_HOPS: "1", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "test-session-secret-with-more-than-32-characters", PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/send", PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters", PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password" }).trustProxyHops, 1);
+  assert.throws(() => loadConfig({ TRUST_PROXY_HOPS: "-1" }), /TRUST_PROXY_HOPS must be/);
+  assert.throws(() => loadConfig({ TRUST_PROXY_HOPS: "1.5" }), /TRUST_PROXY_HOPS must be/);
+  assert.throws(() => loadConfig({ TRUST_PROXY_HOPS: "6" }), /TRUST_PROXY_HOPS must be/);
 });
