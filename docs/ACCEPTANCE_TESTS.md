@@ -49,3 +49,18 @@
 - [ ] Los profesores no pueden leer datos de miembros ajenos a su alcance.
 - [ ] Se auditan pagos, cambios de membresía, cancelaciones y correcciones de asistencia.
 - [ ] Se verifican copias de seguridad y recuperación antes de importar datos reales.
+
+
+## API authentication foundation
+- [ ] Login accepts only valid JSON and normalizes email addresses.
+- [ ] Wrong email and wrong password use the same public error response.
+- [ ] Unknown accounts do not bypass password-hashing work.
+- [ ] Login rejects missing or unconfigured browser origins.
+- [ ] Session tokens are opaque, random, and stored only as SHA-256 digests.
+- [ ] Session cookies are HttpOnly, SameSite=Strict and Secure in production.
+- [ ] Session expiry and revocation are enforced by the server on every authenticated request.
+- [ ] Logout requires the expected Origin and a valid CSRF token, then revokes the server-side session.
+- [ ] Authentication responses are marked no-store.
+- [ ] Production startup fails when DATABASE_URL, CORS_ORIGINS or a sufficiently long SESSION_SECRET is missing.
+- [ ] Login rate limiting is verified; production multi-instance deployments use a shared rate-limit store.
+- [ ] Cross-member and cross-coach authorization tests pass before any business-data endpoint is released.
