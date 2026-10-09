@@ -32,6 +32,14 @@ La demo contiene vistas de miembros, cuentas corrientes, obligaciones mensuales 
 
 Para desarrollo, seguí [server/README.md](server/README.md): requiere Node.js 22 y PostgreSQL. En terminales separadas, ejecutá la API desde `server/` y el servidor estático desde la raíz; después abrí http://localhost:8000/portal.html. En localhost el portal apunta por defecto a la API en el puerto 3001.
 
+## Identidad visual y assets
+
+La guía de marca está en [assets/brand/README.md](assets/brand/README.md). La paleta principal se mide a partir del logo original y se comparte entre la demo y el portal mediante [assets/brand/tokens.css](assets/brand/tokens.css). El set local de iconos SVG se encuentra en [assets/icons/ikigai-symbols.svg](assets/icons/ikigai-symbols.svg).
+
+Se generaron iconos PWA de 192×192 y 512×512, un icono maskable, favicon, Apple Touch Icon e imagen Open Graph desde el logo original. El generador reproducible está en `scripts/generate-pwa-icons.py`; para ejecutarlo instalá `requirements-assets.txt` y corré `python scripts/generate-pwa-icons.py`. La validación dimensional está en `scripts/validate-brand-assets.py`.
+
+**Fidelidad del logo:** la fuente disponible es un JPG con fondo negro. El negro también integra los contornos de la figura, las pesas y las letras; por eso no se lo eliminó automáticamente ni se presenta un PNG transparente falso. Una variante transparente requiere el original editable/vectorial o un recorte manual revisado.
+
 ## Backend y validaciones
 
 La API usa TypeScript, Fastify y PostgreSQL. Incluye una primera implementación de autenticación, sesiones revocables, protección CSRF/origen, autorización por rol y alcance, reservas transaccionales, cuenta corriente, asistencia, rutinas versionadas y obligaciones mensuales de profesores.
