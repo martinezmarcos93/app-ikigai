@@ -90,4 +90,23 @@ test("invalid API base is surfaced as a configuration error", () => {
   assert.throws(() => api.listMembers(), error => error && error.code === "api_configuration");
 });
 
+test("financial idempotency key is stable for an unchanged retry and rotates when the payload changes", () => {
+  const api = loadClient(async () => new Response("{}", {
+    status: 200,
+    headers: { "content-type": "application/json" }
+  }));
+  const form = {};
+  const otherForm = {};
+  const payload = { amount: "1250.00", description: "Pago ficticio" };
+
+  const first = api.idempotencyKeyFor(form, "ledger", payload);
+  const retry = api.idempotencyKeyFor(form, "ledger", { amount: "1250.00", description: "Pago ficticio" });
+  const changed = api.idempotencyKeyFor(form, "ledger", { amount: "1500.00", description: "Pago ficticio" });
+  const separate = api.idempotencyKeyFor(otherForm, "ledger", payload);
+
+  assert.equal(first, retry);
+  assert.notEqual(first, changed);
+  assert.notEqual(first, separate);
+});
+
 console.log("Portal API client contract checks loaded.");
