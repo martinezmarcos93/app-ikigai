@@ -131,6 +131,11 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
     ["confirmed", "waitlist"]
   );
 
+  const duplicateActor = firstBooking.status === "confirmed" ? first : second;
+  const duplicate = await book(duplicateActor, futureSessionId);
+  assert.equal(duplicate.statusCode, 409);
+  assert.equal(duplicate.json().error, "booking_already_exists");
+
   const confirmedActor = firstBooking.status === "confirmed" ? first : second;
   const confirmedBooking = firstBooking.status === "confirmed" ? firstBooking : secondBooking;
   const waitingBooking = firstBooking.status === "waitlist" ? firstBooking : secondBooking;
@@ -158,4 +163,9 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   const tooLate = await book(first, nearSessionId);
   assert.equal(tooLate.statusCode, 409);
   assert.equal(tooLate.json().error, "booking_cutoff_passed");
+  const lateSessionCount = await pool.query(
+    "SELECT count(*)::int AS total FROM bookings WHERE session_id = $1",
+    [nearSessionId]
+  );
+  assert.equal(lateSessionCount.rows[0]?.total, 0);
 });
