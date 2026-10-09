@@ -146,6 +146,7 @@ The first backend foundation has been added under `server/`:
 - Read-only member endpoints: admin-only paginated list and profile reads scoped to administrators, the member themselves, or an assigned coach; responses minimize fields by role.
 - Transactional booking and cancellation endpoints: session-row locking, server-side 40-minute cutoff, capacity checks, duplicate prevention, and waitlist promotion when a confirmed booking is cancelled before cutoff. PostgreSQL integration tests exercise concurrent bookings.
 - Member account history with role-scoped reads and administrator-only charge/payment/adjustment/refund creation. Ledger amounts use exact decimal strings, debit/credit direction, transaction-scoped audit events and idempotency keys to prevent duplicate financial movements.
+- Coach directory and fixed monthly obligations by period, append-only signed adjustments, partial/excess payments, idempotent payment/adjustment requests and role-scoped obligation reads. No percentage-share or booking-based coach revenue model is used.
 - Local email/password login using scrypt password hashes, generic invalid-credential responses, and a one-time administrator bootstrap command.
 - Opaque server-side sessions with SHA-256 token digests, seven-day expiry, revocation, HttpOnly/SameSite=Strict cookies, CSRF HMAC tokens, strict Origin checks on authentication mutations, and per-IP in-memory login rate limiting.
 - Pure booking decision helpers for the 40-minute cutoff, capacity, duplicate active booking rejection and waitlist eligibility, with unit tests.
