@@ -2,7 +2,7 @@ import "dotenv/config";
 import pg from "pg";
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
-import type { Database } from "./db.js";
+import { PostgresDatabase } from "./db/postgres.js";
 
 const config = loadConfig();
 const connectionString = process.env.DATABASE_URL;
@@ -21,26 +21,13 @@ const pool = connectionString
     })
   : undefined;
 
-if (pool) {
-  await pool.query("SELECT 1");
-}
+if (pool) await pool.query("SELECT 1");
 
-const database: Database | undefined = pool
-  ? {
-      async query<Row extends Record<string, unknown>>(
-        sql: string,
-        values: unknown[] = []
-      ) {
-        const result = await pool.query(sql, values);
-        return {
-          rows: result.rows as Row[],
-          rowCount: result.rowCount
-        };
-      }
-    }
-  : undefined;
-
-const app = await buildApp(config, database ? { db: database } : {});
+const database = pool ? new PostgresDatabase(pool) : undefined;
+const app = await buildApp(config, database ? {
+  db: database,
+  transactionalDb: database
+} : {});
 
 try {
   await app.listen({ host: config.host, port: config.port });
