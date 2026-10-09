@@ -25,6 +25,7 @@ jobs:
           node --check app.js
           node --check api-client.js
           node --check portal.js
+          node --check reset-password.js
       - name: Set up Python for brand asset validation
         uses: actions/setup-python@v5
         with:
