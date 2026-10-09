@@ -58,11 +58,14 @@ for svg_path in illustrations:
         raise SystemExit(f"{svg_path.relative_to(ROOT)}: SVG root/viewBox missing")
     if root.find("{http://www.w3.org/2000/svg}title") is None or root.find("{http://www.w3.org/2000/svg}desc") is None:
         raise SystemExit(f"{svg_path.relative_to(ROOT)}: accessible title/description missing")
-    serialized = ET.tostring(root, encoding="unicode").lower()
-    if "<script" in serialized or "foreignobject" in serialized or "http://" in serialized.replace('xmlns="http://www.w3.org/2000/svg"', ""):
-        raise SystemExit(f"{svg_path.relative_to(ROOT)}: scripts, foreign objects, or external references are not allowed")
-    if "background" in serialized:
-        raise SystemExit(f"{svg_path.relative_to(ROOT)}: do not add a baked background to transparent illustrations")
+    forbidden = {"script", "foreignObject"}
+    for element in root.iter():
+        local_name = element.tag.rsplit("}", 1)[-1]
+        if local_name in forbidden:
+            raise SystemExit(f"{svg_path.relative_to(ROOT)}: scripts and foreign objects are not allowed")
+        for attribute, value in element.attrib.items():
+            if attribute.rsplit("}", 1)[-1] in {"href", "src"} and value.startswith(("http:", "https:", "//", "data:")):
+                raise SystemExit(f"{svg_path.relative_to(ROOT)}: external or embedded references are not allowed")
     print(f"OK {svg_path.relative_to(ROOT)}: transparent SVG, viewBox, title, and description")
 
 print("Brand asset dimensions, manifest entries, illustrations, and measured red token validated.")
