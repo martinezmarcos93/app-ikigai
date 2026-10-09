@@ -32,7 +32,9 @@ No requiere instalar dependencias. Usa HTML, CSS y JavaScript sin backend. Los c
 
 ## Backend en desarrollo
 
-La base inicial de la API está en [`server/`](server/README.md): Node.js 22, TypeScript, Fastify, validación de configuración, cabeceras de seguridad, CORS por lista permitida, endpoints de salud, login local con scrypt, sesiones revocables y CSRF, lectura de perfiles por rol, reservas/cancelaciones transaccionales con lista de espera y migraciones PostgreSQL. Para ejecutar los checks, consultá `server/README.md`. Ya existen login/sesiones, lectura de perfiles con alcance por rol y una primera API transaccional de reservas; ya existe escritura de perfil con auditoría y límites por rol, y una primera API de cuenta corriente con movimientos idempotentes; todavía faltan membresías, obligaciones de profesores, asistencia y rutinas. No es apta para operar con datos reales.
+La API está en [`server/`](server/README.md). Incluye Node.js 22, TypeScript estricto, Fastify, PostgreSQL y migraciones transaccionales; login con contraseña scrypt, sesiones revocables y protección CSRF/origen; lectura y edición de perfiles con autorización por rol; reservas transaccionales con corte de 40 minutos, capacidad y lista de espera; cuenta corriente con movimientos idempotentes y auditoría; obligaciones mensuales fijas de profesores con pagos parciales y ajustes; asistencia histórica y rutinas versionadas con permisos de alcance. La integración con la interfaz de la demo aún no está hecha.
+
+La API sigue siendo una fundación en desarrollo, no está aprobada para datos reales. Faltan recuperación de contraseña, limitación de intentos compartida entre réplicas, ampliación de pruebas de autorización, restauración de backups ensayada, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
 
 ## Credenciales y límites
 
@@ -44,4 +46,4 @@ La rama `feat/android-first-product-foundation` incorpora mejoras iniciales para
 
 ## Hoja de ruta
 
-Consultar [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md), [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), [`docs/ACCEPTANCE_TESTS.md`](docs/ACCEPTANCE_TESTS.md) y [`docs/BACKEND_SECURITY_PLAN.md`](docs/BACKEND_SECURITY_PLAN.md) para las decisiones de producto, el modelo de datos y las pruebas de aceptación. La demo del navegador sigue siendo local y todavía no consume la API. La carpeta [backend/](backend/README.md) contiene una base separada con autenticación por sesión, lectura de miembros con alcance por rol, alta auditada de miembros, esquema PostgreSQL y pruebas automatizadas iniciales. No usar datos reales hasta cerrar los pendientes de seguridad, completar los flujos y verificar la operación.
+Consultar [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md), [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), [`docs/ACCEPTANCE_TESTS.md`](docs/ACCEPTANCE_TESTS.md) y [`docs/BACKEND_SECURITY_PLAN.md`](docs/BACKEND_SECURITY_PLAN.md) para las decisiones de producto, el modelo de datos y las pruebas de aceptación. La demo del navegador sigue siendo local y todavía no consume la API. La carpeta [server/](server/README.md) contiene la API separada. La demo local no consume todavía esta API. No usar datos reales hasta cerrar los pendientes de seguridad, completar los flujos y verificar la operación.
