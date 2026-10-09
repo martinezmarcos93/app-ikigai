@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Conexión interrumpida</title><desc id="desc">Un dispositivo y una señal de conexión interrumpida en rojo.</desc>
+  <path d="M40 178H280" stroke="#303034" stroke-width="2"/>
+  <rect x="91" y="34" width="138" height="132" rx="10" stroke="#808281" stroke-width="3"/>
+  <rect x="102" y="46" width="116" height="107" rx="4" fill="#111112" stroke="#303034" stroke-width="2"/>
+  <path d="M128 126c17-17 47-17 64 0M140 111c10-10 30-10 40 0M153 96c3-3 11-3 14 0" stroke="#808281" stroke-width="3" stroke-linecap="round"/>
+  <path d="M119 89l82 46" stroke="#E31A20" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="160" cy="160" r="2.5" fill="#808281"/>
+  <path d="M58 64h22m-11-11v22M239 70h24m-12-12v24" stroke="#7C090F" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="66" cy="128" r="4" fill="#E31A20"/><circle cx="256" cy="135" r="4" fill="#E31A20"/>
+</svg>

@@ -2,6 +2,7 @@
 """Validate generated Ikigai brand/PWA assets without modifying them."""
 import json
 from pathlib import Path
+import xml.etree.ElementTree as ET
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,4 +44,28 @@ if "--ikigai-brand-red: #e31a20;" not in tokens:
     raise SystemExit("Measured Ikigai red token is missing or changed without review.")
 if "assets/ikigai-logo.jpg" not in (ROOT / "assets/brand/README.md").read_text(encoding="utf-8"):
     raise SystemExit("Brand source/provenance must be documented.")
-print("Brand asset dimensions, manifest entries, and measured red token validated.")
+illustrations = sorted((ROOT / "assets/illustrations").glob("*.svg"))
+expected_illustrations = {"empty-members.svg", "offline.svg", "welcome.svg", "error-state.svg"}
+found_illustrations = {item.name for item in illustrations}
+if found_illustrations != expected_illustrations:
+    raise SystemExit(f"Unexpected illustration set: {sorted(found_illustrations)}")
+for svg_path in illustrations:
+    try:
+        root = ET.parse(svg_path).getroot()
+    except ET.ParseError as error:
+        raise SystemExit(f"{svg_path.relative_to(ROOT)}: invalid SVG/XML: {error}") from error
+    if root.tag != "{http://www.w3.org/2000/svg}svg" or not root.get("viewBox"):
+        raise SystemExit(f"{svg_path.relative_to(ROOT)}: SVG root/viewBox missing")
+    if root.find("{http://www.w3.org/2000/svg}title") is None or root.find("{http://www.w3.org/2000/svg}desc") is None:
+        raise SystemExit(f"{svg_path.relative_to(ROOT)}: accessible title/description missing")
+    forbidden = {"script", "foreignObject"}
+    for element in root.iter():
+        local_name = element.tag.rsplit("}", 1)[-1]
+        if local_name in forbidden:
+            raise SystemExit(f"{svg_path.relative_to(ROOT)}: scripts and foreign objects are not allowed")
+        for attribute, value in element.attrib.items():
+            if attribute.rsplit("}", 1)[-1] in {"href", "src"} and value.startswith(("http:", "https:", "//", "data:")):
+                raise SystemExit(f"{svg_path.relative_to(ROOT)}: external or embedded references are not allowed")
+    print(f"OK {svg_path.relative_to(ROOT)}: transparent SVG, viewBox, title, and description")
+
+print("Brand asset dimensions, manifest entries, illustrations, and measured red token validated.")

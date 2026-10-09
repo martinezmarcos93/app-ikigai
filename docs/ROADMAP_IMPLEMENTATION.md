@@ -27,17 +27,18 @@
 - **Criterio de cierre:** documentación enlazada y no contradictoria; dependencias bloqueadas; CI verde en el commit de la fase; ninguna afirmación de producción sin evidencia.
 
 ### Fase 2 — Identidad visual, logo y assets de Ikigai
-**Prioridad visual explícita: máxima.**
+**Prioridad visual explícita: máxima.** Primer sistema de tokens, PWA, sprite de iconos y cuatro ilustraciones SVG creados. La variante transparente del logo queda bloqueada por la ausencia de un maestro editable; no se falsea con borrado automático del negro.
 
 - [x] Inspeccionar el logo actual original: 720×690 px; composición centrada con nombre angular metálico, samurái con pesas, fondo rojo geométrico y fondo negro; documentar límites del JPG.
 - [x] Medir y documentar la paleta real: rojo dominante `#E31A20`, acento `#EC2124`, negro `#000000` y gris metálico aproximado `#808281`.
 - [x] Definir tokens semánticos compartidos para fondos, superficies, texto, bordes, color de marca, estados, foco y contraste.
 - [x] Unificar los tokens principales de la demo y del portal; quedan tonos locales de estado que deben revisarse visualmente antes de una aprobación definitiva.
-- [ ] Crear variantes fieles y justificadas del logo: principal, símbolo, horizontal/compacta y monocromática cuando el original permita derivarlas sin deformarlo.
+- [ ] Crear variantes fieles y justificadas del logo: principal, símbolo, horizontal/compacta y monocromática cuando el original permita derivarlas sin deformarlo. **Bloqueado para variantes transparentes/vectoriales:** el único archivo fuente disponible es JPG; se necesita el maestro editable o recorte manual revisado. No eliminar el negro por algoritmo.
 - [ ] Preparar SVG optimizado cuando sea posible sin alterar la marca; PNG con transparencia real para usos rasterizados que lo requieran.
 - [x] Crear favicon y set PWA 192×192, 512×512 y maskable; preservar proporciones y zona segura.
 - [x] Crear e integrar un sprite SVG funcional en las navegaciones de demo y portal.
-- [ ] Añadir ilustraciones de estados vacíos, bienvenida, desconexión y errores sólo donde mejoren la comprensión.
+- [x] Crear un primer conjunto de ilustraciones SVG transparentes para bienvenida, miembros vacíos, desconexión y error; documentar usos y límites.
+- [ ] Integrar las ilustraciones en pantallas concretas sólo tras revisar sus flujos y evitar imágenes decorativas redundantes.
 - [x] Crear imagen Open Graph y guía de uso de marca, paleta, tipografía, tamaños y fondos permitidos.
 - [x] Actualizar manifest, metadatos, service worker y rutas de recursos tras generar los assets.
 - [x] Registrar procedencia de la marca y mantener los iconos esenciales como recursos locales.

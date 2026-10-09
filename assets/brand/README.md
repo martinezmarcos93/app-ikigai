@@ -38,6 +38,17 @@ Los tokens compartidos viven en `tokens.css`. La paleta original del logo tiene 
 
 La interfaz conserva las fuentes condensadas existentes (Bebas Neue para titulares de marca y Rajdhani para interfaz). Usar titulares compactos y fuertes, con jerarquía clara; reservar el rojo para énfasis y no llenar superficies grandes con rojo brillante.
 
+## Ilustraciones funcionales
+
+Las ilustraciones SVG siguientes son recursos complementarios con fondo transparente y paleta oscura/roja; no sustituyen el logo oficial ni pretenden reconstruir la figura del samurái:
+
+- `assets/illustrations/welcome.svg`: bienvenida y onboarding.
+- `assets/illustrations/empty-members.svg`: estado vacío del listado de miembros.
+- `assets/illustrations/offline.svg`: pérdida de conectividad o modo offline.
+- `assets/illustrations/error-state.svg`: error recuperable o acción fallida.
+
+Usarlas con dimensiones responsivas y texto alternativo contextual cuando aporten información. El texto de la interfaz debe explicar la acción siguiente; la ilustración nunca es el único indicador del estado. No incorporar estos SVG al shell offline salvo que la pantalla inicial los necesite, para evitar inflar la caché inicial.
+
 ## Recursos
 
 - Fuente: `../ikigai-logo.jpg`
