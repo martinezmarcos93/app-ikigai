@@ -179,17 +179,9 @@ export function registerAuthRoutes(
 
   app.post("/api/v1/auth/logout", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
-    if (!originAllowed(request, reply, config)) return;
     const session = await currentSession(request, db);
     if (session) {
-      const supplied = request.headers["x-csrf-token"];
-      const expected = csrfFor(session.token, config.sessionSecret);
-      if (typeof supplied !== "string" || !safeStringEqual(supplied, expected)) {
-        return reply.code(403).send({
-          error: "csrf_validation_failed",
-          message: "The request could not be validated."
-        });
-      }
+      if (!requireCsrf(request, reply, session.token, config)) return;
       await db.query(
         "UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL",
         [session.row.session_id]
