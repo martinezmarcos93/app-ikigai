@@ -156,6 +156,67 @@ export function buildApp({ pool, config, passwordVerifier = argon2.verify }: App
     user: request.authUser,
   }));
 
+  app.post<{ Body: {
+    firstName?: string; lastName?: string; email?: string; phone?: string;
+    address?: string; dni?: string; status?: string; emergencyContactName?: string;
+    emergencyContactPhone?: string; notes?: string;
+  } }>("/api/v1/members", { preHandler: requireUser }, async (request, reply) => {
+    if (request.authUser?.role !== "admin") {
+      return reply.code(403).send({ error: "forbidden", message: "Sólo administración puede dar de alta miembros." });
+    }
+
+    const body = request.body ?? {};
+    const firstName = typeof body.firstName === "string" ? body.firstName.trim() : "";
+    const lastName = typeof body.lastName === "string" ? body.lastName.trim() : "";
+    const email = typeof body.email === "string" ? normalizeEmail(body.email) : null;
+    const phone = typeof body.phone === "string" ? body.phone.trim() : null;
+    const address = typeof body.address === "string" ? body.address.trim() : null;
+    const dni = typeof body.dni === "string" ? body.dni.trim() : null;
+    const emergencyContactName = typeof body.emergencyContactName === "string" ? body.emergencyContactName.trim() : null;
+    const emergencyContactPhone = typeof body.emergencyContactPhone === "string" ? body.emergencyContactPhone.trim() : null;
+    const notes = typeof body.notes === "string" ? body.notes.trim() : null;
+    const status = body.status ?? "trial";
+    const allowedStatuses = new Set(["trial", "active", "suspended", "debtor", "exited"]);
+
+    if (firstName.length < 1 || firstName.length > 100 || lastName.length < 1 || lastName.length > 100) {
+      return reply.code(400).send({ error: "invalid_input", message: "Nombre y apellido son obligatorios y deben tener hasta 100 caracteres." });
+    }
+    if (email !== null && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+      return reply.code(400).send({ error: "invalid_input", message: "El email no tiene un formato válido." });
+    }
+    if (![phone, address, dni, emergencyContactName, emergencyContactPhone, notes].every((v) => v === null || v.length <= 1000)) {
+      return reply.code(400).send({ error: "invalid_input", message: "Uno o más campos exceden la longitud permitida." });
+    }
+    if (typeof status !== "string" || !allowedStatuses.has(status)) {
+      return reply.code(400).send({ error: "invalid_input", message: "El estado del miembro no es válido." });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const inserted = await client.query(
+        `INSERT INTO members
+          (first_name, last_name, email, phone, address, dni, status, emergency_contact_name, emergency_contact_phone, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id, first_name, last_name, email, phone, address, dni, status, joined_at, emergency_contact_name, emergency_contact_phone`,
+        [firstName, lastName, email, phone, address, dni, status, emergencyContactName, emergencyContactPhone, notes],
+      );
+      const created = inserted.rows[0];
+      await client.query(
+        `INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, after_data, request_id)
+         VALUES ($1, 'member.created', 'member', $2, $3::jsonb, $4)`,
+        [request.authUser.id, created.id, JSON.stringify({ firstName, lastName, email, status }), request.id],
+      );
+      await client.query("COMMIT");
+      return reply.code(201).send({ member: created });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
+
   app.get("/api/v1/members", { preHandler: requireUser }, async (request, reply) => {
     const user = request.authUser!;
     if (user.role === "admin") {
