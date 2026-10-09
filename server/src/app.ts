@@ -9,6 +9,7 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import { registerMemberRoutes } from "./routes/members.js";
 import { registerBookingRoutes } from "./routes/bookings.js";
 import { registerLedgerRoutes } from "./routes/ledger.js";
+import { registerCoachRoutes } from "./routes/coaches.js";
 
 export interface AppDependencies {
   db?: Database;
@@ -58,6 +59,7 @@ export async function buildApp(
   if (dependencies.transactionalDb) {
     registerBookingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerLedgerRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerCoachRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
   }
 
   app.setNotFoundHandler((_request, reply) => {
