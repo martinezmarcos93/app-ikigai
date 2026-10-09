@@ -103,7 +103,7 @@ export async function buildApp(
 
   const appDb = dependencies.db ?? dependencies.transactionalDb;
   if (appDb) {
-    registerAuthRoutes(app, appDb, config);
+    registerAuthRoutes(app, appDb, config, dependencies.transactionalDb);
     registerMemberRoutes(app, appDb, config, dependencies.transactionalDb);
   }
   if (dependencies.transactionalDb) {
