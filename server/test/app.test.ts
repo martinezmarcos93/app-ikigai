@@ -14,6 +14,8 @@ test("health endpoints expose status only and include security headers", async (
 
   const versioned = await app.inject({ method: "GET", url: "/api/v1/health" });
   assert.equal(versioned.statusCode, 200);
+  assert.equal(versioned.headers["cache-control"], "no-store");
+  assert.equal(versioned.headers.pragma, "no-cache");
   assert.deepEqual(versioned.json(), {
     status: "ok", service: "ikigai-api", version: "v1"
   });
@@ -25,6 +27,7 @@ test("unknown endpoints return a stable non-sensitive error", async (t) => {
 
   const response = await app.inject({ method: "GET", url: "/api/v1/not-real" });
   assert.equal(response.statusCode, 404);
+  assert.equal(response.headers["cache-control"], "no-store");
   assert.deepEqual(response.json(), {
     error: "not_found", message: "The requested resource was not found."
   });
