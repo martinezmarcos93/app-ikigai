@@ -1,0 +1,21 @@
+name: Temporary logo inspection
+
+on:
+  push:
+    branches: [feat/brand-assets-system]
+    paths: [.github/workflows/inspect-logo.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emit source logo as base64 chunks for visual review
+        run: |
+          echo "LOGO_BEGIN"
+          base64 -w0 assets/ikigai-logo.jpg | fold -w 30000 | sed 's/^/LOGO_CHUNK:/'
+          echo "LOGO_END"
+          file assets/ikigai-logo.jpg
