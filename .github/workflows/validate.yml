@@ -21,7 +21,10 @@ jobs:
         with:
           node-version: 22
       - name: Check JavaScript syntax
-        run: node --check app.js
+        run: |
+          node --check app.js
+          node --check api-client.js
+          node --check portal.js
       - name: Validate PWA manifest
         run: node -e "const m = JSON.parse(require('fs').readFileSync('manifest.webmanifest', 'utf8')); if (!m.name || !m.start_url || !m.display) process.exit(1)"
       - name: Check core product rules are present
