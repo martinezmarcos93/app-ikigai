@@ -1,0 +1,39 @@
+name: Generate backend npm lockfile (temporary)
+
+on:
+  push:
+    branches: [feat/roadmap-phase-1-foundation]
+    paths: [.github/workflows/generate-lockfile.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/roadmap-phase-1-foundation
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package.json
+      - name: Generate lockfile without installing lifecycle scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit generated lockfile
+        working-directory: .
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/package-lock.json
+          if git diff --cached --quiet; then
+            echo "Lockfile is already current."
+            exit 0
+          fi
+          git commit -m "build: lock backend npm dependencies"
+          git push origin HEAD:feat/roadmap-phase-1-foundation
