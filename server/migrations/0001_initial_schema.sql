@@ -206,11 +206,17 @@ CREATE TABLE coach_obligation_adjustments (
   obligation_id uuid NOT NULL REFERENCES coach_obligations(id) ON DELETE RESTRICT,
   amount_delta numeric(12,2) NOT NULL CHECK (amount_delta <> 0),
   reason text NOT NULL,
+  idempotency_key text,
+  request_hash char(64),
   recorded_by uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK ((idempotency_key IS NULL AND request_hash IS NULL) OR
+         (idempotency_key IS NOT NULL AND request_hash IS NOT NULL))
 );
 CREATE INDEX coach_obligation_adjustments_obligation_idx
   ON coach_obligation_adjustments(obligation_id, created_at);
+CREATE UNIQUE INDEX coach_adjustment_idempotency_unique
+  ON coach_obligation_adjustments(recorded_by, idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 CREATE TABLE coach_payments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -219,10 +225,16 @@ CREATE TABLE coach_payments (
   paid_on date NOT NULL,
   payment_method text,
   reference text,
+  idempotency_key text,
+  request_hash char(64),
   recorded_by uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK ((idempotency_key IS NULL AND request_hash IS NULL) OR
+         (idempotency_key IS NOT NULL AND request_hash IS NOT NULL))
 );
 CREATE INDEX coach_payments_obligation_idx ON coach_payments(obligation_id, paid_on);
+CREATE UNIQUE INDEX coach_payment_idempotency_unique
+  ON coach_payments(recorded_by, idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 CREATE TABLE exercises (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
