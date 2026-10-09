@@ -2,7 +2,8 @@
   'use strict';
   const $ = (s, root=document) => root.querySelector(s);
   const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-  const STORAGE_KEY='ikigaiDemoState_v1';
+  const LEGACY_STORAGE_KEY='ikigaiDemoState_v1';
+  const STORAGE_KEY='ikigaiPrototypeState_v2';
   const today = new Date();
   const isoToday = today.toISOString().slice(0,10);
   const money = n => new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(n);
@@ -11,73 +12,19 @@
   const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const seed = () => ({
     role:'admin', view:'dashboard',
-    members:[
-      {id:1,name:'Lucía Fernández',email:'lucia.fernandez@mail.com',phone:'11 5555-0142',plan:'Full mensual',status:'Activo',balance:0,paid:65000,join:'2026-02-10',coach:'Agustín Navarro',attendance:14},
-      {id:2,name:'Mateo González',email:'mateo.g@mail.com',phone:'11 5555-0188',plan:'Kick Boxing',status:'Activo',balance:22000,paid:45000,join:'2026-03-02',coach:'Nicolás Sosa',attendance:11},
-      {id:3,name:'Camila Rodríguez',email:'camila.r@mail.com',phone:'11 5555-0113',plan:'Funcional',status:'Activo',balance:0,paid:52000,join:'2025-11-18',coach:'Florencia Díaz',attendance:17},
-      {id:4,name:'Tomás Benítez',email:'tomas.b@mail.com',phone:'11 5555-0129',plan:'Full mensual',status:'Adeuda',balance:30000,paid:0,join:'2026-01-14',coach:'Agustín Navarro',attendance:6},
-      {id:5,name:'Valentina López',email:'vale.lopez@mail.com',phone:'11 5555-0104',plan:'Tae Kwon Do',status:'Activo',balance:-8000,paid:58000,join:'2025-09-22',coach:'Nicolás Sosa',attendance:15},
-      {id:6,name:'Santiago Pérez',email:'santi.perez@mail.com',phone:'11 5555-0195',plan:'Kick Boxing',status:'Activo',balance:0,paid:45000,join:'2026-04-01',coach:'Nicolás Sosa',attendance:9},
-      {id:7,name:'Martina Acosta',email:'martina.a@mail.com',phone:'11 5555-0171',plan:'Funcional',status:'Adeuda',balance:18000,paid:0,join:'2026-04-15',coach:'Florencia Díaz',attendance:4},
-      {id:8,name:'Joaquín Silva',email:'joaquin.s@mail.com',phone:'11 5555-0162',plan:'Full mensual',status:'Activo',balance:0,paid:65000,join:'2025-12-06',coach:'Agustín Navarro',attendance:18},
-      {id:9,name:'Milagros Torres',email:'mili.t@mail.com',phone:'11 5555-0156',plan:'Tae Kwon Do',status:'Activo',balance:0,paid:58000,join:'2026-05-01',coach:'Nicolás Sosa',attendance:12},
-      {id:10,name:'Bruno Herrera',email:'bruno.h@mail.com',phone:'11 5555-0170',plan:'Kick Boxing',status:'Inactivo',balance:0,paid:0,join:'2025-07-14',coach:'Nicolás Sosa',attendance:0},
-      {id:11,name:'Agustina Romero',email:'agus.r@mail.com',phone:'11 5555-0118',plan:'Full mensual',status:'Activo',balance:12000,paid:65000,join:'2026-03-12',coach:'Agustín Navarro',attendance:13},
-      {id:12,name:'Franco Díaz',email:'franco.d@mail.com',phone:'11 5555-0122',plan:'Funcional',status:'Activo',balance:0,paid:52000,join:'2026-02-25',coach:'Florencia Díaz',attendance:10}
-    ],
-    coaches:[
-      {id:1,name:'Agustín Navarro',discipline:'Tae Kwon Do · Dirección',phone:'11 6282-1564',email:'agustin@ikigai.training',monthlyFee:null,monthlyPayments:[],active:true},
-      {id:2,name:'Nicolás Sosa',discipline:'Kick Boxing',phone:'11 5555-0201',email:'nicolas@ikigai.training',monthlyFee:null,monthlyPayments:[],active:true},
-      {id:3,name:'Florencia Díaz',discipline:'Entrenamiento funcional',phone:'11 5555-0202',email:'florencia@ikigai.training',monthlyFee:null,monthlyPayments:[],active:true}
-    ],
-    classes:[
-      {id:1,name:'Kick Boxing',coach:'Nicolás Sosa',day:1,time:'18:00',duration:60,capacity:7,price:8000},
-      {id:2,name:'Tae Kwon Do',coach:'Agustín Navarro',day:1,time:'19:00',duration:60,capacity:7,price:9500},
-      {id:3,name:'Funcional',coach:'Florencia Díaz',day:1,time:'20:00',duration:50,capacity:7,price:7500},
-      {id:4,name:'Kick Boxing',coach:'Nicolás Sosa',day:2,time:'18:00',duration:60,capacity:7,price:8000},
-      {id:5,name:'Funcional',coach:'Florencia Díaz',day:2,time:'19:00',duration:50,capacity:7,price:7500},
-      {id:6,name:'Tae Kwon Do',coach:'Agustín Navarro',day:3,time:'18:00',duration:60,capacity:7,price:9500},
-      {id:7,name:'Kick Boxing',coach:'Nicolás Sosa',day:3,time:'19:00',duration:60,capacity:7,price:8000},
-      {id:8,name:'Funcional',coach:'Florencia Díaz',day:4,time:'18:00',duration:50,capacity:7,price:7500},
-      {id:9,name:'Tae Kwon Do',coach:'Agustín Navarro',day:4,time:'19:00',duration:60,capacity:7,price:9500},
-      {id:10,name:'Kick Boxing',coach:'Nicolás Sosa',day:5,time:'18:00',duration:60,capacity:7,price:8000},
-      {id:11,name:'Funcional',coach:'Florencia Díaz',day:5,time:'19:00',duration:50,capacity:7,price:7500},
-      {id:12,name:'Entrenamiento abierto',coach:'Agustín Navarro',day:6,time:'10:00',duration:60,capacity:7,price:7000}
-    ],
-    bookings:[
-      {id:1,memberId:1,classId:1,date:isoToday,status:'confirmado'}, {id:2,memberId:2,classId:1,date:isoToday,status:'confirmado'},
-      {id:3,memberId:3,classId:1,date:isoToday,status:'confirmado'}, {id:4,memberId:6,classId:1,date:isoToday,status:'confirmado'},
-      {id:5,memberId:8,classId:1,date:isoToday,status:'confirmado'}, {id:6,memberId:9,classId:1,date:isoToday,status:'confirmado'},
-      {id:7,memberId:11,classId:2,date:isoToday,status:'confirmado'}, {id:8,memberId:12,classId:3,date:isoToday,status:'confirmado'},
-      {id:9,memberId:1,classId:2,date:isoToday,status:'confirmado'}, {id:10,memberId:5,classId:2,date:isoToday,status:'confirmado'}
-    ],
-    routines:[
-      {id:1,title:'Fuerza base A',type:'Funcional',level:'Inicial',coach:'Florencia Díaz',desc:'Circuito de fuerza general, control técnico y movilidad.',exercises:[['Sentadillas','3 × 12'],['Flexiones adaptadas','3 × 10'],['Plancha','3 × 30 s'],['Remo con banda','3 × 12']]},
-      {id:2,title:'Kick Boxing · Técnica',type:'Kick Boxing',level:'Intermedio',coach:'Nicolás Sosa',desc:'Trabajo de guardia, desplazamientos y combinaciones cortas.',exercises:[['Soga','3 × 2 min'],['Jab-cross','4 × 2 min'],['Patadas frontales','3 × 12'],['Sombra técnica','3 × 2 min']]},
-      {id:3,title:'Movilidad y core',type:'Funcional',level:'Todos los niveles',coach:'Florencia Díaz',desc:'Movilidad articular y estabilización del tronco.',exercises:[['Movilidad de cadera','5 min'],['Dead bug','3 × 10'],['Bird dog','3 × 10'],['Plancha lateral','3 × 20 s']]},
-      {id:4,title:'Tae Kwon Do · Base',type:'Tae Kwon Do',level:'Inicial',coach:'Agustín Navarro',desc:'Posturas, coordinación y técnicas fundamentales.',exercises:[['Entrada en calor','8 min'],['Ap kubi','3 × 10'],['Ap chagui','3 × 10'],['Poomsae básico','4 rondas']]},
-      {id:5,title:'Potencia y resistencia',type:'Funcional',level:'Avanzado',coach:'Florencia Díaz',desc:'Circuito por intervalos. Ajustar intensidad según condición física.',exercises:[['Burpees','4 × 10'],['Kettlebell swing','4 × 12'],['Zancadas','3 × 12'],['Bicicleta','5 × 30 s']]}
-    ],
-    ledger:[
-      {id:1,memberId:2,date:'2026-10-02',type:'Cargo',description:'Cuota octubre · Kick Boxing',amount:45000},
-      {id:2,memberId:2,date:'2026-10-05',type:'Pago',description:'Pago parcial en efectivo',amount:-23000},
-      {id:3,memberId:4,date:'2026-10-01',type:'Cargo',description:'Cuota octubre · Full mensual',amount:65000},
-      {id:4,memberId:4,date:'2026-10-04',type:'Pago',description:'Seña cuota mensual',amount:-35000},
-      {id:5,memberId:7,date:'2026-10-01',type:'Cargo',description:'Cuota octubre · Funcional',amount:52000},
-      {id:6,memberId:11,date:'2026-10-01',type:'Cargo',description:'Cuota octubre · Full mensual',amount:65000},
-      {id:7,memberId:11,date:'2026-10-03',type:'Pago',description:'Transferencia',amount:-53000},
-      {id:8,memberId:5,date:'2026-10-03',type:'Pago',description:'Saldo a favor aplicado',amount:-8000}
-    ],
-    messages:[
-      {id:1,title:'Rutinas actualizadas para esta semana',body:'Ya están cargadas las rutinas de fuerza base y técnica. Revisá la rutina asignada antes de venir a entrenar.',audience:'Todos los miembros',date:'2026-10-07',kind:'Rutinas',read:false},
-      {id:2,title:'Recordatorio de cuota mensual',body:'Te recordamos revisar tu cuenta corriente y consultar en recepción si necesitás coordinar el pago.',audience:'Miembros con saldo pendiente',date:'2026-10-06',kind:'Administración',read:false},
-      {id:3,title:'Turnos: reservá tu lugar',body:'Los cupos por franja son limitados. Si no vas a asistir, cancelá tu reserva para liberar el lugar a otro miembro.',audience:'Todos los miembros',date:'2026-10-04',kind:'Turnos',read:true}
-    ],
-    absences:[{id:1,memberId:4,date:isoToday,type:'Llegaré tarde',note:'Unos 10 minutos',status:'Recibido'}],
+    members:[],
+    coaches:[],
+    classes:[],
+    bookings:[],
+    routines:[],
+    ledger:[],
+    messages:[],
+    absences:[],
     attendance:[],
-    nextId:100
+    nextId:1
   });
   let state;
+  try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch {}
   try { state=JSON.parse(localStorage.getItem(STORAGE_KEY))||seed(); } catch { state=seed(); }
   if (!state.members || !state.classes || !state.ledger) state=seed();
   if (!Array.isArray(state.attendance)) state.attendance=[];
@@ -100,7 +47,7 @@
   function promoteWaitlist(classId,date){const c=classById(classId);if(!c||bookingsFor(classId,date).length>=c.capacity||bookingCutoffPassed(c,date))return null;const next=waitlistFor(classId,date)[0];if(!next)return null;next.status='confirmado';next.promotedAt=new Date().toISOString();return next;}
   const navLabels={dashboard:'RESUMEN',members:'MIEMBROS',schedule:'TURNOS Y ASISTENCIA',routines:'RUTINAS Y EJERCICIOS',accounts:'CUENTAS CORRIENTES',coaches:'PROFESORES',messages:'AVISOS Y NOTIFICACIONES'};
   function toast(message,error=false){const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=message;$('#toastRegion').append(el);setTimeout(()=>el.remove(),3400)}
-  function setRole(role){state.role=role;save();$('#roleSelect').value=role;$('#topName').textContent=role==='admin'?'Agustín Navarro':(memberById(myMemberId)?.name||'Lucía Fernández');$('#topRole').textContent=role==='admin'?'Administrador':'Miembro';$('#topAvatar').textContent=role==='admin'?'AN':initials(memberById(myMemberId)?.name||'Lucía Fernández');$$('.admin-only').forEach(el=>el.classList.toggle('hidden',role!=='admin'));if(role==='member'&&['members','accounts','coaches'].includes(state.view))state.view='dashboard';render()}
+  function setRole(role){state.role=role;save();$('#roleSelect').value=role;const member=memberById(myMemberId);$('#topName').textContent=role==='admin'?'Administración demo':(member?.name||'Miembro sin perfil');$('#topRole').textContent='Simulación · sin autenticación';$('#topAvatar').textContent=role==='admin'?'AD':(member?initials(member.name):'—');$('.admin-only').forEach(el=>el.classList.toggle('hidden',role!=='admin'));if(role==='member'&&['members','accounts','coaches'].includes(state.view))state.view='dashboard';render()}
   function navigate(view){state.view=view;save();$('#sidebar').classList.remove('open');$('#mobileMenu').setAttribute('aria-expanded','false');render();window.scrollTo({top:0,behavior:'smooth'})}
   function heading(eyebrow,title,desc,actions=''){return `<div class="page-heading"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p>${desc}</p></div><div class="heading-actions">${actions}</div></div>`}
   function panelHead(title,subtitle='',action=''){return `<div class="panel-head"><div><h2>${title}</h2>${subtitle?`<p>${subtitle}</p>`:''}</div>${action}</div>`}
@@ -112,6 +59,9 @@
   function renderDashboard(){
     const unread=state.messages.filter(m=>!m.read).length;
     if(state.role==='member'){
+      if(!state.members.length){
+        return `${heading('VISTA SIMULADA','SIN PERFIL DE MIEMBRO','El prototipo está vacío. El acceso real de miembros se realiza desde el portal conectado.')}${'<div class="empty-state">No hay perfiles ficticios cargados. Esta vista no autentica usuarios ni consulta la API.</div>'}`;
+      }
       const m=memberById(myMemberId)||state.members[0]; const upcoming=state.bookings.filter(b=>b.memberId===m.id&&b.date>=isoToday&&['confirmado','espera'].includes(b.status)); const myRoutines=state.routines.filter(r=>r.coach===m.coach||m.plan==='Full mensual').slice(0,2); const pending=state.ledger.filter(x=>x.memberId===m.id).reduce((s,x)=>s+x.amount,0);
       return `${heading('TU ESPACIO IKIGAI','HOLA, '+escapeHtml(m.name.split(' ')[0]).toUpperCase(),'Tu entrenamiento, tus turnos y tu progreso, en un solo lugar.',`<button class="btn primary" data-action="book">＋ Reservar turno</button>`)}<div class="member-hero"><div><p class="eyebrow">TU OBJETIVO · TU CONSTANCIA</p><h2>Forjá tu propósito.</h2><p>Consultá tus rutinas, organizá la semana y avisá si no podés venir.</p></div><div>${statusPill(m.status)}<p class="muted" style="font-size:12px">Plan: ${escapeHtml(m.plan)}</p></div></div><div class="stat-grid">${stat('ASISTENCIAS DEL MES',m.attendance,'Entrenamientos registrados','↗',true)}${stat('TURNOS RESERVADOS',upcoming.filter(b=>b.status==='confirmado').length,'Confirmados · '+upcoming.filter(b=>b.status==='espera').length+' en espera','▦')}${stat('SALDO DE TU CUENTA',money(pending),pending>0?'Saldo pendiente':pending<0?'Tenés saldo a favor':'Cuenta al día','＄')}${stat('RUTINAS DISPONIBLES',state.routines.length,'Planes de entrenamiento','✳')}</div><div class="quick-actions"><button class="quick-action" data-action="book"><span>▦</span><b>Reservar un turno</b><small>Elegí disciplina, profesor y horario. Cupos limitados.</small></button><button class="quick-action" data-action="absence"><span>◷</span><b>Avisar ausencia o demora</b><small>Notificá al gimnasio si no llegás a tiempo.</small></button><button class="quick-action" data-go="routines"><span>✳</span><b>Ver mis rutinas</b><small>Consultá los ejercicios asignados.</small></button></div><div class="two-col"><div class="panel">${panelHead('TUS PRÓXIMOS TURNOS','Reservas confirmadas y lista de espera') }<div class="panel-body">${upcoming.length?upcoming.map(b=>{const c=classById(b.classId);return `<div class="class-row"><div class="class-time">${c?.time||'--:--'}</div><div class="class-info"><b>${escapeHtml(c?.name||'Clase')}</b><small>${dateLabel(b.date)} · ${escapeHtml(c?.coach||'Profesor')} · ${b.status==='espera'?'EN LISTA DE ESPERA':'CONFIRMADO'}</small></div><button class="btn small" data-action="cancel-booking" data-id="${b.id}">Cancelar</button></div>`}).join(''):'<div class="empty-state">Todavía no tenés turnos reservados.</div>'}<div style="margin-top:12px"><button class="text-link" data-go="schedule">Ver todos los turnos →</button></div></div></div><div class="panel">${panelHead('AVISOS DEL GIMNASIO','Novedades recientes')}<div class="panel-body notice-list">${state.messages.slice(0,3).map(messageRow).join('')}<button class="text-link" data-go="messages" style="text-align:left;padding:12px 0 0">Ver todas las notificaciones →</button></div></div></div>`;
     }
@@ -155,7 +105,7 @@
   $('#mobileMenu').addEventListener('click',()=>{const open=$('#sidebar').classList.toggle('open');$('#mobileMenu').setAttribute('aria-expanded',String(open));});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sidebar').classList.contains('open')){$('#sidebar').classList.remove('open');$('#mobileMenu').setAttribute('aria-expanded','false');}});
   document.addEventListener('click',e=>{if(window.matchMedia('(max-width: 760px)').matches&&$('#sidebar').classList.contains('open')&&!$('#sidebar').contains(e.target)&&!$('#mobileMenu').contains(e.target)){$('#sidebar').classList.remove('open');$('#mobileMenu').setAttribute('aria-expanded','false');}});
-  $('#resetDemo').addEventListener('click',()=>{if(confirm('¿Reiniciar todos los datos ficticios de la demo?')){state=seed();memberTab='all';memberSearch='';memberStatus='all';accountSearch='';scheduleDate=isoToday;routineFilter='Todas';localStorage.setItem(STORAGE_KEY,JSON.stringify(state));setRole('admin');toast('Demo reiniciada con los datos iniciales.');}});
+  $('#resetDemo').addEventListener('click',()=>{if(confirm('¿Vaciar el prototipo local? Se eliminarán los datos almacenados por esta demo en este navegador.')){state=seed();memberTab='all';memberSearch='';memberStatus='all';accountSearch='';scheduleDate=isoToday;routineFilter='Todas';localStorage.setItem(STORAGE_KEY,JSON.stringify(state));setRole('admin');toast('Prototipo local vacío.');}});
   $('#page').addEventListener('input',e=>{if(e.target.id==='memberSearch'){memberSearch=e.target.value;const pos=e.target.selectionStart;render();const input=$('#memberSearch');input.focus();input.setSelectionRange(pos,pos)}if(e.target.id==='accountSearch'){accountSearch=e.target.value;const pos=e.target.selectionStart;render();const input=$('#accountSearch');input.focus();input.setSelectionRange(pos,pos)}});
   $('#page').addEventListener('change',e=>{if(e.target.id==='memberStatusFilter'){memberStatus=e.target.value;render()}if(e.target.id==='scheduleDate'){scheduleDate=e.target.value||isoToday;render()}});
   $('#modal').addEventListener('click',e=>{if(e.target===$('#modal'))closeModal()});
