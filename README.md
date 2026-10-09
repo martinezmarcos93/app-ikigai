@@ -36,7 +36,7 @@ Para desarrollo, seguí [server/README.md](server/README.md): requiere Node.js 2
 
 La API usa TypeScript, Fastify y PostgreSQL. Incluye una primera implementación de autenticación, sesiones revocables, protección CSRF/origen, autorización por rol y alcance, reservas transaccionales, cuenta corriente, asistencia, rutinas versionadas y obligaciones mensuales de profesores.
 
-El workflow de GitHub Actions verifica sintaxis de JavaScript, reglas de producto, el manifiesto PWA, TypeScript, tests, build y migraciones contra PostgreSQL. La instalación de dependencias todavía necesita lockfile para ser plenamente reproducible; está registrada como pendiente de la Fase 1.
+El workflow de GitHub Actions verifica sintaxis de JavaScript, reglas de producto, el manifiesto PWA, TypeScript, tests, build y migraciones contra PostgreSQL. El backend versiona `server/package-lock.json` y CI usa `npm ci` para instalar las dependencias de forma reproducible.
 
 Antes de usar datos reales faltan, entre otros puntos, ampliar las pruebas de autorización, recuperación de contraseña, limitación de intentos compartida entre instancias, revisión de seguridad, backups y restauración ensayada, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
 
