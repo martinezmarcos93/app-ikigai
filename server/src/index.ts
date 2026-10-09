@@ -28,6 +28,7 @@ const passwordResetDelivery = resendApiKey && passwordResetFrom
   ? async (email: string, resetUrl: string): Promise<void> => {
       const safeUrl = resetUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
       const response = await fetch("https://api.resend.com/emails", {
+        signal: AbortSignal.timeout(8_000),
         method: "POST",
         headers: {
           Authorization: `Bearer ${resendApiKey}`,
