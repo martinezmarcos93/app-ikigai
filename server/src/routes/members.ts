@@ -27,6 +27,13 @@ interface PatchMemberBody {
   notes?: string;
 }
 
+class MemberUpdateError extends Error {
+  constructor(readonly statusCode: number, readonly errorCode: string, message: string) {
+    super(message);
+    this.name = "MemberUpdateError";
+  }
+}
+
 interface MemberRow extends Record<string, unknown> {
   id: string;
   full_name: string;
@@ -263,7 +270,9 @@ export function registerMemberRoutes(
         return invalid(reply, "El nombre no puede quedar vacío.");
       }
 
-      const updated = await transactionalDb.transaction(async (tx) => {
+      let updated: MemberRow | null;
+      try {
+        updated = await transactionalDb.transaction(async (tx) => {
           const currentResult = await tx.query<MemberRow>(
             `SELECT id, full_name, email, phone, address, dni,
                     emergency_contact_name, emergency_contact_phone,
@@ -275,6 +284,12 @@ export function registerMemberRoutes(
           );
           const current = currentResult.rows[0];
           if (!current) return null;
+
+          const joinedOn = normalized.joined_on ?? current.joined_on;
+          const exitedOn = normalized.exited_on ?? current.exited_on;
+          if (joinedOn && exitedOn && exitedOn < joinedOn) {
+            throw new MemberUpdateError(400, "invalid_date_range", "La fecha de baja no puede ser anterior a la fecha de alta.");
+          }
 
           const entries = Object.entries(normalized).filter(([key, value]) =>
             value !== undefined && current[key as keyof MemberRow] !== value
@@ -318,8 +333,28 @@ export function registerMemberRoutes(
           );
           return updatedMember;
         });
+      } catch (error) {
+        if (error instanceof MemberUpdateError) {
+          return reply.code(error.statusCode).send({
+            error: error.errorCode,
+            message: error.message
+          });
+        }
+        const dbCode = typeof error === "object" && error !== null && "code" in error
+          ? String((error as { code?: unknown }).code)
+          : "";
+        if (dbCode === "23505") return reply.code(409).send({
+          error: "member_conflict",
+          message: "The update conflicts with an existing record."
+        });
+        if (dbCode === "23514" || dbCode === "23502") return reply.code(400).send({
+          error: "invalid_member_update",
+          message: "One or more member fields violate a data constraint."
+        });
+        throw error;
+      }
 
-        if (!updated) return reply.code(404).send({
+      if (!updated) return reply.code(404).send({
           error: "not_found",
           message: "The requested resource was not found."
         });
