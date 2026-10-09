@@ -103,7 +103,7 @@ Usar respuestas de error consistentes (`400` entrada inválida, `401` sin sesió
 - Cuenta corriente con movimientos idempotentes y auditoría.
 - Asistencia histórica, catálogo de ejercicios, rutinas versionadas y asignaciones con permisos de alcance.
 - Obligaciones mensuales fijas de profesores, pagos parciales y ajustes trazables.
-- Pendiente: membresías operativas completas, notificaciones y conexión progresiva de la PWA con la API.
+- Pendiente: automatización de facturación de membresías, notificaciones y conexión progresiva de la PWA con la API.
 
 ### B4 — Integridad y cobertura de pruebas (en progreso)
 - Ejecutar y mantener verde CI: tipos, pruebas unitarias, pruebas API y migraciones PostgreSQL.
