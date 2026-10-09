@@ -1,8 +1,9 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { Database } from "../db.js";
 import { hashPassword, verifyPassword } from "../security/password.js";
+import { csrfTokenFor, requireAllowedOrigin, requireCsrf } from "../security/csrf.js";
 
 const SESSION_COOKIE = "ikigai_session";
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -28,26 +29,6 @@ interface SessionRow extends Record<string, unknown> {
 
 function tokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
-}
-
-function csrfFor(sessionToken: string, secret: string): string {
-  return createHmac("sha256", secret).update(sessionToken).digest("base64url");
-}
-
-function safeStringEqual(left: string, right: string): boolean {
-  const a = Buffer.from(left);
-  const b = Buffer.from(right);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function originAllowed(request: FastifyRequest, reply: FastifyReply, config: AppConfig): boolean {
-  const origin = request.headers.origin;
-  if (origin && config.corsOrigins.includes(origin)) return true;
-  reply.code(403).send({
-    error: "origin_not_allowed",
-    message: "The request origin is not allowed."
-  });
-  return false;
 }
 
 function setSessionCookie(reply: FastifyReply, token: string, config: AppConfig): void {
@@ -119,7 +100,7 @@ export function registerAuthRoutes(
     },
     async (request, reply) => {
       reply.header("Cache-Control", "no-store");
-      if (!originAllowed(request, reply, config)) return;
+      if (!requireAllowedOrigin(request, reply, config)) return;
       const email = request.body.email.trim().toLowerCase();
       const password = request.body.password;
 
@@ -170,7 +151,7 @@ export function registerAuthRoutes(
       setSessionCookie(reply, token, config);
       return reply.code(200).send({
         user: { id: user.id, email: user.email, roles },
-        csrfToken: csrfFor(token, config.sessionSecret),
+        csrfToken: csrfTokenFor(token, config.sessionSecret),
         expiresAt: expiresAt.toISOString()
       });
     }
@@ -192,7 +173,7 @@ export function registerAuthRoutes(
         email: session.row.email,
         roles: session.row.roles ?? []
       },
-      csrfToken: csrfFor(session.token, config.sessionSecret)
+      csrfToken: csrfTokenFor(session.token, config.sessionSecret)
     });
   });
 
@@ -213,6 +194,8 @@ export function registerAuthRoutes(
         "UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL",
         [session.row.session_id]
       );
+    } else if (!requireAllowedOrigin(request, reply, config)) {
+      return;
     }
     clearSessionCookie(reply, config);
     return reply.code(204).send();
