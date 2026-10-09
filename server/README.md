@@ -2,7 +2,7 @@
 
 This directory contains the first executable backend slice. It serves health checks, authentication/session routes, member-profile reads and scoped profile updates. Basic membership lifecycle endpoints are available; automated recurring billing, proration and fiscal invoicing are not exposed yet. Exercise cataloguing, immutable routine versions and role-scoped member assignments are implemented. Attendance recording/correction and member attendance history are available with server-side scope checks and audit events. Member account history, idempotent ledger movements and coach monthly obligations/payments/adjustments are available through the API. The coach financial model is a fixed monthly obligation for use of the space; it is not derived from bookings, attendance or percentage shares. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
 
-## Requirements
+## Password recovery delivery\n\nThe API uses Resend through its HTTPS API; the reset link is sent only when `RESEND_API_KEY`, `PASSWORD_RESET_FROM`, and `PASSWORD_RESET_BASE_URL` are configured. In production all three are mandatory, and the base URL must use HTTPS. The front-end reset page is a separate portal task; the backend endpoints can be exercised independently. Raw reset tokens are sent only by email, stored as SHA-256 digests, expire after 30 minutes, and are single-use.\n\nAuthentication and reset-attempt limits use atomic PostgreSQL counters, shared across API replicas. Keys are hashed so raw IP/email values are not stored in the rate-limit table. Expired counter rows need periodic cleanup as part of operations.\n\n## Requirements
 
 - Node.js 22+
 - PostgreSQL 14+ for applying the schema migration (not needed to run API health checks or unit tests)
@@ -24,7 +24,7 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `GET /healthz`: minimal process health.
 - `GET /api/v1/health`: versioned API health.
 - `POST /api/v1/auth/login`: local email/password login with server-side session creation and rate limiting.
-- `GET /api/v1/auth/me`: current user, current roles, linked member/coach profile IDs, and CSRF token.
+- `GET /api/v1/auth/me`: current user, current roles, linked member/coach profile IDs, and CSRF token.\n- `POST /api/v1/auth/password-reset/request`: generic response to avoid account enumeration; if Resend is configured, sends a 30-minute one-time reset link.\n- `POST /api/v1/auth/password-reset/complete`: changes the password, consumes the token, writes an audit event, and revokes active sessions.
 - `POST /api/v1/auth/logout`: CSRF- and origin-checked session revocation.
 - `POST /api/v1/admin/invitations`: administrator-only invitation for an unlinked member or coach profile. The disabled account is activated only after acceptance.
 - `POST /api/v1/admin/invitations/:id/resend`: issues a replacement token for an unaccepted invitation, revoking previous outstanding tokens.
