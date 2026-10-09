@@ -81,3 +81,18 @@ test("trusted proxy hops must be explicit, bounded integers", () => {
   assert.throws(() => loadConfig({ TRUST_PROXY_HOPS: "1.5" }), /TRUST_PROXY_HOPS must be/);
   assert.throws(() => loadConfig({ TRUST_PROXY_HOPS: "6" }), /TRUST_PROXY_HOPS must be/);
 });
+
+
+test("password reset public URL rejects credentials, query strings, and fragments", () => {
+  const base = {
+    NODE_ENV: "production",
+    CORS_ORIGINS: "https://gym.example.com",
+    SESSION_SECRET: "test-session-secret-with-more-than-32-characters",
+    PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/send",
+    PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters"
+  };
+  assert.throws(() => loadConfig({ ...base, PASSWORD_RESET_PUBLIC_URL: "https://user:pass@gym.example.com/reset-password" }), /must not contain credentials/);
+  assert.throws(() => loadConfig({ ...base, PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password?token=unsafe" }), /must not contain a query string or fragment/);
+  assert.throws(() => loadConfig({ ...base, PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password#token=unsafe" }), /must not contain a query string or fragment/);
+  assert.throws(() => loadConfig({ ...base, PASSWORD_RESET_PUBLIC_URL: "https://other.example.com/reset-password" }), /origin must be included in CORS_ORIGINS/);
+});
