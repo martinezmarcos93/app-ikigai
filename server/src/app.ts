@@ -12,6 +12,7 @@ import { registerLedgerRoutes } from "./routes/ledger.js";
 import { registerCoachRoutes } from "./routes/coaches.js";
 import { registerAttendanceRoutes } from "./routes/attendance.js";
 import { registerRoutineRoutes } from "./routes/routines.js";
+import { registerMembershipRoutes } from "./routes/memberships.js";
 
 export interface AppDependencies {
   db?: Database;
@@ -64,6 +65,7 @@ export async function buildApp(
     registerCoachRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAttendanceRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerRoutineRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerMembershipRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
   }
 
   app.setNotFoundHandler((_request, reply) => {
