@@ -134,6 +134,40 @@ export function registerInvitationRoutes(
     }
   });
 
+  app.post<{ Params: { id: string } }>("/api/v1/admin/invitations/:id/revoke", {
+    schema: {
+      params: { type: "object", required: ["id"], additionalProperties: false, properties: { id: { type: "string", format: "uuid" } } }
+    },
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } }
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
+    if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
+    try {
+      const result = await transactionalDb.transaction(async (tx) => {
+        const found = await tx.query(
+          "SELECT id,user_id,accepted_at,revoked_at FROM user_invitations WHERE id=$1 FOR UPDATE",
+          [request.params.id]
+        );
+        const invitation = found.rows[0] as Record<string, unknown> | undefined;
+        if (!invitation) throw new InvitationError(404, "invitation_not_found", "The invitation was not found.");
+        if (invitation.accepted_at) throw new InvitationError(409, "invitation_already_accepted", "An accepted invitation cannot be revoked.");
+        if (invitation.revoked_at) return { revoked: true, replayed: true };
+        await tx.query("UPDATE user_invitations SET revoked_at=now() WHERE id=$1", [request.params.id]);
+        await tx.query(
+          "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,'user.invitation_revoked','user',$2,$3,$4::jsonb)",
+          [actor.userId, String(invitation.user_id), request.id, JSON.stringify({ invitationId: request.params.id })]
+        );
+        return { revoked: true, replayed: false };
+      });
+      return reply.send(result);
+    } catch (error) {
+      return sendInvitationError(reply, error);
+    }
+  });
+
   app.post<{ Params: { id: string } }>("/api/v1/admin/invitations/:id/resend", {
     schema: {
       params: { type: "object", required: ["id"], additionalProperties: false, properties: { id: { type: "string", format: "uuid" } } }
