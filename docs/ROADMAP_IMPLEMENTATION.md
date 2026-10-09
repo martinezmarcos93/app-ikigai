@@ -45,10 +45,10 @@
 - **Criterio de cierre:** recursos versionados, transparencia comprobada, rutas validadas por CI, coherencia entre pantallas y revisión visual en tamaños pequeños y grandes. No se considera aprobado un rediseño que sustituya o distorsione el logo original.
 
 ### Fase 3 — Seguridad y robustez del backend
-**Estado: en curso.** Recuperación de contraseña y rate limiting compartido implementados en la rama de trabajo; CI aún no aporta una ejecución válida con pasos y logs, por lo que no se cierra la fase.
-- [ ] Completar matriz de autorización por rol y alcance, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
+**Estado: implementación ampliada; validación de CI pendiente.** La recuperación ya cuenta con pantalla pública y endpoint integrado. El token viaja en el fragmento de URL (no en la query), el cliente lo elimina del historial al leerlo y la matriz de autorización se mantiene como documento vivo. No se declara cerrada la fase hasta que CI ejecute todos los pasos y se revise la cobertura negativa.
+- [ ] Completar y ejecutar la matriz de autorización por rol y alcance, con pruebas negativas de acceso cruzado entre miembros, profesores y administración. La matriz está en `docs/SECURITY_ROUTE_MATRIX.md`.
 - [x] Implementar endpoints de recuperación con tokens de un solo uso, expiración de 30 minutos, digest almacenado, respuesta genérica, invalidación de sesiones y auditoría; el envío usa Resend con configuración obligatoria en producción.
-- [ ] Crear la pantalla de restablecimiento en el portal durante la fase de integración de interfaz.
+- [x] Crear la pantalla pública `reset-password.html` y el cliente `reset-password.js`, enlazados desde el portal; el cliente confirma la contraseña y consume `/auth/password-reset/complete`.
 - [x] Sustituir el limitador de login y recuperación por contadores atómicos PostgreSQL compartidos entre instancias; las claves se almacenan como hashes.
 - [x] Revisar cookies HttpOnly/SameSite Strict/Secure en producción, expiración y revocación de sesiones, CSRF/Origin y CORS por origen exacto; agregar `Cache-Control: no-store` y `Pragma: no-cache` globales para `/api/` con pruebas. 
 - [ ] Validar la configuración final de cookies, proxy y cabeceras en el hosting elegido antes de producción.
@@ -63,6 +63,7 @@
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
+**Puerta de entrada:** no cerrar ni desplegar esta fase con datos reales hasta que la Fase 3 tenga CI verde verificable y autorización revisada. La pantalla de recuperación ya está integrada; los demás flujos conservan su estado parcial.
 - [ ] Inventariar cada pantalla y acción de la demo y asignar su estado: local, conectada, parcial o pendiente.
 - [ ] Definir una capa de cliente API uniforme con sesión, CSRF, errores, carga, reintento seguro y estados vacíos.
 - [ ] Conectar miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
@@ -108,7 +109,7 @@
 - [ ] Evaluar app nativa/Play Store sólo si hay una necesidad concreta no cubierta por PWA.
 - **Criterio de cierre:** riesgos críticos cerrados, checklist de aceptación aprobada y plan de operación/soporte disponible.
 
-- [ ] Crear y revisar ilustraciones de estados vacíos, bienvenida, desconexión y error.
+- [x] Crear ilustraciones SVG transparentes de bienvenida, estado vacío, desconexión y error; pendiente comprobar su integración visual en las pantallas correspondientes.
 - [ ] Derivar una variante de logo transparente a partir de un original vectorial/editable o mediante recorte manual revisado; no eliminar automáticamente el negro porque forma parte de los contornos.
 
 **Nota de fidelidad:** el icono PWA actual conserva el fondo negro y la composición original. No se declara entregado un logo transparente porque el archivo fuente disponible es un JPG con contornos negros integrados; borrar el negro por umbral dañaría el samurái, las pesas y la tipografía.
@@ -120,8 +121,8 @@
 | Demo local | Prototipo navegable; persiste en `localStorage` | Pruebas funcionales y responsive en navegador |
 | Portal/API | Interfaz conectada inicial y API separada | Contratos y pruebas por flujo |
 | Backend | Auth, sesiones, reservas, ledger, asistencia, rutinas y obligaciones iniciales documentadas | Pruebas de autorización, recuperación y seguridad |
-| CI | Workflow de sintaxis, reglas de producto, TypeScript, tests, build y migraciones | Lockfile, instalación reproducible y ejecución verde |
-| Marca | Logo JPG existente; paleta oscura/roja con diferencias entre CSS | Inspección visual del original y tokens medidos |
+| CI | Workflow declara sintaxis, reglas de producto, assets, TypeScript, tests, build, migraciones y smoke de backup/restore | Ejecución verde verificable en GitHub Actions sobre el commit candidato |
+| Marca | Tokens, iconos PWA, sprite y cuatro ilustraciones SVG versionados; fuente del logo sigue siendo JPG opaco | Revisión visual en dispositivos y archivo maestro/vectorial para variantes fieles transparentes |
 | Android real | No hay evidencia de prueba en dispositivo físico en este registro | Validación en dos dispositivos |
 | Producción | No aprobada para datos reales | Seguridad, infraestructura y restauración verificadas |
 
