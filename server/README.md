@@ -24,7 +24,7 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `GET /healthz`: minimal process health.
 - `GET /api/v1/health`: versioned API health.
 - `POST /api/v1/auth/login`: local email/password login with server-side session creation and rate limiting.
-- `GET /api/v1/auth/me`: current user, current roles, and CSRF token.
+- `GET /api/v1/auth/me`: current user, current roles, linked member/coach profile IDs, and CSRF token.
 - `POST /api/v1/auth/logout`: CSRF- and origin-checked session revocation.
 - `POST /api/v1/admin/invitations`: administrator-only invitation for an unlinked member or coach profile. The disabled account is activated only after acceptance.
 - `POST /api/v1/admin/invitations/:id/resend`: issues a replacement token for an unaccepted invitation, revoking previous outstanding tokens.
@@ -80,3 +80,9 @@ Apply migrations first. Then set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (12–128 ch
 Authentication is still incomplete and not yet ready for production. Login, server-side opaque sessions, session introspection, logout revocation, per-route in-memory rate limiting, strict cookie settings, origin checks and CSRF token checks now exist. Resource-level authorization is implemented for member reads/updates and the current booking, ledger, coach, attendance and routine endpoints. Password recovery, broader negative authorization tests and a shared rate-limit store for multiple replicas are still pending. Do not create real users or load real member/financial data yet. The health endpoints deliberately expose no database details or secrets.
 
 The booking domain module is connected to PostgreSQL-backed booking/cancellation endpoints. Integration tests exercise concurrent requests against a disposable PostgreSQL database; these tests must remain green before expanding the booking API. Member-profile reads enforce roles and coach/member scope on the server; member and coach responses omit fields they do not need. Login stores only a SHA-256 digest of the opaque session token. The session cookie is HttpOnly, SameSite=Strict and Secure in production; the CSRF token is derived with HMAC and checked on logout. The current booking endpoints enforce the rules inside database transactions and serialize capacity checks; the integration suite exercises concurrent booking requests against disposable PostgreSQL. Keep these tests green and extend coverage for rollback, retry, cutoff, and permission edge cases.
+
+## Connected portal
+
+The repository-root `portal.html` is the first API-connected frontend. Serve the repository root over HTTP (for example, `python -m http.server 8000`) and open `/portal.html`; run the API on port 3001 and configure `CORS_ORIGINS` to include the exact frontend origin. The browser client uses credentialed requests, `Cache-Control: no-store`, and the in-memory CSRF token returned by login/session introspection. It does not use the prototype's localStorage data.
+
+The portal is an initial integration slice, not a production launch. Invitation tokens are currently delivered manually; configure secure delivery before onboarding real members. Do not expose a development server or use real personal/financial data until deployment controls, recovery, backups and security review are complete.
