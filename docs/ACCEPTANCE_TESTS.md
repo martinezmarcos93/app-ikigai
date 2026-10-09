@@ -110,3 +110,14 @@
 - [ ] The balance is agreed obligation plus adjustments minus payments; a negative balance is a credit in favor of the coach.
 - [ ] Coaches can read only their own obligation; only administrators can create obligations, payments and adjustments.
 - [ ] No amount is calculated from class reservations, attendance or percentage share.
+
+
+## Attendance API
+- [ ] Only administration or the coach assigned to a class can read/record attendance for that class.
+- [ ] Members can read only their own attendance history and cannot change attendance.
+- [ ] Only confirmed bookings in the requested class session may receive attendance records.
+- [ ] Duplicate booking IDs in one update are rejected before any write.
+- [ ] Recording the same value twice is idempotent; corrections update the record without duplicating it.
+- [ ] Attendance writes and their audit events commit atomically.
+- [ ] A cancelled session cannot receive attendance changes.
+- [ ] A coach cannot read attendance for a class assigned to another coach.
