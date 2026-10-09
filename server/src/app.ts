@@ -8,6 +8,7 @@ import type { Database, TransactionalDatabase } from "./db.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerMemberRoutes } from "./routes/members.js";
 import { registerBookingRoutes } from "./routes/bookings.js";
+import { registerLedgerRoutes } from "./routes/ledger.js";
 
 export interface AppDependencies {
   db?: Database;
@@ -56,6 +57,7 @@ export async function buildApp(
   }
   if (dependencies.transactionalDb) {
     registerBookingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerLedgerRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
   }
 
   app.setNotFoundHandler((_request, reply) => {
