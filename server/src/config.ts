@@ -4,6 +4,7 @@ export interface AppConfig {
   nodeEnv: NodeEnvironment;
   host: string;
   port: number;
+  trustProxyHops: number;
   corsOrigins: string[];
   sessionSecret: string;
   passwordResetDeliveryUrl?: string;
@@ -27,6 +28,12 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
 
   const host = (env.HOST ?? "127.0.0.1").trim();
   if (!host) throw new Error("HOST must not be empty.");
+
+  const rawTrustProxyHops = env.TRUST_PROXY_HOPS ?? "0";
+  const trustProxyHops = Number(rawTrustProxyHops);
+  if (!Number.isInteger(trustProxyHops) || trustProxyHops < 0 || trustProxyHops > 5) {
+    throw new Error("TRUST_PROXY_HOPS must be an integer between 0 and 5.");
+  }
 
   const rawOrigins = env.CORS_ORIGINS;
   if (rawEnv === "production" && !rawOrigins?.trim()) {
@@ -82,7 +89,7 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
   }
 
   return {
-    nodeEnv: rawEnv, host, port, corsOrigins, sessionSecret,
+    nodeEnv: rawEnv, host, port, trustProxyHops, corsOrigins, sessionSecret,
     ...(passwordResetDeliveryUrl ? { passwordResetDeliveryUrl } : {}),
     ...(passwordResetDeliveryToken ? { passwordResetDeliveryToken } : {}),
     ...(passwordResetPublicUrl ? { passwordResetPublicUrl } : {})
