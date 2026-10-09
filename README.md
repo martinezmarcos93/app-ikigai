@@ -12,6 +12,7 @@ Documentación relacionada:
 - [Modelo de datos](docs/DATA_MODEL.md)
 - [Pruebas de aceptación](docs/ACCEPTANCE_TESTS.md)
 - [Plan de seguridad del backend](docs/BACKEND_SECURITY_PLAN.md)
+- [Matriz de autorización por endpoint](docs/SECURITY_ROUTE_MATRIX.md)
 - [Documentación de la API](server/README.md)
 
 ## Demo local
