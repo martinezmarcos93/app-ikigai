@@ -182,6 +182,135 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(invalidDates.statusCode, 400);
   assert.equal(invalidDates.json().error, "invalid_date_range");
 
+  const unconfiguredObligation = await app.inject({
+    method: "GET",
+    url: `/api/v1/coaches/${coachId}/obligations?period=2026-10`,
+    headers: { cookie: `ikigai_session=${admin.token}` }
+  });
+  assert.equal(unconfiguredObligation.statusCode, 200);
+  assert.equal(unconfiguredObligation.json().configured, false);
+  assert.equal(unconfiguredObligation.json().balance, null);
+
+  const createdCoach = await app.inject({
+    method: "POST",
+    url: "/api/v1/coaches",
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: { full_name: `Created Coach ${suffix}`, discipline: "Kick Boxing" }
+  });
+  assert.equal(createdCoach.statusCode, 201);
+
+  const obligationPayload = { period: "2026-10", agreed_amount: "50000", due_on: "2026-10-15" };
+  const obligationCreate = await app.inject({
+    method: "POST",
+    url: `/api/v1/coaches/${coachId}/obligations`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: obligationPayload
+  });
+  assert.equal(obligationCreate.statusCode, 201);
+  assert.equal(obligationCreate.json().summary.balance, "50000.00");
+  const obligationId = obligationCreate.json().obligation.id as string;
+
+  const obligationReplay = await app.inject({
+    method: "POST",
+    url: `/api/v1/coaches/${coachId}/obligations`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: obligationPayload
+  });
+  assert.equal(obligationReplay.statusCode, 200);
+  assert.equal(obligationReplay.json().replayed, true);
+
+  const obligationConflict = await app.inject({
+    method: "POST",
+    url: `/api/v1/coaches/${coachId}/obligations`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: { ...obligationPayload, agreed_amount: "51000" }
+  });
+  assert.equal(obligationConflict.statusCode, 409);
+
+  const paymentKey = `coach-payment-${suffix}`;
+  const paymentPayload = { amount: "20000", paid_on: "2026-10-09", payment_method: "Transferencia" };
+  const coachPayment = await app.inject({
+    method: "POST",
+    url: `/api/v1/coach-obligations/${obligationId}/payments`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": paymentKey
+    },
+    payload: paymentPayload
+  });
+  assert.equal(coachPayment.statusCode, 201);
+  assert.equal(coachPayment.json().summary.balance, "30000.00");
+  assert.equal(coachPayment.json().receiptType, "internal");
+
+  const paymentReplay = await app.inject({
+    method: "POST",
+    url: `/api/v1/coach-obligations/${obligationId}/payments`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": paymentKey
+    },
+    payload: paymentPayload
+  });
+  assert.equal(paymentReplay.statusCode, 200);
+  assert.equal(paymentReplay.json().summary.balance, "30000.00");
+
+  const adjustmentKey = `coach-adjustment-${suffix}`;
+  const coachAdjustment = await app.inject({
+    method: "POST",
+    url: `/api/v1/coach-obligations/${obligationId}/adjustments`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": adjustmentKey
+    },
+    payload: { amount_delta: "-5000", reason: "Corrección acordada" }
+  });
+  assert.equal(coachAdjustment.statusCode, 201);
+  assert.equal(coachAdjustment.json().summary.balance, "25000.00");
+
+  const obligationDetail = await app.inject({
+    method: "GET",
+    url: `/api/v1/coaches/${coachId}/obligations?period=2026-10`,
+    headers: { cookie: `ikigai_session=${admin.token}` }
+  });
+  assert.equal(obligationDetail.statusCode, 200);
+  assert.equal(obligationDetail.json().paid, "20000.00");
+  assert.equal(obligationDetail.json().adjustmentTotal, "-5000.00");
+  assert.equal(obligationDetail.json().balance, "25000.00");
+  assert.equal(obligationDetail.json().payments.length, 1);
+  assert.equal(obligationDetail.json().adjustments.length, 1);
+
+  const coachAudit = await pool.query(
+    `SELECT action FROM audit_events
+      WHERE entity_id = ANY($1::text[])`,
+    [[obligationId, coachPayment.json().payment.id, coachAdjustment.json().adjustment.id]]
+  );
+  assert.deepEqual(
+    coachAudit.rows.map((row) => row.action).sort(),
+    ["coach.obligation_created", "coach.payment_recorded", "coach.obligation_adjusted"].sort()
+  );
+
   const chargeKey = `ledger-charge-${suffix}`;
   const chargePayload = {
     type: "charge",
