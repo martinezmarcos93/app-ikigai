@@ -1,56 +1,28 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-AR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#080808">
-<meta name="msapplication-TileColor" content="#000000">
-<meta name="description" content="Ikigai Training: gestión de miembros, turnos, rutinas y cuentas del centro de entrenamiento.">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Ikigai Training">
-<meta property="og:description" content="Gestión de miembros, turnos, rutinas y cuentas del centro de entrenamiento.">
-<meta property="og:image" content="./assets/social/og-image.png">
-<meta name="color-scheme" content="dark">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="48x48" href="./assets/pwa/favicon-48.png">
-<link rel="apple-touch-icon" sizes="180x180" href="./assets/pwa/apple-touch-icon.png">
-<link rel="stylesheet" href="./assets/brand/tokens.css">
-<title>Ikigai Training — Demo local</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080808">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Ikigai Training — portal de administración, profesores y miembros.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="48x48" href="./assets/pwa/favicon-48.png">
+  <link rel="stylesheet" href="./assets/brand/tokens.css">
+  <title>Ikigai Training — Acceso</title>
+  <meta http-equiv="refresh" content="0; url=./portal.html">
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--ikigai-surface,#080808);color:var(--ikigai-white,#fff);font:16px system-ui,sans-serif;padding:24px}
+    main{max-width:520px;text-align:center;border:1px solid var(--ikigai-line,#333);padding:32px;border-radius:12px;background:var(--ikigai-surface-raised,#141414)}
+    a{display:inline-block;margin-top:16px;padding:12px 18px;background:var(--ikigai-brand-red,#e31a20);color:#fff;text-decoration:none;border-radius:6px;font-weight:700}
+  </style>
 </head>
 <body>
-<div class="app-shell">
-  <aside class="sidebar" id="sidebar">
-    <div class="brand"><img src="assets/ikigai-logo.jpg" alt="Logo de Ikigai Training"><div><b>IKIGAI</b><span>TRAINING · DEMO</span></div></div>
-    <div class="role-switch"><label for="roleSelect">VISTA DE LA DEMO</label><select id="roleSelect"><option value="admin">Administrador · Agustín</option><option value="member">Miembro</option></select></div>
-    <div class="nav-caption">CENTRO DE CONTROL</div>
-    <nav id="navigation">
-      <button class="nav-item active" data-view="dashboard"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#dashboard"></use></svg></span>Resumen</button>
-      <button class="nav-item admin-only" data-view="members"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#members"></use></svg></span>Miembros <span class="nav-count" id="memberNavCount">24</span></button>
-      <button class="nav-item" data-view="schedule"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#calendar"></use></svg></span>Turnos y asistencia</button>
-      <button class="nav-item" data-view="routines"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#routine"></use></svg></span>Rutinas y ejercicios</button>
-      <button class="nav-item admin-only" data-view="accounts"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#finance"></use></svg></span>Cuentas corrientes</button>
-      <button class="nav-item admin-only" data-view="coaches"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#coach"></use></svg></span>Profesores</button>
-      <button class="nav-item" data-view="messages"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#bell"></use></svg></span>Avisos y notificaciones <span class="unread-dot"></span></button>
-    </nav>
-    <div class="sidebar-bottom"><div class="demo-state"><span class="pulse"></span><div><b>Modo demostración</b><small>Los datos se guardan en este navegador</small></div></div><button class="reset-btn" id="resetDemo">↻ Reiniciar datos de prueba</button></div>
-  </aside>
-  <main class="main-content">
-    <header class="topbar"><button class="mobile-menu" id="mobileMenu" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">☰</button><div class="breadcrumb">IKIGAI <span>/</span> <b id="breadcrumbLabel">RESUMEN</b></div><div class="topbar-right"><div class="today-pill"><span class="live-dot"></span> ENTORNO LOCAL</div><button class="icon-btn" data-go="messages" aria-label="Notificaciones">♢<i></i></button><div class="user-chip"><div class="avatar" id="topAvatar">AN</div><div><b id="topName">Agustín Navarro</b><small id="topRole">Administrador</small></div></div></div></header>
-    <section class="page" id="page" aria-live="polite"></section>
-    <footer class="app-footer"><span>IKIGAI TRAINING · CENTRO DE ENTRENAMIENTO</span><span>PROTOTIPO LOCAL · NO USA DATOS REALES</span></footer>
+  <main>
+    <h1>Ikigai Training</h1>
+    <p>Abriendo el portal de administración, profesores y miembros…</p>
+    <p>Si no se abre automáticamente, continuá desde aquí.</p>
+    <a href="./portal.html">Entrar al portal</a>
   </main>
-</div>
-<div class="toast-region" id="toastRegion" aria-live="polite"></div>
-<dialog id="modal" class="modal"><div id="modalContent"></div></dialog>
-<script src="app.js"></script>
-<script>
-  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
-  }
-</script>
-</body></html>
+</body>
+</html>
