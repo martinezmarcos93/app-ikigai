@@ -124,7 +124,16 @@
     login,
     me,
     logout,
-    listMembers: (limit = 100, offset = 0) => request(`/members?limit=${limit}&offset=${offset}`),
+    listMembers: (limit = 100, offset = 0) => {
+      const parsedLimit = Number(limit);
+      const parsedOffset = Number(offset);
+      if (!Number.isSafeInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 100
+          || !Number.isSafeInteger(parsedOffset) || parsedOffset < 0 || parsedOffset > 100000) {
+        throw new ApiError(0, "invalid_pagination", "La paginación debe usar un límite de 1 a 100 y un desplazamiento de 0 a 100000.");
+      }
+      const query = new URLSearchParams({ limit: String(parsedLimit), offset: String(parsedOffset) });
+      return request(`/members?${query.toString()}`);
+    },
     getMember: memberId => request(`/members/${id(memberId)}`),
     createMember: body => request("/members", { method: "POST", body }),
     updateMember: (memberId, body) => request(`/members/${id(memberId)}`, { method: "PATCH", body }),
