@@ -30,6 +30,7 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   });
   const db = new PostgresDatabase(pool);
   const app = await buildApp(config, { db, transactionalDb: db });
+  const secondReplica = await buildApp(config, { db, transactionalDb: db });
   const originalFetch = globalThis.fetch;
   let resetUrl = "";
   globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
@@ -44,6 +45,7 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   t.after(async () => {
     globalThis.fetch = originalFetch;
     await app.close();
+    await secondReplica.close();
     await pool.end();
   });
 
@@ -116,4 +118,42 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   });
   assert.equal(unknown.statusCode, request.statusCode);
   assert.deepEqual(unknown.json(), request.json());
+});
+
+
+test("database-backed sensitive endpoint limits are shared across API replicas", {
+  skip: !integrationEnabled
+}, async (t: TestContext) => {
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 8,
+    connectionTimeoutMillis: 5_000,
+    application_name: "ikigai-shared-rate-limit-integration-test"
+  });
+  const db = new PostgresDatabase(pool);
+  const appA = await buildApp(config, { db, transactionalDb: db });
+  const appB = await buildApp(config, { db, transactionalDb: db });
+  t.after(async () => {
+    await appA.close();
+    await appB.close();
+    await pool.end();
+  });
+
+  const key = createHash("sha256").update("POST:/api/v1/auth/password-reset/request:127.0.0.1").digest("hex");
+  await pool.query("DELETE FROM rate_limit_buckets WHERE bucket_key=$1", [key]);
+  const payload = { email: `nonexistent-${randomUUID()}@example.test` };
+  const send = (app: typeof appA) => app.inject({
+    method: "POST",
+    url: "/api/v1/auth/password-reset/request",
+    headers: { origin },
+    payload
+  });
+
+  assert.equal((await send(appA)).statusCode, 202);
+  assert.equal((await send(appB)).statusCode, 202);
+  assert.equal((await send(appA)).statusCode, 202);
+  const blocked = await send(appB);
+  assert.equal(blocked.statusCode, 429);
+  assert.equal(blocked.headers["retry-after"], "3600");
+  assert.equal(blocked.json().error, "rate_limit_exceeded");
 });
