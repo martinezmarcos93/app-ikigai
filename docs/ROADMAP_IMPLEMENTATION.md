@@ -101,7 +101,12 @@
 - [ ] Evaluar app nativa/Play Store sólo si hay una necesidad concreta no cubierta por PWA.
 - **Criterio de cierre:** riesgos críticos cerrados, checklist de aceptación aprobada y plan de operación/soporte disponible.
 
-- [ ] Crear y revisar ilustraciones de estados vacíos, bienvenida, desconexión y error.\n- [ ] Derivar una variante de logo transparente a partir de un original vectorial/editable o mediante recorte manual revisado; no eliminar automáticamente el negro porque forma parte de los contornos.\n\n**Nota de fidelidad:** el icono PWA actual conserva el fondo negro y la composición original. No se declara entregado un logo transparente porque el archivo fuente disponible es un JPG con contornos negros integrados; borrar el negro por umbral dañaría el samurái, las pesas y la tipografía.\n\n## Registro de estado y bloqueos
+- [ ] Crear y revisar ilustraciones de estados vacíos, bienvenida, desconexión y error.
+- [ ] Derivar una variante de logo transparente a partir de un original vectorial/editable o mediante recorte manual revisado; no eliminar automáticamente el negro porque forma parte de los contornos.
+
+**Nota de fidelidad:** el icono PWA actual conserva el fondo negro y la composición original. No se declara entregado un logo transparente porque el archivo fuente disponible es un JPG con contornos negros integrados; borrar el negro por umbral dañaría el samurái, las pesas y la tipografía.
+
+## Registro de estado y bloqueos
 
 | Área | Estado conocido al iniciar esta hoja de ruta | Próxima evidencia requerida |
 | --- | --- | --- |
