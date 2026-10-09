@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const sql = await readFile(new URL("../migrations/0001_initial_schema.sql", import.meta.url), "utf8");
 const sessionsSql = await readFile(new URL("../migrations/0002_sessions.sql", import.meta.url), "utf8");
 const invitationsSql = await readFile(new URL("../migrations/0003_user_invitations.sql", import.meta.url), "utf8");
+const authHardeningSql = await readFile(new URL("../migrations/0004_auth_hardening.sql", import.meta.url), "utf8");
 
 test("initial migration defines the core operational entities", () => {
   for (const table of [
@@ -58,4 +59,15 @@ test("money uses exact numeric types and monthly obligations are period-scoped",
   assert.ok(sql.includes("request_hash char(64)"));
   assert.ok(sql.includes("UNIQUE(coach_id, period)"));
   assert.doesNotMatch(sql, /share\s+numeric|percentage_share/i);
+});
+
+
+test("auth hardening stores opaque shared rate-limit keys and one-time reset-token digests", () => {
+  assert.ok(authHardeningSql.includes("CREATE TABLE auth_rate_limit_buckets"));
+  assert.ok(authHardeningSql.includes("bucket_key text PRIMARY KEY"));
+  assert.ok(authHardeningSql.includes("expires_at timestamptz NOT NULL"));
+  assert.ok(authHardeningSql.includes("CREATE TABLE password_reset_tokens"));
+  assert.ok(authHardeningSql.includes("token_hash char(64) NOT NULL UNIQUE"));
+  assert.ok(authHardeningSql.includes("used_at timestamptz"));
+  assert.ok(authHardeningSql.includes("password_reset_tokens_user_active_idx"));
 });
