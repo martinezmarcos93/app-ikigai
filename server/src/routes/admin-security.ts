@@ -50,6 +50,9 @@ export function registerAdminSecurityRoutes(
     if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
     if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
 
+    if (request.body.reason.trim().length < 5) {
+      return reply.code(400).send({ error: "invalid_reason", message: "Provide an audit reason of at least five non-space characters." });
+    }
     const rawToken = randomBytes(32).toString("base64url");
     const digest = createHash("sha256").update(rawToken).digest("hex");
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
