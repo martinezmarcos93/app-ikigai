@@ -108,7 +108,14 @@ export function buildApp({ pool, config, passwordVerifier = argon2.verify }: App
       [email],
     );
     const user = result.rows[0];
-    const validPassword = user ? await passwordVerifier(user.password_hash, password) : false;
+    let validPassword = false;
+    if (user) {
+      try {
+        validPassword = await passwordVerifier(user.password_hash, password);
+      } catch {
+        validPassword = false;
+      }
+    }
     if (!user || !validPassword) {
       return reply.code(401).send({ error: "invalid_credentials", message: "Email o contraseña incorrectos." });
     }
