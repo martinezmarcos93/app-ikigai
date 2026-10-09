@@ -19,6 +19,7 @@ class FakeDatabase implements Database {
   readonly user: { id: string; email: string; password_hash: string; status: string };
   readonly roles = ["admin"];
   readonly sessions: FakeSession[] = [];
+  readonly rateLimitHits = new Map<string, number>();
 
   constructor(user: { id: string; email: string; password_hash: string; status?: string }) {
     this.user = { ...user, status: user.status ?? "active" };
@@ -29,7 +30,12 @@ class FakeDatabase implements Database {
     values: unknown[] = []
   ): Promise<QueryResult<Row>> {
     let rows: Record<string, unknown>[] = [];
-    if (sql.includes("FROM users") && sql.includes("password_hash")) {
+    if (sql.includes("INSERT INTO auth_rate_limit_buckets")) {
+      const key = String(values[0]);
+      const hits = (this.rateLimitHits.get(key) ?? 0) + 1;
+      this.rateLimitHits.set(key, hits);
+      rows = [{ hits, retry_after_seconds: 60 }];
+    } else if (sql.includes("FROM users") && sql.includes("password_hash")) {
       if (values[0] === this.user.email && this.user.status === "active") {
         rows = [{ id: this.user.id, email: this.user.email, password_hash: this.user.password_hash }];
       }
