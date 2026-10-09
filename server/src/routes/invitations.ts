@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
 import { resolveActor } from "../security/actor.js";
-import { csrfTokenFor, requireAllowedOrigin, requireCsrf } from "../security/csrf.js";
+import { requireAllowedOrigin, requireCsrf } from "../security/csrf.js";
 import { hashPassword } from "../security/password.js";
 
 interface CreateInvitationBody {
