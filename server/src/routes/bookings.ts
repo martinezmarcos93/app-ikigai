@@ -155,6 +155,11 @@ export function registerBookingRoutes(
           );
           const row = inserted.rows[0];
           if (!row) throw new Error("Booking insert did not return a row.");
+          await tx.query(
+            `INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, after_data)
+             VALUES ($1, 'booking.created', 'booking', $2, $3, $4::jsonb)`,
+            [actor.userId, row.id, request.id, JSON.stringify({ sessionId: session.id, status: row.status })]
+          );
           return {
             id: row.id,
             sessionId: row.session_id,
@@ -241,6 +246,17 @@ export function registerBookingRoutes(
             "UPDATE bookings SET status = 'cancelled', cancelled_at = clock_timestamp() WHERE id = $1",
             [booking.id]
           );
+          await tx.query(
+            `INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, before_data, after_data)
+             VALUES ($1, 'booking.cancelled', 'booking', $2, $3, $4::jsonb, $5::jsonb)`,
+            [
+              actor.userId,
+              booking.id,
+              request.id,
+              JSON.stringify({ status: booking.status }),
+              JSON.stringify({ status: "cancelled", sessionId: session.id })
+            ]
+          );
 
           let promoted: { id: string; member_id: string } | null = null;
           if (booking.status === "confirmed") {
@@ -274,6 +290,17 @@ export function registerBookingRoutes(
                 await tx.query(
                   "UPDATE bookings SET status = 'confirmed', promoted_at = clock_timestamp() WHERE id = $1",
                   [candidate.id]
+                );
+                await tx.query(
+                  `INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, before_data, after_data)
+                   VALUES ($1, 'booking.waitlist_promoted', 'booking', $2, $3, $4::jsonb, $5::jsonb)`,
+                  [
+                    actor.userId,
+                    candidate.id,
+                    request.id,
+                    JSON.stringify({ status: "waitlist" }),
+                    JSON.stringify({ status: "confirmed", sessionId: session.id })
+                  ]
                 );
                 promoted = { id: candidate.id, member_id: candidate.member_id };
               }
