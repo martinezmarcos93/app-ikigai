@@ -19,7 +19,7 @@ npm run db:migrate
 bash scripts/backup-restore-check.sh
 ```
 
-El script crea una base de restauración con nombre temporal en el mismo servidor que indica `DATABASE_URL), valida el esquema y los datos restaurados, y la elimina al finalizar. **No lo ejecutes contra una base con datos reales ni contra un servidor de producción.** Usa credenciales locales de prueba y verifica que `DATABASE_URL` apunte a la base descartable correcta antes de ejecutarlo.
+El script crea una base de restauración con nombre temporal en el mismo servidor indicado por `DATABASE_URL`, valida el esquema y los datos restaurados, y la elimina al finalizar. **No lo ejecutes contra una base con datos reales ni contra un servidor de producción.** Usa credenciales locales de prueba y verifica que `DATABASE_URL` apunte a la base descartable correcta antes de ejecutarlo.
 
 ## Controles obligatorios antes de producción
 
