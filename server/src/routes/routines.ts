@@ -76,11 +76,10 @@ async function insertExercises(tx: Database, versionId: string, items: RoutineEx
   if (active.rows.length !== ids.length) {
     throw new RoutineError(400, "exercise_not_available", "Every referenced exercise must exist and be active.");
   }
-  for (let i = 0; i < items.length; i += 1) {
-    const item = items[i];
+  for (const [index, item] of items.entries()) {
     await tx.query(
       "INSERT INTO routine_exercises (routine_version_id, exercise_id, position, sets, reps, duration_seconds, rest_seconds, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-      [versionId, item.exerciseId, i + 1, item.sets.trim(), item.reps?.trim() || null, item.durationSeconds ?? null, item.restSeconds ?? null, item.notes?.trim() || null]
+      [versionId, item.exerciseId, index + 1, item.sets.trim(), item.reps?.trim() || null, item.durationSeconds ?? null, item.restSeconds ?? null, item.notes?.trim() || null]
     );
   }
 }
