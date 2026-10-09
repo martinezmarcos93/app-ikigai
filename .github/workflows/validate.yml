@@ -26,6 +26,8 @@ jobs:
           node --check api-client.js
           node --check portal.js
           node --check reset-password.js
+      - name: Test portal API client contracts
+        run: node scripts/test-api-client.mjs
       - name: Validate password recovery page and token transport
         run: |
           node --input-type=module <<'NODE'
