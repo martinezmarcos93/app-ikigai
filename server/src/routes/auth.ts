@@ -218,7 +218,7 @@ export function registerAuthRoutes(
         const payload: Record<string, string> = delivery
           ? (() => {
               const resetUrl = new URL(config.passwordResetPublicUrl!);
-              resetUrl.searchParams.set("token", rawToken);
+              resetUrl.hash = new URLSearchParams({ token: rawToken }).toString();
               return {
                 type: "ikigai.password_reset",
                 to: delivery!.email,
