@@ -193,3 +193,8 @@ El endpoint configurado en `PASSWORD_RESET_DELIVERY_URL` recibe un POST HTTPS au
 - Elegir proveedor de infraestructura y definir backups automáticos cifrados, retención, permisos, RPO/RTO y recuperación ante desastre. El ensayo en CI no sustituye esa política de producción.
 - Completar una matriz negativa de autorización para todos los endpoints y obtener una revisión de seguridad independiente.
 - No usar datos reales ni declarar la aplicación lista para producción mientras estas puertas permanezcan abiertas.
+
+
+## Estado de endurecimiento transversal
+
+Los identificadores del rate limit compartido se derivan mediante HMAC-SHA-256 con `SESSION_SECRET`, no mediante un hash simple de IP/ruta. `TRUST_PROXY_HOPS` vale `0` por defecto y sólo debe elevarse cuando el ingreso esté restringido y se conozca la cadena exacta de proxies. La URL pública de recuperación debe ser HTTPS, no contener credenciales/query/fragmento y compartir origen con un valor explícito de `CORS_ORIGINS`.
