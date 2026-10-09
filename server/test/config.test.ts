@@ -29,7 +29,7 @@ test("production accepts exact origins and rejects wildcard/path origins", () =>
     /Invalid CORS origin/
   );
   assert.throws(
-    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "test-session-secret-with-more-than-32-characters", PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/ikigai-reset", PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters", PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/app/reset-password" }),
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com/app", SESSION_SECRET: "test-session-secret-with-more-than-32-characters", PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/ikigai-reset", PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters", PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password" }),
     /exact HTTP\(S\) origins/
   );
 });
@@ -52,4 +52,23 @@ test("invalid ports and environments fail during startup", () => {
   assert.throws(() => loadConfig({ PORT: "0" }), /PORT must be an integer/);
   assert.throws(() => loadConfig({ PORT: "3.14" }), /PORT must be an integer/);
   assert.throws(() => loadConfig({ NODE_ENV: "staging" }), /NODE_ENV must be/);
+});
+
+
+test("production requires a secure configured password reset delivery provider", () => {
+  assert.throws(
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "test-session-secret-with-more-than-32-characters" }),
+    /PASSWORD_RESET_DELIVERY_URL/
+  );
+  assert.throws(
+    () => loadConfig({
+      NODE_ENV: "production",
+      CORS_ORIGINS: "https://gym.example.com",
+      SESSION_SECRET: "test-session-secret-with-more-than-32-characters",
+      PASSWORD_RESET_DELIVERY_URL: "http://mail.example.com/send",
+      PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters",
+      PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password"
+    }),
+    /must use HTTPS/
+  );
 });
