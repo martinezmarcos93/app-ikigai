@@ -21,10 +21,12 @@ No requiere instalar dependencias. Usa HTML, CSS y JavaScript sin backend. Los c
 - Cambio entre vista de administrador y miembro.
 - Panel de resumen con miembros, deudas, turnos, cupos y avisos.
 - Alta/edición de miembros, búsqueda/filtros y exportación a CSV.
-- Cuentas corrientes: cargos, pagos, saldos y movimientos.
-- Agenda por fecha, turnos con cupo máximo 7, reservas, cancelaciones y lista de asistencia de muestra.
+- Cuentas corrientes de miembros: cargos, pagos, saldos y movimientos.
+- Obligaciones mensuales de profesores al gimnasio, con pagos parciales y saldo por período (demo; importes sin configurar por defecto).
+- Agenda por fecha, capacidad configurable por franja, reservas, lista de espera y promoción automática al liberar cupos.
+- Registro histórico de asistencia por reserva y fecha.
 - Catálogo y edición de rutinas/ejercicios.
-- Perfiles de profesores, contactos públicos y cálculo económico ilustrativo de rendición.
+- Perfiles de profesores y obligación mensual fija por uso del espacio; no se calculan porcentajes por reserva.
 - Publicación de avisos y registro de ausencias/llegadas tarde.
 - Diseño responsive para teléfono, tablet y escritorio.
 
@@ -38,4 +40,4 @@ La rama `feat/android-first-product-foundation` incorpora mejoras iniciales para
 
 ## Hoja de ruta
 
-Consultar [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md) para las decisiones de producto, reglas funcionales, fases y criterios de aceptación móvil. La demo sigue siendo local: no usar datos reales hasta implementar backend, autenticación, autorización del lado servidor, base de datos compartida y pruebas.
+Consultar [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md), [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) y [`docs/ACCEPTANCE_TESTS.md`](docs/ACCEPTANCE_TESTS.md) para las decisiones de producto, el modelo de datos y las pruebas de aceptación. La demo sigue siendo local: no usar datos reales hasta implementar backend, autenticación, autorización del lado servidor, base de datos compartida y pruebas.
