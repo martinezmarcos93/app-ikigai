@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#080808">
 <meta name="msapplication-TileColor" content="#000000">
 <meta name="color-scheme" content="dark">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="48x48" href="./assets/pwa/favicon-48.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./assets/pwa/apple-touch-icon.png">
 <meta name="description" content="Portal conectado de Ikigai Training para operaciones de miembros, membresías, cuentas y profesores.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Ikigai Training — Portal">
@@ -14,11 +17,12 @@
 <title>Ikigai Training — Portal conectado</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/brand/tokens.css">
 <link rel="stylesheet" href="portal.css">
 </head>
 <body>
 <header class="portal-topbar">
-  <a class="portal-brand" href="./index.html" aria-label="Volver a la demo local"><img class="portal-brand-logo" src="./assets/ikigai-logo.jpg" alt=""><span><strong>IKIGAI</strong><small>TRAINING · PORTAL</small></span></a>
+  <a class="portal-brand" href="./portal.html" aria-label="Inicio del portal conectado"><img class="portal-brand-logo" src="./assets/ikigai-logo.jpg" alt=""><span><strong>IKIGAI</strong><small>TRAINING · PORTAL</small></span></a>
   <div class="topbar-status"><span class="status-dot"></span><span id="connectionLabel">API</span></div>
   <div class="account-area" id="accountArea" hidden>
     <div class="account-copy"><strong id="accountEmail"></strong><small id="accountRole"></small></div>
@@ -83,5 +87,10 @@
 
 <script src="api-client.js"></script>
 <script src="portal.js"></script>
+<script>
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  }
+</script>
 </body>
 </html>

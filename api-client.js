@@ -115,16 +115,42 @@
   }
 
   const id = value => encodeURIComponent(String(value));
+  const idempotencyState = new WeakMap();
+  function idempotencyKeyFor(scope, prefix, payload) {
+    if (!scope || (typeof scope !== "object" && typeof scope !== "function")) {
+      throw new ApiError(0, "invalid_idempotency_scope", "No se pudo asociar una clave segura al formulario.");
+    }
+    const operation = String(prefix || "operation");
+    const fingerprint = operation + ":" + JSON.stringify(payload);
+    const previous = idempotencyState.get(scope);
+    if (previous && previous.fingerprint === fingerprint) return previous.key;
+    const randomPart = window.crypto && typeof window.crypto.randomUUID === "function"
+      ? window.crypto.randomUUID()
+      : Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+    const key = "ikigai-" + operation + "-" + randomPart;
+    idempotencyState.set(scope, { fingerprint, key });
+    return key;
+  }
   const api = {
     ApiError,
     get baseUrl() { return baseUrl; },
     get configurationError() { return configurationError; },
     get user() { return currentUser; },
     request,
+    idempotencyKeyFor,
     login,
     me,
     logout,
-    listMembers: (limit = 100, offset = 0) => request(`/members?limit=${limit}&offset=${offset}`),
+    listMembers: (limit = 100, offset = 0) => {
+      const parsedLimit = Number(limit);
+      const parsedOffset = Number(offset);
+      if (!Number.isSafeInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 100
+          || !Number.isSafeInteger(parsedOffset) || parsedOffset < 0 || parsedOffset > 100000) {
+        throw new ApiError(0, "invalid_pagination", "La paginación debe usar un límite de 1 a 100 y un desplazamiento de 0 a 100000.");
+      }
+      const query = new URLSearchParams({ limit: String(parsedLimit), offset: String(parsedOffset) });
+      return request(`/members?${query.toString()}`);
+    },
     getMember: memberId => request(`/members/${id(memberId)}`),
     createMember: body => request("/members", { method: "POST", body }),
     updateMember: (memberId, body) => request(`/members/${id(memberId)}`, { method: "PATCH", body }),

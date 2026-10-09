@@ -26,6 +26,12 @@ jobs:
           node --check api-client.js
           node --check portal.js
           node --check reset-password.js
+      - name: Test portal API client contracts
+        run: node scripts/test-api-client.mjs
+      - name: Test first-run setup and cache boundaries
+        run: node scripts/test-first-run.mjs
+      - name: Check service worker syntax
+        run: node --check sw.js
       - name: Validate password recovery page and token transport
         run: |
           node --input-type=module <<'NODE'

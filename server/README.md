@@ -82,6 +82,8 @@ The initial schema includes profiles, roles, services/memberships, append-only a
 
 ### Create the first administrator
 
+For the complete operator sequence and the empty first-use workflow, see [docs/INITIAL_SETUP.md](../docs/INITIAL_SETUP.md). The root app entry opens the connected portal; the local prototype is kept separately at `demo.html`.
+
 Apply migrations first. Then set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (12–128 characters) in the local environment and run `npm run admin:create`. The command refuses to overwrite an existing email, hashes the password with Node's scrypt implementation, creates the administrator role transactionally, and never prints the password. Run it only against the intended development/production database with secure operator access; do not commit credentials to `.env` or source control.
 
 ## Security boundary — important

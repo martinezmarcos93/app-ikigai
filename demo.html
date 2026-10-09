@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<meta name="msapplication-TileColor" content="#000000">
+<meta name="description" content="Prototipo local vacío de Ikigai Training. No usa autenticación ni datos reales.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Ikigai Training">
+<meta property="og:description" content="Prototipo local vacío. No usa autenticación ni datos reales.">
+<meta property="og:image" content="./assets/social/og-image.png">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link rel="icon" type="image/png" sizes="48x48" href="./assets/pwa/favicon-48.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./assets/pwa/apple-touch-icon.png">
+<link rel="stylesheet" href="./assets/brand/tokens.css">
+<title>Ikigai Training — Prototipo local vacío</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><img src="assets/ikigai-logo.jpg" alt="Logo de Ikigai Training"><div><b>IKIGAI</b><span>TRAINING · PROTOTIPO</span></div></div>
+    <div class="role-switch"><label for="roleSelect">VISTA SIMULADA · SIN AUTENTICACIÓN</label><select id="roleSelect"><option value="admin">Administración (simulada)</option><option value="member">Miembro (simulado)</option></select></div>
+    <div class="nav-caption">CENTRO DE CONTROL</div>
+    <nav id="navigation">
+      <button class="nav-item active" data-view="dashboard"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#dashboard"></use></svg></span>Resumen</button>
+      <button class="nav-item admin-only" data-view="members"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#members"></use></svg></span>Miembros <span class="nav-count" id="memberNavCount">0</span></button>
+      <button class="nav-item" data-view="schedule"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#calendar"></use></svg></span>Turnos y asistencia</button>
+      <button class="nav-item" data-view="routines"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#routine"></use></svg></span>Rutinas y ejercicios</button>
+      <button class="nav-item admin-only" data-view="accounts"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#finance"></use></svg></span>Cuentas corrientes</button>
+      <button class="nav-item admin-only" data-view="coaches"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#coach"></use></svg></span>Profesores</button>
+      <button class="nav-item" data-view="messages"><span class="nav-icon"><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#bell"></use></svg></span>Avisos y notificaciones <span class="unread-dot"></span></button>
+    </nav>
+    <div class="sidebar-bottom"><div class="demo-state"><span class="pulse"></span><div><b>Modo demostración</b><small>Los datos se guardan en este navegador</small></div></div><button class="reset-btn" id="resetDemo">↻ Vaciar prototipo local</button></div>
+  </aside>
+  <main class="main-content">
+    <header class="topbar"><button class="mobile-menu" id="mobileMenu" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">☰</button><div class="breadcrumb">IKIGAI <span>/</span> <b id="breadcrumbLabel">RESUMEN</b></div><div class="topbar-right"><div class="today-pill"><span class="live-dot"></span> ENTORNO LOCAL</div><button class="icon-btn" data-go="messages" aria-label="Notificaciones">♢<i></i></button><div class="user-chip"><div class="avatar" id="topAvatar">AD</div><div><b id="topName">Administración demo</b><small id="topRole">Sin autenticación</small></div></div></div></header>
+    <section class="page" id="page" aria-live="polite"></section>
+    <footer class="app-footer"><span>IKIGAI TRAINING · CENTRO DE ENTRENAMIENTO</span><span>PROTOTIPO LOCAL · NO USA DATOS REALES</span></footer>
+  </main>
+</div>
+<div class="toast-region" id="toastRegion" aria-live="polite"></div>
+<dialog id="modal" class="modal"><div id="modalContent"></div></dialog>
+<script src="app.js"></script>
+
+</body></html>

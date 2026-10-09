@@ -65,12 +65,25 @@
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
-- [ ] Inventariar cada pantalla y acción de la demo y asignar su estado: local, conectada, parcial o pendiente.
-- [ ] Definir una capa de cliente API uniforme con sesión, CSRF, errores, carga, reintento seguro y estados vacíos.
-- [ ] Conectar miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
-- [ ] Evitar doble fuente de verdad y escrituras silenciosas en `localStorage` desde el portal autenticado.
-- [ ] Resolver permisos de interfaz como ayuda de UX, conservando la autorización efectiva en el servidor.
-- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados.
+**Barrido actual: primera puesta en marcha y eliminación de configuración de demo.** La entrada principal pasa al portal conectado; el prototipo se conserva aparte, vacío y sin autenticación.
+
+- [x] Crear `docs/INITIAL_SETUP.md` con el procedimiento de primera instalación, creación segura del administrador y orden inicial de configuración.
+- [x] Retirar los registros semilla del prototipo local e invalidar su almacenamiento de la versión anterior.
+- [x] Configurar la PWA para abrir el portal conectado y conservar el prototipo en `demo.html`.
+- [x] Añadir al resumen administrativo una lista de primera puesta en marcha para servicios, profesores y miembros.
+- [x] Corregir el service worker para no almacenar respuestas de `/api/` ni respuestas con `Cache-Control: no-store`; las respuestas autenticadas no deben entrar en caché.
+- [ ] Validar CI y comprobar manualmente el primer inicio de sesión, dashboard vacío, navegación a configuración y actualización/limpieza del service worker.
+- [ ] Resolver la asignación segura de más de un rol a una misma cuenta si Agustín necesita ser simultáneamente administrador y profesor.
+- [ ] Diseñar la configuración institucional persistida en servidor (contacto, dirección, horarios y preferencias); no usar valores de demostración como configuración real.
+
+**Estado: en curso — primer barrido de inventario y endurecimiento del cliente.** El portal ya consume parcialmente varios endpoints; no se considera completa la integración ni se presupone que CI esté verde.
+
+- [x] Inventariar cada superficie relevante y clasificar su estado inicial en [docs/PORTAL_API_INVENTORY.md](PORTAL_API_INVENTORY.md). El inventario está basado en lectura estática y marca explícitamente los flujos cuya ejecución aún debe comprobarse.
+- [ ] Completar y probar la capa de cliente API uniforme con sesión, CSRF, errores, carga, estados vacíos y política de reintentos seguros. Se añadió validación de paginación de miembros, codificación de parámetros, claves idempotentes estables por formulario para reintentos financieros sin cambiar el payload y smoke tests del cliente en `scripts/test-api-client.mjs`, incorporados al workflow; las ejecuciones de GitHub Actions de esta rama terminan en fallo antes de exponer pasos o logs; por ello no hay evidencia de que los tests hayan empezado y no se atribuye ese fallo al código.
+- [ ] Completar los flujos de miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
+- [x] Mantener explícita la separación entre demo local con `localStorage` y portal autenticado con datos del servidor; verificar que ningún flujo conectado informe sincronización local ficticia.
+- [ ] Auditar permisos de navegación y renderizadores como ayuda de UX, conservando la autorización efectiva en el servidor.
+- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados, empezando por sesión, miembros y servicios.
 - **Criterio de cierre:** cada flujo declara su origen de datos, manejo de errores y permisos; operaciones críticas probadas contra PostgreSQL.
 
 ### Fase 5 — Completar los flujos del gimnasio

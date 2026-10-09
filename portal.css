@@ -138,3 +138,14 @@ td strong { display:block; }
   .form-grid .full-span { grid-column:auto; }
   .portal-footer { flex-direction:column; font-size:9px; }
 }
+
+/* First-use setup checklist */
+.first-run-panel { margin: 0 0 18px; border-color: #54252b; }
+.first-run-panel > .section-subtitle { margin: -8px 0 18px; max-width: 850px; line-height: 1.45; }
+.setup-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.setup-item { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--ikigai-surface, #080808); }
+.setup-item h3 { margin: 10px 0 6px; font-size: 18px; }
+.setup-item p { min-height: 54px; margin: 0 0 14px; color: var(--muted); line-height: 1.35; }
+.setup-state { display: inline-block; padding: 3px 8px; border-radius: 20px; background: #352719; color: #ffdaaa; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; }
+.setup-state.is-done { background: #183323; color: #bff2d0; }
+@media (max-width: 900px) { .setup-grid { grid-template-columns: 1fr; } .setup-item p { min-height: 0; } }

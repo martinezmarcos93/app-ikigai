@@ -4,7 +4,7 @@ Aplicación en desarrollo para la gestión de un gimnasio. El repositorio mantie
 
 ## Estado y hoja de ruta
 
-La hoja de ruta canónica es [docs/ROADMAP_IMPLEMENTATION.md](docs/ROADMAP_IMPLEMENTATION.md). Define el orden de implementación, criterios de cierre, riesgos conocidos y estado de cada área. El trabajo se ejecuta por fases; no se adelantan cambios de identidad visual ni se declara terminada una función sin pruebas.
+La hoja de ruta canónica es [docs/ROADMAP_IMPLEMENTATION.md](docs/ROADMAP_IMPLEMENTATION.md). La guía de [puesta en marcha inicial](docs/INITIAL_SETUP.md) describe cómo crear el primer administrador y configurar una instalación vacía. Define el orden de implementación, criterios de cierre, riesgos conocidos y estado de cada área. El trabajo se ejecuta por fases; no se adelantan cambios de identidad visual ni se declara terminada una función sin pruebas.
 
 Documentación relacionada:
 
@@ -15,22 +15,29 @@ Documentación relacionada:
 - [Matriz de autorización por endpoint](docs/SECURITY_ROUTE_MATRIX.md)
 - [Copias de seguridad y restauración](docs/OPERATIONS_BACKUP_RESTORE.md)
 - [Documentación de la API](server/README.md)
+- [Inventario de integración del portal y API](docs/PORTAL_API_INVENTORY.md)
 
-## Demo local
+## Acceso principal: portal conectado
 
-Abrí `index.html` en un navegador moderno o ejecutá desde la raíz:
+Abrí `http://localhost:8000/` o `portal.html` para usar el portal multiusuario. La cuenta inicial de administración se crea desde el servidor; no hay registro público de administradores. Seguí [docs/INITIAL_SETUP.md](docs/INITIAL_SETUP.md). La PWA inicia en el portal conectado.
+
+## Prototipo local aislado
+
+El prototipo de interfaz sin autenticación se conserva en `demo.html` para referencia visual y pruebas de interacción. Está vacío por defecto y no comparte datos con el portal. Abrilo explícitamente si necesitás revisar el prototipo.
+
+Para servir el repositorio desde la raíz:
 
 ```bash
 python -m http.server 8000
 ```
 
-Luego entrá a http://localhost:8000. La demo utiliza HTML, CSS y JavaScript sin backend; persiste cambios en el `localStorage` del navegador y permite restaurar datos de prueba. Sus datos y selector de rol son exclusivamente demostrativos.
+Luego entrá a http://localhost:8000/ para abrir el portal conectado. `demo.html` utiliza HTML, CSS y JavaScript sin backend; persiste sólo datos locales del prototipo. Su selector de rol es una simulación, no una autenticación.
 
 La demo contiene vistas de miembros, cuentas corrientes, obligaciones mensuales fijas de profesores, agenda, reservas, lista de espera, asistencia, ejercicios/rutinas, avisos y perfiles. Su presencia en la interfaz no implica que los flujos estén integrados con la API.
 
 ## Portal conectado a la API
 
-`portal.html` ofrece una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. La recuperación de contraseña está disponible en `reset-password.html`; el enlace lleva el token en el fragmento URL, vence a los 30 minutos y requiere configurar el adaptador HTTPS de entrega y `PASSWORD_RESET_PUBLIC_URL` en el servidor. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
+`portal.html` es la interfaz principal conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. La recuperación de contraseña está disponible en `reset-password.html`; el enlace lleva el token en el fragmento URL, vence a los 30 minutos y requiere configurar el adaptador HTTPS de entrega y `PASSWORD_RESET_PUBLIC_URL` en el servidor. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
 
 Para desarrollo, seguí [server/README.md](server/README.md): requiere Node.js 22 y PostgreSQL. En terminales separadas, ejecutá la API desde `server/` y el servidor estático desde la raíz; después abrí http://localhost:8000/portal.html. En localhost el portal apunta por defecto a la API en el puerto 3001.
 

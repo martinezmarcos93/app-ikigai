@@ -1,10 +1,10 @@
 {
-  "id": "./",
+  "id": "./portal.html",
   "name": "Ikigai Training",
   "short_name": "Ikigai",
-  "description": "Gestión de miembros, turnos, rutinas y cuentas de Ikigai Training.",
+  "description": "Portal de gestión de Ikigai Training para administración, profesores y miembros.",
   "lang": "es-AR",
-  "start_url": "./",
+  "start_url": "./portal.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

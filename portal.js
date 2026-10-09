@@ -150,6 +150,33 @@
     $("#pageEyebrow").textContent = eyebrow;
   }
 
+  function renderFirstRunChecklist(memberCount, services, coaches) {
+    const items = [
+      { title: "Configurar servicios", detail: "Cargá las disciplinas y tarifas vigentes que el gimnasio haya acordado.", done: services.length > 0, view: "services", action: "Ir a servicios" },
+      { title: "Registrar profesores", detail: "Creá los perfiles operativos y revisá los datos de contacto.", done: coaches.length > 0, view: "coaches", action: "Ir a profesores" },
+      { title: "Cargar miembros", detail: "Empezá con los perfiles necesarios; el alta no crea cargos ni accesos.", done: memberCount > 0, view: "members", action: "Ir a miembros" }
+    ];
+    if (items.every(item => item.done)) return "";
+    return `
+      <section class="panel first-run-panel" aria-labelledby="firstRunTitle">
+        <p class="eyebrow">PRIMER USO</p>
+        <h2 class="section-title" id="firstRunTitle">Preparar Ikigai para empezar</h2>
+        <p class="section-subtitle">La base está vacía a propósito. Completá la configuración con los datos reales acordados; no se crean importes, turnos ni cuentas automáticamente.</p>
+        <div class="setup-grid">
+          ${items.map(item => `
+            <article class="setup-item">
+              <span class="setup-state${item.done ? " is-done" : ""}">${item.done ? "Listo" : "Pendiente"}</span>
+              <h3>${esc(item.title)}</h3>
+              <p>${esc(item.detail)}</p>
+              <button class="button${item.done ? " ghost" : " primary"} small" type="button" data-view="${item.view}">${esc(item.action)}</button>
+            </article>
+          `).join("")}
+        </div>
+        <p class="footer-note">Cuando existan los perfiles, usá <strong>Accesos</strong> para invitar a cada profesor o miembro por separado. El primer administrador se crea desde el servidor, nunca mediante registro público.</p>
+        <button class="button ghost small" type="button" data-view="invitations">Preparar accesos</button>
+      </section>`;
+  }
+
   async function renderDashboard() {
     setPage("Resumen");
     setLoading("Cargando información de tu cuenta…");
@@ -160,12 +187,14 @@
       state.members = members.items || [];
       state.services = services.services || [];
       state.coaches = coaches.coaches || [];
+      const firstRunChecklist = renderFirstRunChecklist(members.total ?? state.members.length, state.services, state.coaches);
       $("#pageContent").innerHTML = `
         <div class="stats-grid">
           <div class="stat-card"><small>Miembros registrados</small><strong>${members.total ?? state.members.length}</strong></div>
           <div class="stat-card"><small>Servicios activos</small><strong>${state.services.filter(s => s.active).length}</strong></div>
           <div class="stat-card"><small>Profesores activos</small><strong>${state.coaches.filter(c => c.active).length}</strong></div>
         </div>
+        ${firstRunChecklist}
         <div class="content-grid">
           <section class="panel"><h2 class="section-title">Últimos miembros</h2>${table(["Nombre","Estado","Alta"], state.members.slice(0,6).map(m => row([`<strong>${esc(m.full_name)}</strong><small class="muted">${esc(m.email || m.phone || "Sin contacto")}</small>`,statusBadge(m.status),date(m.joined_on)])))}</section>
           <section class="panel"><h2 class="section-title">Servicios disponibles</h2>${table(["Servicio","Precio actual"], state.services.slice(0,6).map(s => row([`<strong>${esc(s.name)}</strong><small class="muted">${esc(s.description || "")}</small>`,s.current_price == null ? "Sin configurar" : money(s.current_price)])))}</section>
@@ -393,11 +422,14 @@
     await Promise.all([loadMembers(),loadCoaches()]);
     const memberOpts = memberOptions();
     const coachOpts = coachOptions();
+    const memberInvite = memberOpts.length
+      ? form("Invitar a un miembro","invite-member",selectField("Perfil de miembro","memberId",memberOpts,memberOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")
+      : empty("Primero creá un perfil de miembro; después podrás vincularle un acceso.");
+    const coachInvite = coachOpts.length
+      ? form("Invitar a un profesor","invite-coach",selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")
+      : empty("Primero creá un perfil de profesor; después podrás vincularle un acceso.");
     $("#pageContent").innerHTML = `
-      <div class="two-col">
-        ${form("Invitar a un miembro","invite-member",selectField("Perfil de miembro","memberId",memberOpts,memberOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")}
-        ${form("Invitar a un profesor","invite-coach",selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")}
-      </div>
+      <div class="two-col">${memberInvite}${coachInvite}</div>
       <div id="invitationResult" style="margin-top:16px"></div>
       <p class="footer-note">La API no envía correos todavía. El token aparece una sola vez en esta pantalla: entregalo por un canal seguro y no lo incluyas en capturas o mensajes públicos. Vence a las 24 horas.</p>`;
   }
@@ -537,7 +569,7 @@
           if (!["debit","credit"].includes(String(direction).trim().toLowerCase())) throw new Error("El ajuste necesita dirección debit o credit.");
           payload.direction = String(direction).trim().toLowerCase();
         }
-        const key = `ledger-${crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random().toString(36).slice(2)}`;
+        const key = api.idempotencyKeyFor(formNode,"ledger",payload);
         await api.createLedgerEntry(memberId(),payload,key);
         showNotice("Movimiento registrado.", "success"); await renderView("accounts"); return;
       }
@@ -552,17 +584,15 @@
         showNotice("Obligación mensual configurada.", "success"); await renderCoachFinance(state.selectedCoach); return;
       }
       if (kind === "coach-payment") {
-        const key = `coach-payment-${crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random().toString(36).slice(2)}`;
-        await api.recordCoachPayment($("#coachFinanceMount").dataset.obligationId || "",{
-          amount:v("amount"),paid_on:v("paid_on"),payment_method:v("payment_method"),reference:optional("reference")
-        },key);
+        const payload = { amount:v("amount"),paid_on:v("paid_on"),payment_method:v("payment_method"),reference:optional("reference") };
+        const key = api.idempotencyKeyFor(formNode,"coach-payment",payload);
+        await api.recordCoachPayment($("#coachFinanceMount").dataset.obligationId || "",payload,key);
         showNotice("Pago registrado.", "success"); await renderCoachFinance(state.selectedCoach); return;
       }
       if (kind === "coach-adjustment") {
-        const key = `coach-adjust-${crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random().toString(36).slice(2)}`;
-        await api.createCoachAdjustment($("#coachFinanceMount").dataset.obligationId || "",{
-          amount_delta:v("amount_delta"),reason:v("reason")
-        },key);
+        const payload = { amount_delta:v("amount_delta"),reason:v("reason") };
+        const key = api.idempotencyKeyFor(formNode,"coach-adjustment",payload);
+        await api.createCoachAdjustment($("#coachFinanceMount").dataset.obligationId || "",payload,key);
         showNotice("Ajuste registrado.", "success"); await renderCoachFinance(state.selectedCoach); return;
       }
       if (kind === "invite-member" || kind === "invite-coach") {
