@@ -113,6 +113,16 @@ export function registerAuthRoutes(
       reply.header("Cache-Control", "no-store");
       if (!requireAllowedOrigin(request, reply, config)) return;
       const email = request.body.email.trim().toLowerCase();
+      const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("login-ip", request.ip), 10, 60);
+      const emailLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("login-email", email), 5, 60);
+      if (!ipLimit.allowed || !emailLimit.allowed) {
+        const retryAfter = Math.max(ipLimit.retryAfterSeconds, emailLimit.retryAfterSeconds);
+        reply.header("Retry-After", String(retryAfter));
+        return reply.code(429).send({
+          error: "too_many_attempts",
+          message: "Too many authentication attempts. Try again later."
+        });
+      }
       const password = request.body.password;
 
       const result = await db.query<UserRow>(
