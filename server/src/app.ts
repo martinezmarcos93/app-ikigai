@@ -6,6 +6,7 @@ import rateLimit from "@fastify/rate-limit";
 import type { AppConfig } from "./config.js";
 import type { Database } from "./db.js";
 import { registerAuthRoutes } from "./routes/auth.js";
+import { registerMemberRoutes } from "./routes/members.js";
 
 export interface AppDependencies {
   db?: Database;
@@ -49,6 +50,7 @@ export async function buildApp(
 
   if (dependencies.db) {
     registerAuthRoutes(app, dependencies.db, config);
+    registerMemberRoutes(app, dependencies.db);
   }
 
   app.setNotFoundHandler((_request, reply) => {
