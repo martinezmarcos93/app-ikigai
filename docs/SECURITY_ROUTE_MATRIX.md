@@ -69,3 +69,11 @@ Las pruebas nombradas existen en el repositorio; **no se marca esta matriz como 
 - `server/test/password-reset.integration.test.ts`: confirma que el token está en el fragmento URL y no en la query, que sólo se almacena su digest y que el adaptador recibe el evento de entrega esperado.
 
 La existencia de estas pruebas no equivale a aprobación; el estado sólo puede cambiar tras ejecutar y revisar CI.
+
+
+## Cobertura de autorización adicional
+
+- `server/test/authorization.test.ts` verifica los invariantes del helper de alcance: miembro propio, rechazo de perfil ajeno, profesor con perfil vinculado y alcance confirmado, profesor sin vínculo, administrador y roles mixtos.
+- `server/test/attendance.integration.test.ts` comprueba que el profesor asignado puede consultar la asistencia y que otro profesor recibe `404` tanto al leer como al intentar escribir.
+
+La matriz completa de rutas continúa pendiente de aprobación hasta revisar todos los tests de integración en una ejecución verde y obtener revisión independiente.
