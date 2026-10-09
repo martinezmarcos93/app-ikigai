@@ -100,6 +100,14 @@ test("administrator can revoke another user's sessions and the operation is idem
   );
   assert.equal(audit.rows[0]?.total, 1);
 
+  const invalidReset = await app.inject({
+    method: "POST",
+    url: `/api/v1/admin/users/${target.userId}/reset-access`,
+    headers: adminHeaders,
+    payload: { reason: "     " }
+  });
+  assert.equal(invalidReset.statusCode, 400);
+
   const reset = await app.inject({
     method: "POST",
     url: `/api/v1/admin/users/${target.userId}/reset-access`,
