@@ -39,6 +39,11 @@ function validMoney(value: string): boolean {
   return /^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(value);
 }
 
+function canonicalMoney(value: string): string {
+  const [whole, fraction = ""] = value.split(".");
+  return `${whole}.${fraction.padEnd(2, "0")}`;
+}
+
 function mapError(reply: FastifyReply, error: unknown) {
   if (error instanceof MembershipError) {
     return reply.code(error.statusCode).send({ error: error.errorCode, message: error.message });
@@ -249,7 +254,7 @@ export function registerMembershipRoutes(
           const row = existing.rows[0] as Record<string, unknown>;
           const same = row.ends_on === (body.endsOn ?? null) &&
             row.billing_period === body.billingPeriod &&
-            Number(row.agreed_price) === Number(body.agreedPrice) &&
+            canonicalMoney(String(row.agreed_price)) === canonicalMoney(body.agreedPrice) &&
             row.status === status;
           if (!same) throw new MembershipError(409, "membership_conflict", "A membership already exists for this service and start date with different terms.");
           return { membership: row, replayed: true };
