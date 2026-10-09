@@ -32,7 +32,7 @@ No requiere instalar dependencias. Usa HTML, CSS y JavaScript sin backend. Los c
 
 ## Backend en desarrollo
 
-La base inicial de la API está en [`server/`](server/README.md): Node.js 22, TypeScript, Fastify, validación de configuración, cabeceras de seguridad, CORS por lista permitida, endpoints de salud, login local con scrypt, sesiones revocables y CSRF, lectura de perfiles por rol, reservas/cancelaciones transaccionales con lista de espera y migraciones PostgreSQL. Para ejecutar los checks, consultá `server/README.md`. Ya existen login/sesiones, lectura de perfiles con alcance por rol y una primera API transaccional de reservas; ya existe escritura de perfil con auditoría y límites por rol; todavía faltan membresías, finanzas, asistencia y rutinas. No es apta para operar con datos reales.
+La base inicial de la API está en [`server/`](server/README.md): Node.js 22, TypeScript, Fastify, validación de configuración, cabeceras de seguridad, CORS por lista permitida, endpoints de salud, login local con scrypt, sesiones revocables y CSRF, lectura de perfiles por rol, reservas/cancelaciones transaccionales con lista de espera y migraciones PostgreSQL. Para ejecutar los checks, consultá `server/README.md`. Ya existen login/sesiones, lectura de perfiles con alcance por rol y una primera API transaccional de reservas; ya existe escritura de perfil con auditoría y límites por rol, y una primera API de cuenta corriente con movimientos idempotentes; todavía faltan membresías, obligaciones de profesores, asistencia y rutinas. No es apta para operar con datos reales.
 
 ## Credenciales y límites
 
