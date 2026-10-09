@@ -159,6 +159,6 @@ This is an executable foundation, not the production system. Resource-level auth
 1. Complete this baseline with CI results and correct any migration/type/test failures.
 2. Finish the authentication review, add password recovery and decide the deployment-grade shared rate-limit store.
 3. Expand role/scope authorization and negative tests for every new endpoint; member profile reads now have initial coverage.
-4. Add a transaction-capable repository and audited member-profile writes.
+4. Extend the transaction-capable repository and audited member-profile writes with integration tests for date constraints and conflict responses.
 5. Extend booking tests for cancellation cutoff, transaction rollback, retries and operational edge cases.
 6. Add PostgreSQL integration tests for ledger append-only behavior and role isolation before exposing production data.
