@@ -137,7 +137,7 @@ export function registerLedgerRoutes(
           [memberId]
         ),
         db.query<{ balance: string } & Record<string, unknown>>(
-          `SELECT COALESCE(SUM(CASE WHEN direction = 'debit' THEN amount ELSE -amount END), 0)::numeric(12,2)::text AS balance
+          `SELECT COALESCE(SUM(CASE WHEN direction = 'debit' THEN amount ELSE -amount END), 0)::numeric(18,2)::text AS balance
              FROM ledger_entries
             WHERE member_id = $1`,
           [memberId]
@@ -310,7 +310,7 @@ export function registerLedgerRoutes(
           }
 
           const balance = await tx.query<{ balance: string } & Record<string, unknown>>(
-            `SELECT COALESCE(SUM(CASE WHEN direction = 'debit' THEN amount ELSE -amount END), 0)::numeric(12,2)::text AS balance
+            `SELECT COALESCE(SUM(CASE WHEN direction = 'debit' THEN amount ELSE -amount END), 0)::numeric(18,2)::text AS balance
                FROM ledger_entries
               WHERE member_id = $1`,
             [request.params.id]
