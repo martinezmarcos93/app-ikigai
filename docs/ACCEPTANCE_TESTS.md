@@ -98,3 +98,15 @@
 - [ ] Ledger movement and audit event commit atomically; ledger history cannot be updated or deleted.
 - [ ] Partial payments remain separate movements; no automatic penalties or percentage-based coach share is introduced.
 - [ ] Payment receipts are labelled internal and are not represented as fiscal invoices.
+
+
+## Coach monthly obligations and payments
+- [ ] An unconfigured coach/month has no obligation and returns a null balance, not a fabricated zero obligation.
+- [ ] One fixed obligation can be configured per coach and month; retries with the same terms do not duplicate it.
+- [ ] A different amount for an already configured coach/month returns a conflict rather than rewriting history.
+- [ ] Partial and excess payments are recorded separately and attributed to the obligation period.
+- [ ] A correction is an append-only signed adjustment with a required reason; prior payments/obligations are never overwritten.
+- [ ] Payment and adjustment Idempotency-Key retries do not duplicate financial records; a changed request with the same key conflicts.
+- [ ] The balance is agreed obligation plus adjustments minus payments; a negative balance is a credit in favor of the coach.
+- [ ] Coaches can read only their own obligation; only administrators can create obligations, payments and adjustments.
+- [ ] No amount is calculated from class reservations, attendance or percentage share.
