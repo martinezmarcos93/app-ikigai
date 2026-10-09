@@ -289,7 +289,8 @@ CREATE TABLE routine_assignments (
   ends_on date,
   notes text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (ends_on IS NULL OR ends_on >= starts_on)
+  CHECK (ends_on IS NULL OR ends_on >= starts_on),
+  CONSTRAINT routine_assignment_unique UNIQUE (member_id, routine_version_id, starts_on)
 );
 CREATE INDEX routine_assignments_member_dates_idx ON routine_assignments(member_id, starts_on DESC);
 
