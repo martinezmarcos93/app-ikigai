@@ -25,6 +25,34 @@ jobs:
           node --check app.js
           node --check api-client.js
           node --check portal.js
+          node --check reset-password.js
+      - name: Validate password recovery page and token handling
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html = fs.readFileSync('reset-password.html', 'utf8');
+          const client = fs.readFileSync('reset-password.js', 'utf8');
+          const auth = fs.readFileSync('server/src/routes/auth.ts', 'utf8');
+          const requiredHtml = ['id="requestForm"', 'id="confirmForm"', 'reset-password.js', 'name="referrer"'];
+          const requiredClient = ['/auth/password-reset/request', '/auth/password-reset/complete', 'window.location.hash'];
+          const missing = [
+            ...requiredHtml.filter(value => !html.includes(value)).map(value => 'HTML: ' + value),
+            ...requiredClient.filter(value => !client.includes(value)).map(value => 'client: ' + value)
+          ];
+          if (missing.length) {
+            console.error('Password recovery contract missing:', missing.join(', '));
+            process.exit(1);
+          }
+          if (!auth.includes('resetUrl.hash = new URLSearchParams({ token: rawToken }).toString();')) {
+            console.error('Reset tokens must be delivered in the URL fragment, not the query string.');
+            process.exit(1);
+          }
+          if (auth.includes('resetUrl.searchParams.set("token", rawToken)')) {
+            console.error('Reset token found in URL query construction.');
+            process.exit(1);
+          }
+          console.log('Password recovery page and token transport contract passed.');
+          NODE
       - name: Set up Python for brand asset validation
         uses: actions/setup-python@v5
         with:
