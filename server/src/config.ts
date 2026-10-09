@@ -6,6 +6,9 @@ export interface AppConfig {
   port: number;
   corsOrigins: string[];
   sessionSecret: string;
+  passwordResetDeliveryUrl?: string;
+  passwordResetDeliveryToken?: string;
+  passwordResetPublicUrl?: string;
 }
 
 export type EnvironmentSource = Record<string, string | undefined>;
@@ -51,6 +54,37 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
     throw new Error("SESSION_SECRET must be explicitly configured with at least 32 characters in production.");
   }
   const sessionSecret = env.SESSION_SECRET ?? "development-only-session-secret-change-before-deploy";
+  const passwordResetDeliveryUrl = env.PASSWORD_RESET_DELIVERY_URL?.trim();
+  const passwordResetDeliveryToken = env.PASSWORD_RESET_DELIVERY_TOKEN;
+  const passwordResetPublicUrl = env.PASSWORD_RESET_PUBLIC_URL?.trim();
 
-  return { nodeEnv: rawEnv, host, port, corsOrigins, sessionSecret };
+  if (rawEnv === "production") {
+    if (!passwordResetDeliveryUrl || !passwordResetDeliveryToken || !passwordResetPublicUrl) {
+      throw new Error("PASSWORD_RESET_DELIVERY_URL, PASSWORD_RESET_DELIVERY_TOKEN, and PASSWORD_RESET_PUBLIC_URL must be configured in production.");
+    }
+    let delivery: URL;
+    let publicUrl: URL;
+    try {
+      delivery = new URL(passwordResetDeliveryUrl);
+      publicUrl = new URL(passwordResetPublicUrl);
+    } catch {
+      throw new Error("Password reset delivery and public URLs must be valid absolute URLs.");
+    }
+    if (delivery.protocol !== "https:" || publicUrl.protocol !== "https:") {
+      throw new Error("Password reset delivery and public URLs must use HTTPS in production.");
+    }
+    if (passwordResetDeliveryToken.length < 32) {
+      throw new Error("PASSWORD_RESET_DELIVERY_TOKEN must contain at least 32 characters in production.");
+    }
+    if (!corsOrigins.includes(publicUrl.origin)) {
+      throw new Error("PASSWORD_RESET_PUBLIC_URL origin must be included in CORS_ORIGINS.");
+    }
+  }
+
+  return {
+    nodeEnv: rawEnv, host, port, corsOrigins, sessionSecret,
+    ...(passwordResetDeliveryUrl ? { passwordResetDeliveryUrl } : {}),
+    ...(passwordResetDeliveryToken ? { passwordResetDeliveryToken } : {}),
+    ...(passwordResetPublicUrl ? { passwordResetPublicUrl } : {})
+  };
 }
