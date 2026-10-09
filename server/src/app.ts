@@ -52,7 +52,7 @@ export async function buildApp(
   const appDb = dependencies.db ?? dependencies.transactionalDb;
   if (appDb) {
     registerAuthRoutes(app, appDb, config);
-    registerMemberRoutes(app, appDb);
+    registerMemberRoutes(app, appDb, config, dependencies.transactionalDb);
   }
   if (dependencies.transactionalDb) {
     registerBookingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
