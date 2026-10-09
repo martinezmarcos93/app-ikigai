@@ -31,5 +31,6 @@ test("institution settings portal contract uses API methods and does not use loc
   assert.match(client, /updateInstitutionSettings/);
   assert.match(portal, /renderInstitutionSettings/);
   assert.match(portal, /form\("Configuración institucional","institution-settings"/);
+  assert.doesNotMatch(portal, /localStorage/);
   assert.match(html, /data-view="institution-settings"/);
 });
