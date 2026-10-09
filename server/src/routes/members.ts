@@ -1,4 +1,5 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
+import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
 import { canAccessMember, coachHasMemberScope, resolveActor } from "../security/actor.js";
 import { requireCsrf } from "../security/csrf.js";
@@ -75,13 +76,14 @@ function memberView(member: MemberRow, roles: string[], targetId: string, ownMem
   };
 }
 
-function invalid(reply: Parameters<FastifyInstance["get"]>[1] extends (...args: infer A) => unknown ? A[1] : never, message: string) {
+function invalid(reply: FastifyReply, message: string) {
   return reply.code(400).send({ error: "invalid_member_update", message });
 }
 
 export function registerMemberRoutes(
   app: FastifyInstance,
   db: Database,
+  config: AppConfig,
   transactionalDb?: TransactionalDatabase
 ): void {
   app.get<{ Querystring: MemberListQuery }>(
@@ -245,9 +247,7 @@ export function registerMemberRoutes(
           message: "Members can only edit their contact information."
         });
       }
-      if (!requireCsrf(request, reply, actor.sessionToken, {
-        ...({} as never),
-      } as never)) return;
+      if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
 
       const normalized: Partial<PatchMemberBody> = {};
       for (const [key, value] of bodyEntries) {
@@ -327,8 +327,6 @@ export function registerMemberRoutes(
         return reply.send({
           member: memberView(updated, actor.roles, targetId, actor.memberId)
         });
-      } catch (error) {
-        throw error;
       }
     }
   );
