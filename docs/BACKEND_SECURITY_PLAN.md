@@ -177,3 +177,8 @@ La rama de Fase 3 incorpora una migración para límites de autenticación compa
 La instalación de dependencias está bloqueada por lockfile y CI usa `npm ci`. El workflow incluye una prueba de backup/restauración en una base local descartable. Eso valida el mecanismo, pero **no significa que existan backups de producción**: proveedor, cifrado, retención, alertas y RPO/RTO siguen pendientes.
 
 No usar datos reales hasta que el pipeline de la fase pase, se complete la matriz de autorización negativa, se revise la auditoría y se demuestre restauración en el entorno operativo elegido.
+
+
+## Matriz de autorización por endpoint
+
+La matriz operativa de roles, alcance y cobertura de pruebas está en [`SECURITY_ROUTE_MATRIX.md`](./SECURITY_ROUTE_MATRIX.md). No debe marcarse como aprobada hasta revisar una ejecución verde de CI y completar la revisión independiente de seguridad.
