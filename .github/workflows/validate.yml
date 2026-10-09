@@ -47,7 +47,7 @@ jobs:
               console.error('Every PWA icon must declare src, sizes, and type.');
               process.exit(1);
             }
-            const localPath = decodeURIComponent(new URL(icon.src, 'https://local.invalid/').pathname).replace(/^\\//, '');
+            const localPath = decodeURIComponent(new URL(icon.src, 'https://local.invalid/').pathname).slice(1);
             if (!fs.existsSync(path.resolve(localPath))) {
               console.error('PWA icon path does not exist:', icon.src);
               process.exit(1);
@@ -55,14 +55,16 @@ jobs:
           }
 
           const serviceWorker = fs.readFileSync('sw.js', 'utf8');
-          const shellMatch = serviceWorker.match(/const APP_SHELL = (\\[[\\s\\S]*?\\]);/);
-          if (!shellMatch) {
+          const shellStart = serviceWorker.indexOf('const APP_SHELL = [');
+          const shellEnd = shellStart < 0 ? -1 : serviceWorker.indexOf('];', shellStart);
+          if (shellStart < 0 || shellEnd < 0) {
             console.error('Could not find APP_SHELL in sw.js.');
             process.exit(1);
           }
-          const shellPaths = [...shellMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(match => match[1]);
+          const shellSource = serviceWorker.slice(shellStart, shellEnd + 1);
+          const shellPaths = [...shellSource.matchAll(/['"]([^'"]+)['"]/g)].map(match => match[1]);
           for (const shellPath of shellPaths) {
-            const localPath = decodeURIComponent(new URL(shellPath, 'https://local.invalid/').pathname).replace(/^\\//, '');
+            const localPath = decodeURIComponent(new URL(shellPath, 'https://local.invalid/').pathname).slice(1);
             if (!fs.existsSync(path.resolve(localPath))) {
               console.error('Service worker shell path does not exist:', shellPath);
               process.exit(1);
