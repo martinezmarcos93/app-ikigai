@@ -111,6 +111,15 @@ export function registerLedgerRoutes(
         });
       }
 
+      const memberExists = await db.query<{ id: string } & Record<string, unknown>>(
+        "SELECT id FROM member_profiles WHERE id = $1",
+        [memberId]
+      );
+      if (!memberExists.rows[0]) return reply.code(404).send({
+        error: "not_found",
+        message: "The requested resource was not found."
+      });
+
       const limit = request.query.limit ?? 50;
       const offset = request.query.offset ?? 0;
       const [entries, total, balance] = await Promise.all([
