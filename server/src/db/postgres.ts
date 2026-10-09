@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import type { Database, QueryResult, TransactionalDatabase } from "./db.js";
+import type { Database, QueryResult, TransactionalDatabase } from "../db.js";
 
 export class PostgresDatabase implements TransactionalDatabase {
   constructor(private readonly pool: Pool) {}
