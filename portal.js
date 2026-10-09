@@ -107,6 +107,7 @@
 
   function applyRoleNavigation() {
     document.querySelectorAll("[data-role='admin']").forEach(node => { node.hidden = !isAdmin(); });
+    document.querySelectorAll("[data-role='member']").forEach(node => { node.hidden = !isMember(); });
     const coachesNav = document.querySelector('[data-view="coaches"]');
     if (coachesNav) coachesNav.hidden = !(isAdmin() || isCoach());
     document.querySelectorAll('[data-view="memberships"], [data-view="accounts"]').forEach(node => { node.hidden = !(isAdmin() || isMember()); });
@@ -388,6 +389,60 @@
       <div id="invitationResult" style="margin-top:16px"></div>
       <p class="footer-note">La API no envía correos todavía. El token aparece una sola vez en esta pantalla: entregalo por un canal seguro y no lo incluyas en capturas o mensajes públicos. Vence a las 24 horas.</p>`;
   }
+  async function renderMyRoutine() {
+    if (!isMember() || !state.user.memberId) throw new Error("Esta sección es exclusiva del perfil de miembro.");
+    setPage("Mi rutina");
+    setLoading("Consultando las rutinas asignadas…");
+    const result = await api.listRoutineAssignments(state.user.memberId);
+    const assignments = result.assignments || [];
+    if (!assignments.length) {
+      $("#pageContent").innerHTML = empty("Todavía no tenés una rutina asignada. Consultá con tu profesor.");
+      return;
+    }
+    $("#pageContent").innerHTML = assignments.map(assignment => {
+      const exercises = Array.isArray(assignment.exercises) ? assignment.exercises : [];
+      const exerciseRows = exercises.map((exercise,index) => row([
+        String(index+1),
+        `<strong>${esc(exercise.name)}</strong><small class="muted">${esc(exercise.equipment || "Sin equipamiento especificado")}</small>`,
+        esc(exercise.sets || "—"),
+        esc(exercise.reps || (exercise.durationSeconds ? exercise.durationSeconds + " s" : "—")),
+        exercise.restSeconds == null ? "—" : esc(exercise.restSeconds + " s"),
+        esc(exercise.notes || "—")
+      ]));
+      return `<section class="panel" style="margin-bottom:16px">
+        <div class="section-title"><span>${esc(assignment.name)}</span><span class="badge">Versión ${esc(assignment.version_number)}</span></div>
+        <p class="muted">${esc(assignment.discipline)} · ${esc(assignment.level)} · Desde ${date(assignment.starts_on)}${assignment.ends_on ? " · Hasta " + date(assignment.ends_on) : ""}</p>
+        ${assignment.assignment_notes ? `<p>${esc(assignment.assignment_notes)}</p>` : ""}
+        ${table(["#","Ejercicio","Series","Reps / tiempo","Descanso","Notas"],exerciseRows)}
+        ${assignment.version_notes ? `<p class="footer-note">${esc(assignment.version_notes)}</p>` : ""}
+      </section>`;
+    }).join("");
+    $("#pageContent").insertAdjacentHTML("beforeend",'<p class="footer-note">Las versiones históricas de una rutina se conservan; esta vista muestra la versión asignada a tu perfil.</p>');
+  }
+
+  async function renderAttendance() {
+    if (!isMember() || !state.user.memberId) throw new Error("Esta sección es exclusiva del perfil de miembro.");
+    setPage("Asistencia");
+    setLoading("Consultando el historial de asistencia…");
+    const result = await api.listAttendance(state.user.memberId);
+    const records = result.records || [];
+    const attendedCount = records.filter(record => record.attended === true).length;
+    const missedCount = records.filter(record => record.attended === false).length;
+    $("#pageContent").innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card"><small>Clases registradas</small><strong>${records.length}</strong></div>
+        <div class="stat-card"><small>Asistencias</small><strong>${attendedCount}</strong></div>
+        <div class="stat-card"><small>Ausencias</small><strong>${missedCount}</strong></div>
+      </div>
+      <section class="panel"><h2 class="section-title">Historial por clase</h2>
+      ${table(["Fecha y hora","Clase / servicio","Registro"],records.map(record=>row([
+        esc(record.starts_at ? new Date(record.starts_at).toLocaleString("es-AR",{dateStyle:"medium",timeStyle:"short"}) : date(record.recorded_at)),
+        esc(record.service_name || "Clase"),
+        record.attended ? '<span class="badge success">Presente</span>' : '<span class="badge warn">Ausente</span>'
+      ])))}</section>
+      <p class="footer-note">La asistencia queda asociada a cada clase histórica. Una corrección del registro no crea una segunda asistencia.</p>`;
+  }
+
   function renderDenied(title, message) {
     setPage(title);
     $("#pageContent").innerHTML = empty(message);
@@ -403,6 +458,8 @@
       else if (view === "services") await renderServices();
       else if (view === "memberships") await renderMemberships();
       else if (view === "accounts") await renderAccounts();
+      else if (view === "my-routine") await renderMyRoutine();
+      else if (view === "attendance") await renderAttendance();
       else if (view === "coaches") await renderCoaches();
       else if (view === "invitations") await renderInvitations();
       else renderDenied("No disponible","Esta sección todavía no está conectada.");
