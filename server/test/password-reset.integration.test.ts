@@ -30,7 +30,6 @@ test("password reset is generic, single-use, expires, invalidates previous token
   });
   const db = new PostgresDatabase(pool);
   const app = await buildApp(config, { db, transactionalDb: db });
-  const secondReplica = await buildApp(config, { db, transactionalDb: db });
   const originalFetch = globalThis.fetch;
   let resetUrl = "";
   globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
@@ -45,7 +44,6 @@ test("password reset is generic, single-use, expires, invalidates previous token
   t.after(async () => {
     globalThis.fetch = originalFetch;
     await app.close();
-    await secondReplica.close();
     await pool.end();
   });
 
