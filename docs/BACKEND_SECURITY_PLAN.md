@@ -174,7 +174,7 @@ This is an executable foundation, not the production system. Resource-level auth
 
 Se añadieron los siguientes controles al backend:
 
-- Recuperación de contraseña: solicitud con respuesta genérica, token aleatorio de 256 bits, persistencia exclusiva del SHA-256, vencimiento a los 30 minutos, revocación de tokens anteriores, consumo transaccional, cambio de contraseña y revocación de todas las sesiones activas. El enlace sólo se entrega mediante un webhook configurado; la respuesta pública no contiene el token.
+- Recuperación de contraseña: pantalla pública, solicitud con respuesta genérica, token aleatorio de 256 bits, persistencia exclusiva del SHA-256, vencimiento a los 30 minutos, revocación de tokens anteriores, consumo transaccional, cambio de contraseña y revocación de todas las sesiones activas. El enlace lleva el token en el fragmento URL (no se envía al servidor web en la petición inicial) y sólo se entrega mediante un webhook configurado; la respuesta API no contiene el token.
 - Configuración de producción: exige URL HTTPS del adaptador de entrega, token de autenticación de 32 caracteres o más y URL pública HTTPS cuya origin esté en la lista exacta de CORS. Las credenciales deben estar en el gestor de secretos del despliegue.
 - Rate limiting compartido: los endpoints sensibles usan ventanas fijas respaldadas por PostgreSQL para que las réplicas compartan el contador. La clave persistida es un digest de método, ruta e IP; no se persiste la IP en claro. Se conserva el límite local como defensa adicional.
 - Auditoría: se eliminaron emails de los payloads de auditoría de invitación y activación; la actualización de servicios registra campos cambiados y estado/precio, no el objeto completo.
@@ -182,7 +182,7 @@ Se añadieron los siguientes controles al backend:
 
 ### Contrato del adaptador de recuperación
 
-El endpoint configurado en `PASSWORD_RESET_DELIVERY_URL` recibe un POST HTTPS autenticado con Bearer token y un JSON con `type=ikigai.password_reset`, `to`, `resetUrl`, `expiresAt` y `requestId`. El adaptador debe enviar el correo y evitar registrar el token o la URL completa. No se incluye un proveedor de correo ficticio ni se exponen tokens por API para compensar una configuración faltante.
+El endpoint configurado en `PASSWORD_RESET_DELIVERY_URL` recibe un POST HTTPS autenticado con Bearer token. Para una cuenta válida recibe `type=ikigai.password_reset`, `to`, `resetUrl`, `expiresAt` y `requestId`; para un email desconocido recibe `type=ikigai.password_reset_noop`, `to` y `requestId`. El adaptador debe encolar con rapidez, enviar correo sólo para el evento real y evitar registrar el token o la URL completa. No se incluye un proveedor de correo ficticio ni se exponen tokens por API para compensar una configuración faltante.
 
 ### Puertas que siguen abiertas
 
