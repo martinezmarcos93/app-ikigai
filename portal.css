@@ -58,6 +58,7 @@ code { overflow-wrap:anywhere; color:#f4b4ba; }
 .button:disabled { opacity:.55; cursor:wait; }
 .notice { border:1px solid #8b3a42; border-radius:8px; background:#281215; color:#ffd8dc; padding:12px 15px; margin-bottom:18px; }
 .notice.success { border-color:#326849; background:#11251a; color:#c8f6d8; }
+.notice-illustration { display:inline-block; width:72px; max-height:54px; height:auto; object-fit:contain; vertical-align:middle; margin-right:12px; }
 .portal-layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:28px; align-items:start; }
 .portal-sidebar { position:sticky; top:18px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 10px; }
 .sidebar-label { margin:0 10px 12px; color:var(--muted); font-size:11px; letter-spacing:1.8px; }
