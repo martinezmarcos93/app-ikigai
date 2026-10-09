@@ -230,7 +230,7 @@ export function registerAuthRoutes(
     const user = await transactionalDb.transaction(issueToken);
     if (!user) return reply.code(202).send(genericResponse);
     const resetUrl = new URL(passwordResetBaseUrl);
-    resetUrl.searchParams.set("token", rawToken);
+    resetUrl.hash = new URLSearchParams({ token: rawToken }).toString();
     try {
       await passwordResetDelivery(user.email, resetUrl.toString());
     } catch (error) {
