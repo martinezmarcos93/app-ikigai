@@ -98,6 +98,22 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   });
   assert.equal(oldSession.statusCode, 401);
 
+  const audit = await pool.query(
+    "SELECT after_data::text AS after_data FROM audit_events WHERE actor_user_id IS NULL AND action='user.password_reset_completed' AND entity_id=$1",
+    [userId]
+  );
+  assert.equal(audit.rows.length, 1);
+  assert.equal(String(audit.rows[0]?.after_data).includes(rawToken!), false);
+  assert.equal(String(audit.rows[0]?.after_data).includes(email), false);
+
+  const loginAfterReset = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/login",
+    headers: { origin },
+    payload: { email, password: newPassword }
+  });
+  assert.equal(loginAfterReset.statusCode, 200);
+
   const reused = await app.inject({
     method: "POST",
     url: "/api/v1/auth/password-reset/complete",
