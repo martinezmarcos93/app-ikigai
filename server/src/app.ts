@@ -58,7 +58,7 @@ export async function buildApp(
     });
   });
 
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => {
     request.log.error({ err: error }, "Request failed");
     const statusCode = error.message === "Origin not allowed"
       ? 403
