@@ -192,7 +192,7 @@
           row(["Obligación fija",money(result.obligation?.agreed_amount)]),
           row(["Pagos registrados",money(result.paid)]),
           row(["Ajustes",money(result.adjustmentTotal)]),
-          row(["Saldo pendiente",`<strong>${money(result.balance)}</strong>`]
+          row(["Saldo pendiente",`<strong>${money(result.balance)}</strong>`])
         ]) : empty("La obligación mensual todavía no está configurada.")}</section>`;
     } else {
       $("#pageContent").innerHTML = empty("La cuenta no tiene un perfil de miembro o profesor vinculado. Contactá a administración.");
