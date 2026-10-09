@@ -146,3 +146,15 @@
 - [ ] El ensayo de backup/restore restaura esquema, historial de migraciones y datos en una base PostgreSQL descartable.
 - [ ] En producción, el adaptador de correo está configurado con HTTPS y secretos de despliegue; no se registra el enlace completo.
 - [ ] La revisión independiente, la política de backups de producción y las pruebas negativas completas de permisos están aprobadas antes de introducir datos reales.
+
+## Recuperación de contraseña
+
+- [ ] La solicitud devuelve una respuesta pública genérica para cuentas existentes y desconocidas.
+- [ ] La URL de recuperación lleva el token sólo en el fragmento; no aparece en la query ni en auditoría.
+- [ ] El token se almacena como digest, vence a los 30 minutos, es de un solo uso e invalida tokens anteriores.
+- [ ] Si falla la entrega, el token emitido queda revocado o inutilizable.
+- [ ] Completar recuperación cambia la contraseña y revoca todas las sesiones activas.
+- [ ] La pantalla lee el fragmento y lo elimina inmediatamente del historial del navegador.
+- [ ] La configuración de producción rechaza URL sin HTTPS, con credenciales, query/fragment o un origen fuera de CORS.
+- [ ] El rate limit compartido se verifica entre dos instancias API con pools PostgreSQL separados.
+- [ ] La restauración de backup se verifica en una base descartable; no se confunde con backups de producción configurados.
