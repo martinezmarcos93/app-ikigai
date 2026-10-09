@@ -280,6 +280,149 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
     ["attendance.corrected", "attendance.recorded", "attendance.recorded"].sort()
   );
 
+  const exerciseCreate = await app.inject({
+    method: "POST",
+    url: "/api/v1/exercises",
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: { name: `Integration Exercise ${suffix}`, description: "Technique test", equipment: "Mat", precautions: "Keep form controlled" }
+  });
+  assert.equal(exerciseCreate.statusCode, 201);
+  const exerciseId = exerciseCreate.json().exercise.id as string;
+
+  const routineCreate = await app.inject({
+    method: "POST",
+    url: "/api/v1/routines",
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: {
+      name: `Integration Routine ${suffix}`,
+      discipline: "Strength",
+      level: "Beginner",
+      notes: "Version one",
+      exercises: [{ exerciseId, sets: "3", reps: "12", restSeconds: 60 }]
+    }
+  });
+  assert.equal(routineCreate.statusCode, 201);
+  const routineId = routineCreate.json().routine.id as string;
+  const versionOneId = routineCreate.json().version.id as string;
+  assert.equal(routineCreate.json().version.version_number, 1);
+
+  const routineVersionTwo = await app.inject({
+    method: "POST",
+    url: `/api/v1/routines/${routineId}/versions`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: {
+      notes: "Version two",
+      exercises: [{ exerciseId, sets: "4", reps: "10", restSeconds: 45 }]
+    }
+  });
+  assert.equal(routineVersionTwo.statusCode, 201);
+  assert.equal(routineVersionTwo.json().version.version_number, 2);
+
+  const assignmentStart = new Date().toISOString().slice(0, 10);
+  const assignmentPayload = {
+    routineVersionId: versionOneId,
+    startsOn: assignmentStart,
+    notes: "Initial plan"
+  };
+  const routineAssignment = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/routine-assignments`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: assignmentPayload
+  });
+  assert.equal(routineAssignment.statusCode, 201);
+
+  const assignmentReplay = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/routine-assignments`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: assignmentPayload
+  });
+  assert.equal(assignmentReplay.statusCode, 200);
+  assert.equal(assignmentReplay.json().replayed, true);
+
+  const assignmentConflict = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/routine-assignments`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken
+    },
+    payload: { ...assignmentPayload, notes: "Different terms" }
+  });
+  assert.equal(assignmentConflict.statusCode, 409);
+
+  const ownRoutines = await app.inject({
+    method: "GET",
+    url: `/api/v1/members/${first.memberId}/routine-assignments`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(ownRoutines.statusCode, 200);
+  assert.equal(ownRoutines.json().assignments.length, 1);
+  assert.equal(ownRoutines.json().assignments[0].version_number, 1);
+  assert.equal(ownRoutines.json().assignments[0].exercises[0].reps, "12");
+
+  const otherMemberRoutines = await app.inject({
+    method: "GET",
+    url: `/api/v1/members/${first.memberId}/routine-assignments`,
+    headers: { cookie: `ikigai_session=${second.token}` }
+  });
+  assert.equal(otherMemberRoutines.statusCode, 404);
+
+  const memberRoutineCatalogue = await app.inject({
+    method: "GET",
+    url: "/api/v1/routines",
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(memberRoutineCatalogue.statusCode, 403);
+
+  const memberCannotCreateRoutine = await app.inject({
+    method: "POST",
+    url: "/api/v1/routines",
+    headers: {
+      origin,
+      cookie: `ikigai_session=${first.token}`,
+      "x-csrf-token": first.csrfToken
+    },
+    payload: {
+      name: "Forbidden routine",
+      discipline: "Strength",
+      level: "Beginner",
+      exercises: [{ exerciseId, sets: "3", reps: "10" }]
+    }
+  });
+  assert.equal(memberCannotCreateRoutine.statusCode, 403);
+
+  const routineAudit = await pool.query(
+    "SELECT action FROM audit_events WHERE entity_id = ANY($1::text[])",
+    [[exerciseId, routineId, routineAssignment.json().assignment.id]]
+  );
+  assert.deepEqual(
+    routineAudit.rows.map((row) => row.action).sort(),
+    ["exercise.created", "routine.created", "routine.assigned"].sort()
+  );
+
   const unconfiguredObligation = await app.inject({
     method: "GET",
     url: `/api/v1/coaches/${coachId}/obligations?period=2026-10`,
