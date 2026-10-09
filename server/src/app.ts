@@ -30,7 +30,8 @@ export async function buildApp(
   const app = Fastify({
     logger: config.nodeEnv !== "test",
     bodyLimit: 1_048_576,
-    requestTimeout: 15_000
+    requestTimeout: 15_000,
+    trustProxy: config.trustProxyHops > 0 ? config.trustProxyHops : false
   });
 
   await app.register(helmet, config.nodeEnv === "production" ? {} : {
