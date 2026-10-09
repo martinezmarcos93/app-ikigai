@@ -27,7 +27,7 @@
 - **Criterio de cierre:** documentación enlazada y no contradictoria; dependencias bloqueadas; CI verde en el commit de la fase; ninguna afirmación de producción sin evidencia.
 
 ### Fase 2 — Identidad visual, logo y assets de Ikigai
-**Prioridad visual explícita: máxima. Estado: sistema de marca y assets funcionales integrados; variante fiel/vectorial del logo bloqueada por falta del maestro editable.** Primer sistema de tokens, PWA, sprite de iconos y cuatro ilustraciones SVG creados. La variante transparente del logo queda bloqueada por la ausencia de un maestro editable; no se falsea con borrado automático del negro.
+**Prioridad visual explícita: máxima. Estado: sistema de marca, assets PWA y cuatro ilustraciones SVG creados; bienvenida y estado vacío de miembros integrados en el portal.** La variante fiel/vectorial del logo sigue bloqueada por falta del maestro editable; no se falsea con borrado automático del negro.
 
 - [x] Inspeccionar el logo actual original: 720×690 px; composición centrada con nombre angular metálico, samurái con pesas, fondo rojo geométrico y fondo negro; documentar límites del JPG.
 - [x] Medir y documentar la paleta real: rojo dominante `#E31A20`, acento `#EC2124`, negro `#000000` y gris metálico aproximado `#808281`.
@@ -38,7 +38,8 @@
 - [x] Crear favicon y set PWA 192×192, 512×512 y maskable; preservar proporciones y zona segura.
 - [x] Crear e integrar un sprite SVG funcional en las navegaciones de demo y portal.
 - [x] Crear un primer conjunto de ilustraciones SVG transparentes para bienvenida, miembros vacíos, desconexión y error; documentar usos y límites.
-- [ ] Integrar las ilustraciones en pantallas concretas sólo tras revisar sus flujos y evitar imágenes decorativas redundantes.
+- [x] Integrar la ilustración de bienvenida en el login del portal y la ilustración de miembros vacíos en la lista de miembros.
+- [ ] Integrar las ilustraciones de desconexión y error en estados de fallo reales; no deben aparecer como decoración ni sustituir mensajes accionables.
 - [x] Crear imagen Open Graph y guía de uso de marca, paleta, tipografía, tamaños y fondos permitidos.
 - [x] Actualizar manifest, metadatos, service worker y rutas de recursos tras generar los assets.
 - [x] Registrar procedencia de la marca y mantener los iconos esenciales como recursos locales.
