@@ -1,4 +1,5 @@
 import test from "node:test";
+import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import type { Database, QueryResult } from "../src/db.js";
@@ -70,7 +71,7 @@ const config = loadConfig({
 });
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
 
-async function setup(t: test.TestContext) {
+async function setup(t: TestContext) {
   const password = "test-admin-password-2026";
   const db = new FakeDatabase({
     id: "user-1",
