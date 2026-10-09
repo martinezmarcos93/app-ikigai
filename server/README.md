@@ -82,7 +82,7 @@ The initial schema includes profiles, roles, services/memberships, append-only a
 
 ### Institutional settings
 
-The admin-only `GET /api/v1/admin/institution-settings` and `PATCH /api/v1/admin/institution-settings` endpoints persist the gym name, contact email/phone, address, and opening-hours notes in PostgreSQL. Updates require an authenticated administrator session, valid CSRF token, strict input schema, transaction, and audit event. Empty fields are stored as `NULL` to represent not configured; the migration deliberately seeds no sample contact data. The connected portal exposes these fields under **Configuración**. This first slice does not yet model structured weekly opening intervals, holidays, or general preference flags.
+The admin-only `GET /api/v1/admin/institution-settings` and `PATCH /api/v1/admin/institution-settings` endpoints persist the gym name, contact email/phone, address, and opening-hours notes in PostgreSQL. Updates require an authenticated administrator session, valid CSRF token, strict input schema, transaction, and audit event. Empty fields are stored as `NULL` to represent not configured; the migration deliberately seeds no sample contact data. The connected portal exposes these fields under **Configuración**. This first slice does not yet model structured weekly opening intervals, holidays, or general preference flags. The `POST /api/v1/admin/users/link-coach` endpoint lets an administrator link an existing active admin account to a matching coach profile when both emails match. It adds the `coach` role without creating a second user or revoking `admin`; it is not a general-purpose role editor.
 
 ### Create the first administrator
 
