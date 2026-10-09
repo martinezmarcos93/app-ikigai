@@ -49,6 +49,7 @@
 
 - [ ] Completar matriz de autorización por rol y alcance para todos los endpoints, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
 - [x] Implementar recuperación de contraseña con token aleatorio de un solo uso, digest persistido, expiración de 30 minutos, invalidación de tokens previos, revocación de sesiones y respuesta que evita enumerar cuentas.
+- [x] Añadir la pantalla de solicitud/confirmación; el token viaja en el fragmento URL, se elimina de la barra al leerlo y la página no carga recursos de terceros.
 - [x] Exigir en producción un adaptador de entrega HTTPS autenticado para enviar el enlace de recuperación; la configuración del proveedor concreto sigue siendo una tarea de despliegue.
 - [x] Sustituir el rate limit sólo en memoria por un límite fijo compartido en PostgreSQL para login, recuperación y rutas administrativas sensibles; la clave almacenada es un hash y se limpian buckets antiguos.
 - [x] Revisar cookies HttpOnly/SameSite/Secure, CSRF, Origin, CORS exacto, expiración y revocación de sesiones, cabeceras y respuestas `no-store`; conservar las defensas existentes y añadir controles de producción.
