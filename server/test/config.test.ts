@@ -21,15 +21,15 @@ test("production requires explicit CORS origins", () => {
 
 test("production accepts exact origins and rejects wildcard/path origins", () => {
   assert.deepEqual(
-    loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com" }).corsOrigins,
+    loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "test-session-secret-with-more-than-32-characters" }).corsOrigins,
     ["https://gym.example.com"]
   );
   assert.throws(
-    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "*" }),
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "*", SESSION_SECRET: "test-session-secret-with-more-than-32-characters" }),
     /Invalid CORS origin/
   );
   assert.throws(
-    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com/app" }),
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com/app", SESSION_SECRET: "test-session-secret-with-more-than-32-characters" }),
     /exact HTTP\(S\) origins/
   );
 });
