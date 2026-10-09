@@ -1,9 +1,10 @@
 import pg from "pg";
-import { loadConfig } from "./config.js";
+import { assertNoLocalEnvFileInProduction, loadConfig } from "./config.js";
 import { buildApp } from "./app.js";
 
 const { Pool } = pg;
 const config = loadConfig();
+assertNoLocalEnvFileInProduction(process.cwd(), config.nodeEnv);
 const pool = new Pool({
   connectionString: config.databaseUrl,
   ssl: config.databaseSsl ? { rejectUnauthorized: true } : undefined,
