@@ -141,6 +141,8 @@ jobs:
           node-version: 22
       - name: Install API dependencies
         run: npm ci --no-audit --no-fund
+      - name: Install PostgreSQL client utilities
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Type-check API
         run: npm run check
       - name: Apply schema migrations to disposable PostgreSQL
@@ -151,3 +153,7 @@ jobs:
         run: npm run build
       - name: Verify migrations are repeatable
         run: npm run db:migrate
+      - name: Verify disposable backup and restore
+        env:
+          RESTORE_DATABASE_URL: postgres://ikigai:ikigai_test@localhost:5432/postgres
+        run: bash scripts/backup-restore-smoke.sh
