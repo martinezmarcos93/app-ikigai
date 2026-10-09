@@ -23,7 +23,7 @@ test("production password-reset settings require every delivery variable", () =>
 
 test("production password-reset settings reject weak keys and unsafe sender headers", () => {
   assert.throws(() => validatePasswordResetConfig({ ...valid, apiKey: "short" }), /at least 32 characters/);
-  assert.throws(() => validatePasswordResetConfig({ ...valid, from: "sender@example.com\\r\\nBcc: attacker@example.com" }), /single-line sender/);
+  assert.throws(() => validatePasswordResetConfig({ ...valid, from: "sender@example.com\r\nBcc: attacker@example.com" }), /single-line sender/);
   assert.throws(() => validatePasswordResetConfig({ ...valid, from: "x".repeat(255) }), /at most 254 characters/);
 });
 
