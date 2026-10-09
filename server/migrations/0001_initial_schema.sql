@@ -187,6 +187,17 @@ CREATE TABLE coach_obligations (
   UNIQUE(coach_id, period)
 );
 
+CREATE TABLE coach_obligation_adjustments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  obligation_id uuid NOT NULL REFERENCES coach_obligations(id) ON DELETE RESTRICT,
+  amount_delta numeric(12,2) NOT NULL CHECK (amount_delta <> 0),
+  reason text NOT NULL,
+  recorded_by uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX coach_obligation_adjustments_obligation_idx
+  ON coach_obligation_adjustments(obligation_id, created_at);
+
 CREATE TABLE coach_payments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   obligation_id uuid NOT NULL REFERENCES coach_obligations(id) ON DELETE RESTRICT,
@@ -282,6 +293,14 @@ $$;
 
 CREATE TRIGGER ledger_entries_append_only
   BEFORE UPDATE OR DELETE ON ledger_entries
+  FOR EACH ROW EXECUTE FUNCTION reject_immutable_record_mutation();
+
+CREATE TRIGGER coach_obligations_append_only
+  BEFORE UPDATE OR DELETE ON coach_obligations
+  FOR EACH ROW EXECUTE FUNCTION reject_immutable_record_mutation();
+
+CREATE TRIGGER coach_obligation_adjustments_append_only
+  BEFORE UPDATE OR DELETE ON coach_obligation_adjustments
   FOR EACH ROW EXECUTE FUNCTION reject_immutable_record_mutation();
 
 CREATE TRIGGER coach_payments_append_only
