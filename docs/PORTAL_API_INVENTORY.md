@@ -23,8 +23,8 @@
 | Cuenta corriente | Parcial | Lectura de movimientos/saldo y alta de movimientos con clave de idempotencia | Probar reintentos, doble envío, ajustes debit/credit, pagos parciales y saldos a favor |
 | Profesores | Parcial | Directorio, alta y consulta de obligación mensual | Probar períodos no configurados, pagos parciales, ajustes, idempotencia y separación de roles |
 | Invitaciones / accesos | Parcial | Crear invitación y mostrar token una sola vez; el backend también expone revocar, reenviar y restablecer acceso | Verificar qué acciones tienen UI y cubrir expiración, revocación y entrega segura; no persistir el token en almacenamiento local |
-| Mi rutina | Pendiente de confirmar en portal | El cliente expone lectura/asignación de rutinas, pero la navegación no demuestra por sí sola un flujo conectado completo | Auditar el renderizador y conectar únicamente con endpoints/contratos verificados |
-| Asistencia | Parcial en API; UI del portal pendiente de confirmar | Cliente expone historial de miembro y escritura por instancia | Falta demostrar selección de clase, lectura de asistencia de esa instancia y permisos del profesor asignado |
+| Mi rutina | Conectado en lectura | El portal consulta asignaciones del miembro y muestra ejercicios/versión | Añadir pruebas de contrato y revisar estados de error/ausencia de asignaciones |
+| Asistencia | Parcial | El miembro puede consultar su historial; el cliente también expone escritura de asistencia por instancia | La UI de administración/profesor para seleccionar clase y corregir asistencia no está conectada; probar historial propio y permisos |
 | Agenda / reservas / lista de espera | Pendiente en el portal conectado | La demo local tiene vistas, pero no deben confundirse con datos persistidos por la API | Integración posterior a confirmar contratos y estado de agenda; no simular persistencia |
 | Avisos y notificaciones | Pendiente | Sin flujo de entrega validado en el portal | Definir proveedor, consentimiento y operación antes de habilitar |
 | Demo local `index.html` | Local por diseño | Usa `localStorage` y datos demostrativos | Mantener separada del portal; nunca indicar que sus cambios se sincronizaron con la API |
@@ -39,7 +39,7 @@
 
 ## Prioridades del siguiente barrido
 
-1. Completar el inventario con una comprobación de cada vista y formulario del portal.
+1. Completar la comprobación del resto de formularios y contrastar el inventario con pruebas ejecutadas.
 2. Endurecer y probar la capa cliente común, incluidos parámetros de paginación y errores.
 3. Corregir discrepancias entre navegación, permisos de UX y renderizadores.
 4. Añadir pruebas de contrato para los flujos ya conectados, comenzando por sesión, miembros y servicios.
