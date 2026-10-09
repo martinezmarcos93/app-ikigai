@@ -187,3 +187,27 @@ test("session introspection and CSRF-protected logout revoke the session", async
   });
   assert.equal(afterLogout.statusCode, 401);
 });
+
+
+test("login throttles repeated failures using a shared per-email counter", async (t) => {
+  const { app, db } = await setup(t);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      headers: { origin },
+      payload: { email: "admin@example.com", password: "incorrect-password-2026" }
+    });
+    assert.equal(response.statusCode, 401);
+  }
+  const limited = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/login",
+    headers: { origin },
+    payload: { email: "admin@example.com", password: "incorrect-password-2026" }
+  });
+  assert.equal(limited.statusCode, 429);
+  assert.equal(limited.headers["retry-after"], "60");
+  assert.equal(limited.json().error, "too_many_attempts");
+  assert.equal(db.sessions.length, 0);
+});
