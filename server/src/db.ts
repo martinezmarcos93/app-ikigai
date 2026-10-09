@@ -9,3 +9,7 @@ export interface Database {
     values?: unknown[]
   ): Promise<QueryResult<Row>>;
 }
+
+export interface TransactionalDatabase extends Database {
+  transaction<T>(work: (transaction: Database) => Promise<T>): Promise<T>;
+}
