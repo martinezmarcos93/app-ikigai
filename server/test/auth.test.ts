@@ -99,6 +99,8 @@ test("login creates an opaque HttpOnly session and returns role plus CSRF token"
   });
 
   assert.equal(response.statusCode, 200);
+  assert.equal(response.headers["cache-control"], "no-store");
+  assert.equal(response.headers.pragma, "no-cache");
   const body = response.json();
   assert.deepEqual(body.user, { id: "user-1", email: "admin@example.com", roles: ["admin"], memberId: null, coachId: null });
   assert.equal(typeof body.csrfToken, "string");
