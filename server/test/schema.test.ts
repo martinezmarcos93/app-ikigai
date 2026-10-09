@@ -70,4 +70,5 @@ test("auth hardening stores opaque shared rate-limit keys and one-time reset-tok
   assert.ok(authHardeningSql.includes("token_hash char(64) NOT NULL UNIQUE"));
   assert.ok(authHardeningSql.includes("used_at timestamptz"));
   assert.ok(authHardeningSql.includes("password_reset_tokens_user_active_idx"));
+  assert.ok(authHardeningSql.includes("password_reset_tokens_one_open_per_user"));
 });
