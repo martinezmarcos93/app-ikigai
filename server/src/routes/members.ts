@@ -263,8 +263,7 @@ export function registerMemberRoutes(
         return invalid(reply, "El nombre no puede quedar vacío.");
       }
 
-      try {
-        const updated = await transactionalDb.transaction(async (tx) => {
+      const updated = await transactionalDb.transaction(async (tx) => {
           const currentResult = await tx.query<MemberRow>(
             `SELECT id, full_name, email, phone, address, dni,
                     emergency_contact_name, emergency_contact_phone,
@@ -324,10 +323,9 @@ export function registerMemberRoutes(
           error: "not_found",
           message: "The requested resource was not found."
         });
-        return reply.send({
-          member: memberView(updated, actor.roles, targetId, actor.memberId)
-        });
-      }
+      return reply.send({
+        member: memberView(updated, actor.roles, targetId, actor.memberId)
+      });
     }
   );
 }
