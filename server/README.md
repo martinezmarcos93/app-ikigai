@@ -19,7 +19,7 @@ npm run build
 npm run dev
 ```
 
-The API listens on `http://127.0.0.1:3001` by default. Available routes:
+The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, development mode intentionally exposes only health routes. To enable authentication and member endpoints, point `DATABASE_URL` at a dedicated development database and run `npm run db:migrate` first. Available routes when the database is configured:
 
 - `GET /healthz`: minimal process health.
 - `GET /api/v1/health`: versioned API health.
