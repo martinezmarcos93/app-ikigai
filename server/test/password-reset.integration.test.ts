@@ -19,7 +19,7 @@ const config = loadConfig({
   PASSWORD_RESET_PUBLIC_URL: `${origin}/reset-password`
 });
 
-test("password reset is generic, single-use, expires, and revokes existing sessions", {
+test("password reset is generic, single-use, expires, invalidates previous tokens, and revokes sessions", {
   skip: !integrationEnabled
 }, async (t: TestContext) => {
   const pool = new pg.Pool({
@@ -65,6 +65,13 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
     [userId, sessionDigest]
   );
 
+  const priorToken = randomUUID() + randomUUID();
+  const priorDigest = createHash("sha256").update(priorToken).digest("hex");
+  await pool.query(
+    "INSERT INTO password_reset_tokens (user_id,token_hash,expires_at) VALUES ($1,$2,now()+interval '30 minutes')",
+    [userId, priorDigest]
+  );
+
   const headers = { origin };
   const request = await app.inject({
     method: "POST",
@@ -86,6 +93,8 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   assert.equal(stored.rows.length, 1);
   assert.equal(stored.rows[0]?.token_hash, createHash("sha256").update(token).digest("hex"));
   assert.notEqual(stored.rows[0]?.token_hash, token);
+  const prior = await pool.query("SELECT revoked_at FROM password_reset_tokens WHERE token_hash=$1", [priorDigest]);
+  assert.ok(prior.rows[0]?.revoked_at);
 
   const newPassword = "new-secure-password-2026";
   const confirmed = await app.inject({
@@ -118,6 +127,21 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   });
   assert.equal(unknown.statusCode, request.statusCode);
   assert.deepEqual(unknown.json(), request.json());
+
+  const expiredToken = randomUUID() + randomUUID();
+  const expiredDigest = createHash("sha256").update(expiredToken).digest("hex");
+  await pool.query(
+    "INSERT INTO password_reset_tokens (user_id,token_hash,expires_at) VALUES ($1,$2,now()-interval '1 minute')",
+    [userId, expiredDigest]
+  );
+  const expiredAttempt = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/password-reset/confirm",
+    headers,
+    payload: { token: expiredToken, password: "expired-test-password-2026" }
+  });
+  assert.equal(expiredAttempt.statusCode, 400);
+  assert.equal(expiredAttempt.json().error, "invalid_reset_token");
 });
 
 
