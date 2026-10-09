@@ -25,6 +25,14 @@ jobs:
           node --check app.js
           node --check api-client.js
           node --check portal.js
+      - name: Set up Python for brand asset validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned asset validation dependency
+        run: python -m pip install -r requirements-assets.txt
+      - name: Validate generated Ikigai brand assets
+        run: python scripts/validate-brand-assets.py
       - name: Validate PWA manifest and local asset paths
         run: |
           node --input-type=module <<'NODE'
