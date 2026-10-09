@@ -160,6 +160,16 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(statusCounts.waitlist, undefined);
   assert.equal(statusCounts.cancelled, 1);
 
+  const audit = await pool.query(
+    `SELECT action FROM audit_events
+      WHERE entity_type = 'booking' AND entity_id = ANY($1::text[])`,
+    [[firstBooking.id, secondBooking.id]]
+  );
+  assert.deepEqual(
+    audit.rows.map((row) => row.action).sort(),
+    ["booking.cancelled", "booking.created", "booking.created", "booking.waitlist_promoted"].sort()
+  );
+
   const tooLate = await book(first, nearSessionId);
   assert.equal(tooLate.statusCode, 409);
   assert.equal(tooLate.json().error, "booking_cutoff_passed");
