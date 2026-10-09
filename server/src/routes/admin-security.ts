@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
@@ -26,6 +27,91 @@ export function registerAdminSecurityRoutes(
   transactionalDb: TransactionalDatabase,
   config: AppConfig
 ): void {
+  app.post<{ Params: UserParams; Body: { reason: string } }>("/api/v1/admin/users/:id/reset-access", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["id"],
+        additionalProperties: false,
+        properties: { id: { type: "string", format: "uuid" } }
+      },
+      body: {
+        type: "object",
+        required: ["reason"],
+        additionalProperties: false,
+        properties: { reason: { type: "string", minLength: 5, maxLength: 500 } }
+      }
+    },
+    config: { rateLimit: { max: 5, timeWindow: "1 minute" } }
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
+    if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
+
+    const rawToken = randomBytes(32).toString("base64url");
+    const digest = createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    try {
+      const result = await transactionalDb.transaction(async (tx) => {
+        const found = await tx.query("SELECT id,email,status FROM users WHERE id=$1 FOR UPDATE", [request.params.id]);
+        const target = found.rows[0] as Record<string, unknown> | undefined;
+        if (!target) throw new AdminSecurityError(404, "user_not_found", "The user was not found.");
+        const roleResult = await tx.query(
+          "SELECT role FROM user_roles WHERE user_id=$1 AND revoked_at IS NULL ORDER BY role",
+          [request.params.id]
+        );
+        const roles = roleResult.rows.map((row) => String(row.role));
+        if (roles.includes("admin") || !roles.some((role) => role === "member" || role === "coach")) {
+          throw new AdminSecurityError(409, "account_not_resettable", "Only member or coach accounts can be reset through this flow.");
+        }
+
+        const revokedSessions = await tx.query(
+          "UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL RETURNING id",
+          [request.params.id]
+        );
+        await tx.query(
+          "UPDATE user_invitations SET revoked_at=now() WHERE user_id=$1 AND accepted_at IS NULL AND revoked_at IS NULL",
+          [request.params.id]
+        );
+        await tx.query("UPDATE users SET status='disabled',updated_at=now() WHERE id=$1", [request.params.id]);
+        const invitation = await tx.query(
+          "INSERT INTO user_invitations (user_id,token_hash,created_by,expires_at) VALUES ($1,$2,$3,$4) RETURNING id,expires_at",
+          [request.params.id, digest, actor.userId, expiresAt.toISOString()]
+        );
+        const row = invitation.rows[0];
+        if (!row) throw new Error("Access reset invitation insert did not return a row.");
+        await tx.query(
+          "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,before_data,after_data) VALUES ($1,'user.access_reset_invited','user',$2,$3,$4::jsonb,$5::jsonb)",
+          [
+            actor.userId,
+            request.params.id,
+            request.id,
+            JSON.stringify({ previousStatus: target.status, activeRoles: roles }),
+            JSON.stringify({ status: "disabled", revokedSessions: revokedSessions.rowCount ?? revokedSessions.rows.length, invitationId: row.id, expiresAt: expiresAt.toISOString(), reason: request.body.reason.trim() })
+          ]
+        );
+        return {
+          invitation: {
+            id: String(row.id),
+            userId: request.params.id,
+            email: String(target.email),
+            expiresAt: new Date(row.expires_at as string | Date).toISOString()
+          },
+          revokedSessions: revokedSessions.rowCount ?? revokedSessions.rows.length
+        };
+      });
+      return reply.code(201).send({
+        ...result,
+        invitationToken: rawToken,
+        delivery: "manual_secure_delivery_required"
+      });
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
   app.post<{ Params: UserParams }>("/api/v1/admin/users/:id/sessions/revoke", {
     schema: {
       params: {
