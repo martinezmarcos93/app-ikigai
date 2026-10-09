@@ -1,0 +1,124 @@
+# Ikigai Training — hoja de ruta maestra de implementación
+
+> Documento de control del trabajo. El orden de las fases es deliberado: no adelantar cambios visuales o funcionales que dependan de una base todavía inestable.
+
+## Principios no negociables
+
+- **La identidad de Ikigai se conserva.** La marca existente y su paleta oscura con rojo son la referencia de partida, no un elemento descartable. Antes de crear variantes hay que inspeccionar el archivo original, identificar sus proporciones, símbolos, tipografía y tonos reales, y registrar una paleta medida. No inventar un logo sustituto ni reemplazar el logo por iniciales.
+- **Una sola fuente de verdad para la marca.** Los colores y recursos aprobados se centralizan en tokens y archivos documentados. La demo y el portal conectado no deben derivar en dos identidades visuales distintas.
+- **PWA primero.** La experiencia Android se valida en navegador y como PWA antes de decidir si hace falta una aplicación nativa.
+- **Seguridad en servidor.** Ocultar controles en el cliente no constituye autorización.
+- **Historial financiero inmutable.** Los cambios de tarifas no reescriben movimientos históricos; se permiten pagos parciales, saldos a favor y ajustes trazables. No se agregan multas automáticas ni participación porcentual para profesores.
+- **Sin datos reales hasta aprobar seguridad y operación.** Toda validación inicial usa datos ficticios.
+- **No declarar terminada una tarea sin evidencia.** Cada elemento se etiqueta como implementado, comprobado por CI, validado manualmente o bloqueado por prueba local/infraestructura.
+
+## Orden de ejecución
+
+### Fase 1 — Base estable, CI reproducible y documentación unificada
+**Estado: en curso.**
+
+- [x] Confirmar `main` como fuente de verdad y trabajar en una rama de implementación.
+- [x] Registrar el orden de fases y los criterios de cierre en esta hoja de ruta.
+- [ ] Unificar el README con esta hoja de ruta para evitar planes duplicados o contradictorios.
+- [ ] Revisar el workflow de CI y ampliar comprobaciones estáticas útiles.
+- [ ] Resolver la reproducibilidad de dependencias del backend: generar y versionar un lockfile npm y pasar de `npm install` a `npm ci`.
+- [ ] Ejecutar el pipeline completo en la rama y revisar sus resultados antes de integrar.
+- [ ] Mantener la demo local separada del portal conectado a la API y dejar claros sus límites.
+- **Criterio de cierre:** documentación enlazada y no contradictoria; dependencias bloqueadas; CI verde en el commit de la fase; ninguna afirmación de producción sin evidencia.
+
+### Fase 2 — Identidad visual, logo y assets de Ikigai
+**Prioridad visual explícita: máxima.**
+
+- [ ] Inspeccionar el logo actual original y documentar su geometría, versiones, área de protección, legibilidad y limitaciones del JPG.
+- [ ] Medir y documentar la paleta real a partir del logo y la interfaz existente antes de cambiar valores.
+- [ ] Definir tokens semánticos compartidos para fondos, superficies, texto, bordes, color de marca, estados, foco y contraste.
+- [ ] Unificar la paleta y los tokens de la demo y del portal, eliminando diferencias arbitrarias.
+- [ ] Crear variantes fieles y justificadas del logo: principal, símbolo, horizontal/compacta y monocromática cuando el original permita derivarlas sin deformarlo.
+- [ ] Preparar SVG optimizado cuando sea posible sin alterar la marca; PNG con transparencia real para usos rasterizados que lo requieran.
+- [ ] Crear favicon y set PWA 192×192, 512×512 y maskable; revisar recorte y legibilidad en tamaños pequeños.
+- [ ] Añadir iconos funcionales coherentes para navegación, miembros, agenda, pagos, entrenamiento y estados del sistema.
+- [ ] Añadir ilustraciones de estados vacíos, bienvenida, desconexión y errores sólo donde mejoren la comprensión.
+- [ ] Crear imagen Open Graph y guía breve de uso de marca, paleta, tipografía, tamaños y fondos permitidos.
+- [ ] Actualizar manifest, metadatos, service worker y rutas de recursos tras generar los assets.
+- [ ] Registrar origen/licencia de recursos y evitar dependencias externas para iconos críticos.
+- **Criterio de cierre:** recursos versionados, transparencia comprobada, rutas validadas por CI, coherencia entre pantallas y revisión visual en tamaños pequeños y grandes. No se considera aprobado un rediseño que sustituya o distorsione el logo original.
+
+### Fase 3 — Seguridad y robustez del backend
+- [ ] Completar matriz de autorización por rol y alcance, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
+- [ ] Implementar recuperación de contraseña con tokens de un solo uso, expiración, invalidación y respuestas que no permitan enumerar cuentas.
+- [ ] Sustituir limitación de intentos en memoria por almacenamiento compartido apto para múltiples instancias.
+- [ ] Revisar cookies, CSRF, validación de Origin, CORS, expiración/revocación de sesión, cabeceras y respuestas `no-store`.
+- [ ] Revisar validación de entrada, límites de tamaño, errores estables, idempotencia, transacciones y auditoría.
+- [ ] Confirmar que los eventos de auditoría no copian DNI, credenciales, tokens ni datos de contacto innecesarios.
+- [ ] Documentar secretos y configuración por entorno; nunca guardar secretos en el repositorio.
+- [ ] Configurar copias de seguridad y ensayar una restauración completa en un entorno descartable.
+- [ ] Ejecutar pruebas de seguridad y revisión independiente antes de datos reales.
+- **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; riesgos pendientes explícitos.
+
+### Fase 4 — Conectar progresivamente el portal con la API
+- [ ] Inventariar cada pantalla y acción de la demo y asignar su estado: local, conectada, parcial o pendiente.
+- [ ] Definir una capa de cliente API uniforme con sesión, CSRF, errores, carga, reintento seguro y estados vacíos.
+- [ ] Conectar miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
+- [ ] Evitar doble fuente de verdad y escrituras silenciosas en `localStorage` desde el portal autenticado.
+- [ ] Resolver permisos de interfaz como ayuda de UX, conservando la autorización efectiva en el servidor.
+- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados.
+- **Criterio de cierre:** cada flujo declara su origen de datos, manejo de errores y permisos; operaciones críticas probadas contra PostgreSQL.
+
+### Fase 5 — Completar los flujos del gimnasio
+- [ ] Agenda recurrente y generación/consulta de instancias concretas.
+- [ ] Capacidad por franja, disciplina y profesor, con consistencia ante solicitudes concurrentes.
+- [ ] Reservas, cancelación con corte de 40 minutos y promoción transaccional de la lista de espera.
+- [ ] Asistencia histórica por instancia, con corrección idempotente y auditoría.
+- [ ] Membresías, vigencias, cargos, pagos parciales, ajustes, reintegros y saldos a favor.
+- [ ] Obligación mensual fija de cada profesor con pagos parciales y saldo por período, sin relación porcentual con reservas/asistencia.
+- [ ] Rutinas versionadas, ejercicios y asignaciones con permisos y alcance.
+- [ ] Avisos, ausencias y llegadas tarde sin sanciones automáticas no aprobadas.
+- [ ] Pruebas de aceptación de extremo a extremo para administración, profesor y miembro.
+- **Criterio de cierre:** flujos principales con persistencia, reglas de negocio, autorización y pruebas; no basta con que exista una pantalla.
+
+### Fase 6 — PWA y experiencia Android
+- [ ] Revisar responsive a 320, 360, 390, 412 y 480 px, tablet y escritorio.
+- [ ] Verificar áreas seguras, orientación, zoom/texto ampliado, teclado virtual y scroll de tablas dentro de sus contenedores.
+- [ ] Comprobar objetivos táctiles de al menos 44×44 px, foco, etiquetas, contraste y movimiento reducido.
+- [ ] Validar instalación, actualización y limpieza de caché, modo offline y recuperación al volver la conexión.
+- [ ] Probar Chrome Android en un dispositivo de gama baja y otro de gama media/alta, además de emulación.
+- [ ] Confirmar que la interfaz no presenta una escritura local como sincronizada con el servidor.
+- **Criterio de cierre:** checklist móvil verificada y evidencias registradas; problemas específicos de dispositivo documentados.
+
+### Fase 7 — Infraestructura y preproducción
+- [ ] Elegir proveedor, dominio y estrategia de despliegue.
+- [ ] Separar desarrollo, pruebas y producción; configurar HTTPS, cookies Secure, secretos y CORS por entorno.
+- [ ] Configurar PostgreSQL administrado, migraciones, backups, retención y restauración probada.
+- [ ] Incorporar logs estructurados, métricas, alertas, health checks y política de datos sensibles.
+- [ ] Documentar despliegue, rollback, rotación de secretos y respuesta a incidentes.
+- **Criterio de cierre:** entorno reproducible, restauración ensayada y procedimiento de rollback documentado.
+
+### Fase 8 — Piloto controlado y decisión de lanzamiento
+- [ ] Ejecutar escenarios de aceptación con datos ficticios y roles separados.
+- [ ] Probar concurrencia, idempotencia, fallos de red, expiración de sesión y recuperación.
+- [ ] Hacer piloto con alcance limitado y aprobación explícita antes de cargar datos reales.
+- [ ] Definir soporte, exportación de datos, consentimiento y proveedor antes de activar notificaciones.
+- [ ] Evaluar app nativa/Play Store sólo si hay una necesidad concreta no cubierta por PWA.
+- **Criterio de cierre:** riesgos críticos cerrados, checklist de aceptación aprobada y plan de operación/soporte disponible.
+
+## Registro de estado y bloqueos
+
+| Área | Estado conocido al iniciar esta hoja de ruta | Próxima evidencia requerida |
+| --- | --- | --- |
+| Demo local | Prototipo navegable; persiste en `localStorage` | Pruebas funcionales y responsive en navegador |
+| Portal/API | Interfaz conectada inicial y API separada | Contratos y pruebas por flujo |
+| Backend | Auth, sesiones, reservas, ledger, asistencia, rutinas y obligaciones iniciales documentadas | Pruebas de autorización, recuperación y seguridad |
+| CI | Workflow de sintaxis, reglas de producto, TypeScript, tests, build y migraciones | Lockfile, instalación reproducible y ejecución verde |
+| Marca | Logo JPG existente; paleta oscura/roja con diferencias entre CSS | Inspección visual del original y tokens medidos |
+| Android real | No hay evidencia de prueba en dispositivo físico en este registro | Validación en dos dispositivos |
+| Producción | No aprobada para datos reales | Seguridad, infraestructura y restauración verificadas |
+
+## Protocolo de cada barrido
+
+1. Leer el estado real de la rama y el código afectado.
+2. Elegir un conjunto amplio pero cohesivo de cambios que respete el orden.
+3. Implementar y añadir pruebas o verificaciones automatizables.
+4. Actualizar esta hoja de ruta y la documentación relacionada.
+5. Revisar el diff y ejecutar el pipeline disponible.
+6. Abrir o actualizar un PR con resultados, riesgos y pruebas manuales pendientes.
+7. No integrar ni eliminar ramas históricas sin una decisión explícita o una política previamente acordada.
