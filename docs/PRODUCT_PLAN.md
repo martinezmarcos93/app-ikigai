@@ -61,4 +61,8 @@ Convertir el prototipo navegable en una aplicación de gestión de gimnasio fiab
 - Una desconexión no se presenta como sincronización correcta: la demo conserva datos locales, pero la versión multiusuario necesita sincronización y resolución de conflictos del lado servidor.
 
 ## Estado actual y límites
-La rama de trabajo agrega una primera capa Android-first y la base instalable de PWA. Todavía no convierte la demo en un sistema multiusuario: no hay autenticación real, permisos de servidor, backend ni base de datos compartida. El service worker almacena el shell estático y debe versionarse cuando cambien los recursos. Antes de usarlo en producción hay que probar instalación, actualización de caché, persistencia y todos los flujos en dispositivos Android reales.
+- **Fase 0:** base Android-first/PWA y controles iniciales de calidad incorporados; las pruebas en dispositivos Android reales siguen pendientes.
+- **Fase 1:** modelo de datos y criterios de aceptación documentados; los flujos principales de la demo incluyen reservas, lista de espera, asistencia histórica local y obligación mensual fija de profesores.
+- **Fase 2 — diseño:** arquitectura de backend, límites de confianza, roles/alcances, entidades, contratos API, transacciones y criterios de seguridad definidos en [BACKEND_SECURITY_PLAN.md](BACKEND_SECURITY_PLAN.md). La implementación todavía no comenzó.
+
+La demo no es un sistema multiusuario: no hay autenticación real, permisos de servidor, backend ni base de datos compartida. El service worker almacena el shell estático y debe versionarse cuando cambien los recursos. Antes de usarlo en producción hay que probar instalación, actualización de caché, persistencia y todos los flujos en dispositivos Android reales. No cargar datos reales hasta completar autenticación, autorización, backups y pruebas de aislamiento entre cuentas.
