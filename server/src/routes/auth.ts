@@ -5,7 +5,8 @@ import type { Database } from "../db.js";
 import { hashPassword, verifyPassword } from "../security/password.js";
 
 const SESSION_COOKIE = "ikigai_session";
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;\nconst dummyPasswordHash = hashPassword("dummy-password-used-for-timing-equalization");
+const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+const dummyPasswordHash = hashPassword("dummy-password-used-for-timing-equalization");
 
 interface LoginBody {
   email: string;
@@ -130,7 +131,6 @@ export function registerAuthRoutes(
       );
       const user = result.rows[0];
       if (!user) {
-        // Equalize the dominant password-hashing cost for unknown accounts.
         await verifyPassword(password, await dummyPasswordHash);
         return reply.code(401).send({
           error: "invalid_credentials",
@@ -194,28 +194,24 @@ export function registerAuthRoutes(
     });
   });
 
-  app.post<{ Body: { [key: string]: never } }>(
-    "/api/v1/auth/logout",
-    { schema: { body: { type: "object", additionalProperties: false } } },
-    async (request, reply) => {
-      if (!originAllowed(request, reply, config)) return;
-      const session = await currentSession(request, db);
-      if (session) {
-        const supplied = request.headers["x-csrf-token"];
-        const expected = csrfFor(session.token, config.sessionSecret);
-        if (typeof supplied !== "string" || !safeStringEqual(supplied, expected)) {
-          return reply.code(403).send({
-            error: "csrf_validation_failed",
-            message: "The request could not be validated."
-          });
-        }
-        await db.query(
-          "UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL",
-          [session.row.session_id]
-        );
+  app.post("/api/v1/auth/logout", async (request, reply) => {
+    if (!originAllowed(request, reply, config)) return;
+    const session = await currentSession(request, db);
+    if (session) {
+      const supplied = request.headers["x-csrf-token"];
+      const expected = csrfFor(session.token, config.sessionSecret);
+      if (typeof supplied !== "string" || !safeStringEqual(supplied, expected)) {
+        return reply.code(403).send({
+          error: "csrf_validation_failed",
+          message: "The request could not be validated."
+        });
       }
-      clearSessionCookie(reply, config);
-      return reply.code(204).send();
+      await db.query(
+        "UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL",
+        [session.row.session_id]
+      );
     }
-  );
+    clearSessionCookie(reply, config);
+    return reply.code(204).send();
+  });
 }
