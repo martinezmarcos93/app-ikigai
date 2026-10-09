@@ -84,6 +84,14 @@ test("PostgreSQL invitations activate a scoped account once without storing the 
   const originalInvitationId = String(created.json().invitation.id);
   assert.ok(originalToken.length >= 40);
 
+  const auditPayload = await pool.query(
+    "SELECT after_data::text AS payload FROM audit_events WHERE action='user.invitation_created' AND entity_id=$1",
+    [String(created.json().invitation.userId)]
+  );
+  assert.equal(auditPayload.rows.length, 1);
+  assert.equal(String(auditPayload.rows[0]?.payload).includes(email), false);
+  assert.equal(String(auditPayload.rows[0]?.payload).includes(originalToken), false);
+
   const originalStored = await pool.query(
     "SELECT token_hash,revoked_at FROM user_invitations WHERE id=$1",
     [originalInvitationId]
