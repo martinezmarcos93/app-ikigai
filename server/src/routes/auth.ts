@@ -212,9 +212,26 @@ export function registerAuthRoutes(
 
       delivery = await transactionalDb.transaction(createReset);
 
-      if (delivery && config.passwordResetDeliveryUrl && config.passwordResetDeliveryToken && config.passwordResetPublicUrl) {
-        const resetUrl = new URL(config.passwordResetPublicUrl);
-        resetUrl.searchParams.set("token", rawToken);
+      if (config.passwordResetDeliveryUrl && config.passwordResetDeliveryToken && config.passwordResetPublicUrl) {
+        // Send a no-op event for unknown accounts too, so the public endpoint
+        // performs the same external delivery round trip without exposing existence.
+        const payload: Record<string, string> = delivery
+          ? (() => {
+              const resetUrl = new URL(config.passwordResetPublicUrl!);
+              resetUrl.searchParams.set("token", rawToken);
+              return {
+                type: "ikigai.password_reset",
+                to: delivery!.email,
+                resetUrl: resetUrl.toString(),
+                expiresAt: expiresAt.toISOString(),
+                requestId: request.id
+              };
+            })()
+          : {
+              type: "ikigai.password_reset_noop",
+              to: email,
+              requestId: request.id
+            };
         try {
           const response = await fetch(config.passwordResetDeliveryUrl, {
             method: "POST",
@@ -222,13 +239,7 @@ export function registerAuthRoutes(
               "Authorization": `Bearer ${config.passwordResetDeliveryToken}`,
               "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-              type: "ikigai.password_reset",
-              to: delivery.email,
-              resetUrl: resetUrl.toString(),
-              expiresAt: expiresAt.toISOString(),
-              requestId: request.id
-            }),
+            body: JSON.stringify(payload),
             signal: AbortSignal.timeout(5000)
           });
           if (!response.ok) {
