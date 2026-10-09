@@ -49,6 +49,24 @@ function headers(actor: { token: string; csrfToken: string }) {
   };
 }
 
+async function createCoachActor(pool: pg.Pool, coachId: string) {
+  const email = `coach-finance-it-${randomUUID()}@example.test`;
+  const user = await pool.query(
+    "INSERT INTO users (email,password_hash,auth_provider,status) VALUES ($1,$2,'local','active') RETURNING id",
+    [email, "integration-test-placeholder-hash"]
+  );
+  const userId = String(user.rows[0]?.id);
+  await pool.query("INSERT INTO user_roles (user_id,role) VALUES ($1,'coach')", [userId]);
+  await pool.query("UPDATE coach_profiles SET user_id=$1 WHERE id=$2", [userId, coachId]);
+  const token = randomBytes(32).toString("base64url");
+  await pool.query(
+    "INSERT INTO sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)",
+    [userId, createHash("sha256").update(token).digest("hex"), new Date(Date.now() + 60 * 60_000).toISOString()]
+  );
+  return { userId, token, csrfToken: csrfTokenFor(token, config.sessionSecret) };
+}
+
+
 test("PostgreSQL ledger is scoped, idempotent, and calculates balances without duplicate movements", {
   skip: !integrationEnabled
 }, async (t: TestContext) => {
@@ -176,6 +194,7 @@ test("PostgreSQL coach obligations use fixed monthly amounts and idempotent part
   });
   assert.equal(createdCoach.statusCode, 201);
   const coachId = String(createdCoach.json().coach.id);
+  const coachActor = await createCoachActor(pool, coachId);
 
   const obligationPayload = { period: "2026-11", agreed_amount: "100000.00", due_on: "2026-11-10" };
   const obligation = await app.inject({
@@ -243,4 +262,36 @@ test("PostgreSQL coach obligations use fixed monthly amounts and idempotent part
   assert.equal(summary.json().paid, "25000.00");
   assert.equal(summary.json().adjustmentTotal, "-5000.00");
   assert.equal(summary.json().balance, "70000.00");
+
+  const secondCoachResponse = await app.inject({
+    method: "POST",
+    url: "/api/v1/coaches",
+    headers: headers(admin),
+    payload: { full_name: `Other Coach ${randomUUID()}`, discipline: "Funcional" }
+  });
+  assert.equal(secondCoachResponse.statusCode, 201);
+  const secondCoachId = String(secondCoachResponse.json().coach.id);
+
+  const ownObligation = await app.inject({
+    method: "GET",
+    url: `/api/v1/coaches/${coachId}/obligations?period=2026-11`,
+    headers: { cookie: `ikigai_session=${coachActor.token}` }
+  });
+  assert.equal(ownObligation.statusCode, 200);
+  assert.equal(ownObligation.json().balance, "70000.00");
+
+  const foreignObligation = await app.inject({
+    method: "GET",
+    url: `/api/v1/coaches/${secondCoachId}/obligations?period=2026-11`,
+    headers: { cookie: `ikigai_session=${coachActor.token}` }
+  });
+  assert.equal(foreignObligation.statusCode, 404);
+
+  const coachPaymentDenied = await app.inject({
+    method: "POST",
+    url: `/api/v1/coach-obligations/${obligationId}/payments`,
+    headers: { ...headers(coachActor), "idempotency-key": "coach-denied-payment-01" },
+    payload: paymentPayload
+  });
+  assert.equal(coachPaymentDenied.statusCode, 403);
 });
