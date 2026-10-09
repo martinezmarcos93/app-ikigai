@@ -71,7 +71,7 @@ test("password reset is generic, single-use, expires, and revokes existing sessi
   assert.equal(unknown.headers["cache-control"], "no-store");
   assert.deepEqual(requested.json(), unknown.json());
   assert.ok(deliveredUrl);
-  const rawToken = new URL(deliveredUrl).searchParams.get("token");
+  const rawToken = new URLSearchParams(new URL(deliveredUrl).hash.slice(1)).get("token");
   assert.ok(rawToken);
   const stored = await pool.query(
     "SELECT token_hash FROM password_reset_tokens WHERE user_id=$1",
@@ -182,7 +182,7 @@ test("password reset delivery failures invalidate the token without revealing ac
     message: "If an eligible account exists, instructions will be sent to its registered email address."
   });
 
-  const rawToken = new URL(deliveredUrl).searchParams.get("token");
+  const rawToken = new URLSearchParams(new URL(deliveredUrl).hash.slice(1)).get("token");
   assert.ok(rawToken);
   const stored = await pool.query(
     "SELECT used_at FROM password_reset_tokens WHERE token_hash=$1",
