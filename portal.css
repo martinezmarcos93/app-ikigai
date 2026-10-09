@@ -94,6 +94,10 @@ td strong { display:block; }
 .badge.success { color:#bff2d0; background:#183323; }
 .badge.warn { color:#ffdaaa; background:#352719; }
 .empty { color:var(--muted); text-align:center; padding:24px 16px; border:1px dashed #414147; border-radius:8px; }
+.state-illustration { display:block; max-width:100%; height:auto; object-fit:contain; }
+.welcome-illustration { width:min(100%,280px); margin:20px 0 0; }
+.empty-illustration { width:min(100%,180px); margin:0 auto 12px; }
+.empty p { margin:0; }
 .inline-form { display:flex; align-items:end; gap:10px; flex-wrap:wrap; }
 .inline-form .field { flex:1 1 160px; }
 .token-box { padding:14px; border:1px dashed #6b383d; background:#1d1012; border-radius:8px; overflow-wrap:anywhere; }
