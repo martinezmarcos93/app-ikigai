@@ -39,6 +39,15 @@
   const showError = error => {
     const status = error?.status ? ` (HTTP ${error.status})` : "";
     showNotice((error?.message || "Ocurrió un error inesperado.") + status);
+    const imageName = error?.status === 0 ? "offline.svg" : error?.status >= 500 ? "error-state.svg" : null;
+    if (imageName) {
+      const image = document.createElement("img");
+      image.className = "notice-illustration";
+      image.src = `./assets/illustrations/${imageName}`;
+      image.alt = "";
+      image.setAttribute("aria-hidden", "true");
+      $("#globalNotice").prepend(image);
+    }
   };
   const setLoading = (message = "Consultando la API…") => {
     $("#pageContent").innerHTML = `<div class="loading">${esc(message)}</div>`;
