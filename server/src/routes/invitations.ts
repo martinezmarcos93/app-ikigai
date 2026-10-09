@@ -152,12 +152,13 @@ export function registerInvitationRoutes(
     try {
       const invitation = await transactionalDb.transaction(async (tx) => {
         const currentResult = await tx.query(
-          "SELECT id,user_id,accepted_at FROM user_invitations WHERE id=$1 FOR UPDATE",
+          "SELECT id,user_id,accepted_at,revoked_at FROM user_invitations WHERE id=$1 FOR UPDATE",
           [request.params.id]
         );
         const current = currentResult.rows[0] as Record<string, unknown> | undefined;
         if (!current) throw new InvitationError(404, "invitation_not_found", "The invitation was not found.");
         if (current.accepted_at) throw new InvitationError(409, "invitation_already_accepted", "An accepted invitation cannot be resent.");
+        if (current.revoked_at) throw new InvitationError(409, "invitation_already_replaced", "This invitation has already been revoked or replaced. Use the latest invitation instead.");
 
         const userResult = await tx.query("SELECT id,email,status FROM users WHERE id=$1 FOR UPDATE", [current.user_id]);
         const user = userResult.rows[0] as Record<string, unknown> | undefined;
