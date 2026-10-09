@@ -121,3 +121,14 @@
 - [ ] Attendance writes and their audit events commit atomically.
 - [ ] A cancelled session cannot receive attendance changes.
 - [ ] A coach cannot read attendance for a class assigned to another coach.
+
+
+## Exercises, routines and assignments
+- [ ] Only administration can create exercises, routines and new routine versions.
+- [ ] Routine versions are immutable; creating a new version does not change an existing member assignment.
+- [ ] Every exercise reference in a routine version must point to an active exercise.
+- [ ] Each routine exercise has sets and either repetitions or duration.
+- [ ] Administration can assign a routine version to a member; a coach can do so only for a member in their scope.
+- [ ] Repeating an identical assignment is idempotent; conflicting terms for the same member/version/start date return a conflict.
+- [ ] A member can read only their own assignments and cannot browse the full routine catalogue or create routines.
+- [ ] Assignment and routine-version changes are audited transactionally.
