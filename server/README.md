@@ -1,6 +1,6 @@
 # Ikigai Training API (foundation)
 
-This directory contains the first executable backend slice. It is intentionally small and does not yet serve member, booking, routine, or financial data.
+This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Booking, routine, and financial data workflows are not exposed yet.
 
 ## Requirements
 
@@ -29,7 +29,7 @@ The API listens on `http://127.0.0.1:3001` by default. Available routes:
 - `GET /api/v1/members?limit=&offset=`: administrator-only paginated member list.
 - `GET /api/v1/members/:id`: administrator, self-member, or assigned-coach access with role-specific field minimization.
 
-Set `CORS_ORIGINS` to exact comma-separated origins. Production startup fails closed if it is missing, if `SESSION_SECRET` is shorter than 32 characters, or if `DATABASE_URL` is missing. Use a high-entropy secret from the hosting secret manager. Never use `*` for origins when credentials are enabled. Keep the server bound to localhost for local development unless a deliberate network deployment requires otherwise. The frontend and API should be deployed under the same site so the strict same-site session cookie is sent as expected.
+Set `CORS_ORIGINS` to exact comma-separated origins. Production startup fails closed if it is missing, if `SESSION_SECRET` is absent or shorter than 32 characters, or if `DATABASE_URL` is missing. Use a high-entropy secret from the hosting secret manager. Never use `*` for origins when credentials are enabled. Keep the server bound to localhost for local development unless a deliberate network deployment requires otherwise. The frontend and API should be deployed under the same site so the strict same-site session cookie is sent as expected.
 
 ## Database migration
 
