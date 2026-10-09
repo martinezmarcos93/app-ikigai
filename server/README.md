@@ -1,6 +1,6 @@
 # Ikigai Training API (foundation)
 
-This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Membership management, routine workflows and fiscal invoicing are not exposed yet. Attendance recording/correction and member attendance history are available with server-side scope checks and audit events. Member account history, idempotent ledger movements and coach monthly obligations/payments/adjustments are available through the API. The coach financial model is a fixed monthly obligation for use of the space; it is not derived from bookings, attendance or percentage shares. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
+This directory contains the first executable backend slice. It serves health checks, authentication/session routes, and read-only member-profile endpoints with server-side scope checks. Membership management and fiscal invoicing are not exposed yet. Exercise cataloguing, immutable routine versions and role-scoped member assignments are implemented. Attendance recording/correction and member attendance history are available with server-side scope checks and audit events. Member account history, idempotent ledger movements and coach monthly obligations/payments/adjustments are available through the API. The coach financial model is a fixed monthly obligation for use of the space; it is not derived from bookings, attendance or percentage shares. Booking creation and cancellation are implemented with database transactions, session-row locking, server-time cutoff enforcement, and waitlist promotion.
 
 ## Requirements
 
@@ -39,6 +39,10 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `GET /api/v1/class-sessions/:id/attendance`: administrator or assigned coach reads confirmed attendees and saved attendance.
 - `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally; duplicate bookings are rejected and every change is audited.
 - `GET /api/v1/members/:id/attendance`: administrator or the member reads the member's own attendance history.
+- `GET /api/v1/exercises` and `POST /api/v1/exercises`: coaches/admin browse active exercises; only administration creates them.
+- `GET /api/v1/routines`: administration/coaches browse active routines at their latest immutable version.
+- `POST /api/v1/routines` and `POST /api/v1/routines/:id/versions`: administrator-only routine creation/versioning, with all exercise references validated inside the transaction.
+- `GET/POST /api/v1/members/:id/routine-assignments`: member-owned routine history and assignment by administration or a coach with member scope. Assignment records reference immutable routine versions.
 - `POST /api/v1/class-sessions/:id/bookings`: active members reserve their own place; capacity and duplicate checks run inside a PostgreSQL transaction.
 - `POST /api/v1/bookings/:id/cancel`: member-owner or administrator cancellation before the 40-minute cutoff, with transactional waitlist promotion.
 
