@@ -34,8 +34,21 @@ class MembershipDatabase implements Database, TransactionalDatabase {
         session_id: "session-id", user_id: adminId, email: "actor@example.test",
         roles: this.roles, member_id: this.ownMemberId, coach_id: null
       }];
-    } else if (sql.includes("FROM services") && sql.includes("WHERE active = true")) {
+    } else if (sql.includes("FROM services") && sql.includes("active=true")) {
       rows = [{ id: serviceId, name: "Funcional", active: true }];
+    } else if (sql.includes("INSERT INTO memberships")) {
+      this.membership = {
+        id: "55555555-5555-4555-8555-555555555555",
+        member_id: values[0],
+        service_id: values[1],
+        starts_on: values[2],
+        ends_on: values[3] ?? null,
+        billing_period: values[4],
+        agreed_price: String(values[5]),
+        status: values[6],
+        created_at: "2026-10-09T00:00:00.000Z"
+      };
+      rows = [this.membership];
     } else if (sql.includes("FROM memberships") && sql.includes("WHERE member_id=$1 AND service_id=$2")) {
       if (this.membership && this.membership.member_id === values[0] && this.membership.service_id === values[1]) {
         rows = [this.membership];
