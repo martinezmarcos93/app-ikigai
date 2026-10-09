@@ -49,10 +49,10 @@
 - [x] Implementar endpoints de recuperación con tokens de un solo uso, expiración de 30 minutos, digest almacenado, respuesta genérica, invalidación de sesiones y auditoría; el envío usa Resend con configuración obligatoria en producción.
 - [ ] Crear la pantalla de restablecimiento en el portal durante la fase de integración de interfaz.
 - [x] Sustituir el limitador de login y recuperación por contadores atómicos PostgreSQL compartidos entre instancias; las claves se almacenan como hashes.
-- [ ] Revisar cookies, CSRF, validación de Origin, CORS, expiración/revocación de sesión, cabeceras y respuestas `no-store`.
+- [x] Revisar cookies HttpOnly/SameSite Strict/Secure en producción, expiración y revocación de sesiones, CSRF/Origin y CORS por origen exacto; agregar `Cache-Control: no-store` y `Pragma: no-cache` globales para `/api/` con pruebas.\n- [ ] Validar la configuración final de cookies, proxy y cabeceras en el hosting elegido antes de producción.
 - [ ] Revisar validación de entrada, límites de tamaño, errores estables, idempotencia, transacciones y auditoría.
-- [ ] Revisar de forma sistemática que los eventos de auditoría no copien DNI, credenciales, tokens ni datos de contacto innecesarios; la nueva recuperación sólo audita usuario y cantidad de sesiones revocadas.
-- [ ] Documentar secretos y configuración por entorno; nunca guardar secretos en el repositorio.
+- [x] Revisar los payloads de auditoría; eliminar email de eventos de invitación y comprobar que recuperación/invitaciones no guardan tokens en claro. Las razones libres deben redactarse sin DNI, credenciales ni datos de contacto.\n- [ ] Mantener revisión de auditoría durante la revisión independiente y añadir controles adicionales si el modelo de datos cambia.
+- [x] Documentar variables de entorno para secretos y envío de correo; no incluir credenciales reales en el repositorio.\n- [ ] Cargar secretos reales sólo en el gestor del proveedor cuando se elija el entorno de despliegue.
 - [x] Añadir prueba automatizada de dump/restauración en una base PostgreSQL local descartable dentro de CI.
 - [ ] Configurar backups de producción, retención, alertas y calendario de restauración tras elegir proveedor.
 - [ ] Ejecutar revisión de seguridad independiente antes de datos reales; la matriz de autorización y las pruebas negativas deben ampliarse antes del cierre.
