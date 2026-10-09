@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const sql = await readFile(new URL("../migrations/0001_initial_schema.sql", import.meta.url), "utf8");
 const sessionsSql = await readFile(new URL("../migrations/0002_sessions.sql", import.meta.url), "utf8");
 const invitationsSql = await readFile(new URL("../migrations/0003_user_invitations.sql", import.meta.url), "utf8");
+const securitySql = await readFile(new URL("../migrations/0004_security_hardening.sql", import.meta.url), "utf8");
 
 test("initial migration defines the core operational entities", () => {
   for (const table of [
@@ -58,4 +59,14 @@ test("money uses exact numeric types and monthly obligations are period-scoped",
   assert.ok(sql.includes("request_hash char(64)"));
   assert.ok(sql.includes("UNIQUE(coach_id, period)"));
   assert.doesNotMatch(sql, /share\s+numeric|percentage_share/i);
+});
+
+
+test("shared rate limits and password reset tokens are persisted safely", () => {
+  assert.ok(securitySql.includes("CREATE TABLE rate_limit_buckets"));
+  assert.ok(securitySql.includes("bucket_key char(64) PRIMARY KEY"));
+  assert.ok(securitySql.includes("CREATE TABLE password_reset_tokens"));
+  assert.ok(securitySql.includes("token_hash char(64) NOT NULL UNIQUE"));
+  assert.ok(securitySql.includes("password_reset_tokens_one_open_per_user"));
+  assert.ok(securitySql.includes("expires_at timestamptz NOT NULL"));
 });
