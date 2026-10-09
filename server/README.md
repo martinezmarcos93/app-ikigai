@@ -80,6 +80,10 @@ The migration runner applies numbered SQL files once, uses a PostgreSQL advisory
 
 The initial schema includes profiles, roles, services/memberships, append-only account movements with debit/credit direction and idempotency, class templates and dated sessions, recurring assignments, bookings, attendance, monthly coach obligations/adjustments/payments, routines, sessions and audit events. Member ledger entries, coach obligations, coach obligation adjustments, coach payments and audit rows are protected against update/delete. Correcting a monthly obligation requires an append-only adjustment with a reason; corrections to financial history must be represented by new records.
 
+### Institutional settings
+
+The admin-only `GET /api/v1/admin/institution-settings` and `PATCH /api/v1/admin/institution-settings` endpoints persist the gym name, contact email/phone, address, and opening-hours notes in PostgreSQL. Updates require an authenticated administrator session, valid CSRF token, strict input schema, transaction, and audit event. Empty fields are stored as `NULL` to represent not configured; the migration deliberately seeds no sample contact data. The connected portal exposes these fields under **Configuración**. This first slice does not yet model structured weekly opening intervals, holidays, or general preference flags.
+
 ### Create the first administrator
 
 For the complete operator sequence and the empty first-use workflow, see [docs/INITIAL_SETUP.md](../docs/INITIAL_SETUP.md). The root app entry opens the connected portal; the local prototype is kept separately at `demo.html`.
