@@ -74,6 +74,14 @@ export async function buildApp(
     registerAdminSecurityRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
   }
 
+  app.addHook("onSend", async (request, reply, payload) => {
+    if (request.url.startsWith("/api/")) {
+      reply.header("Cache-Control", "no-store");
+      reply.header("Pragma", "no-cache");
+    }
+    return payload;
+  });
+
   app.setNotFoundHandler((_request, reply) => {
     return reply.code(404).send({
       error: "not_found",
