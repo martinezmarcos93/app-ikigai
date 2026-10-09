@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AppConfig } from "../config.js";
-import type { Database } from "../db.js";
+import type { Database, TransactionalDatabase } from "../db.js";
+import { consumeSharedRateLimit, opaqueRateLimitKey } from "../security/rate-limit.js";
 import { hashPassword, verifyPassword } from "../security/password.js";
 import { csrfTokenFor, requireAllowedOrigin, requireCsrf } from "../security/csrf.js";
 
