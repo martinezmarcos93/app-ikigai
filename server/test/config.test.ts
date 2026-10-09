@@ -37,7 +37,14 @@ test("production accepts exact origins and rejects wildcard/path origins", () =>
 test("production requires a strong session secret", () => {
   assert.throws(
     () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "short" }),
-    /SESSION_SECRET must contain at least 32 characters/
+    /SESSION_SECRET must be explicitly configured/
+  );
+});
+
+test("production cannot use the development session-secret fallback", () => {
+  assert.throws(
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com" }),
+    /SESSION_SECRET must be explicitly configured/
   );
 });
 
