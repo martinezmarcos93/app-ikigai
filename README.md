@@ -12,6 +12,7 @@ Documentación relacionada:
 - [Modelo de datos](docs/DATA_MODEL.md)
 - [Pruebas de aceptación](docs/ACCEPTANCE_TESTS.md)
 - [Plan de seguridad del backend](docs/BACKEND_SECURITY_PLAN.md)
+- [Matriz de autorización por endpoint](docs/SECURITY_ROUTE_MATRIX.md)
 - [Documentación de la API](server/README.md)
 
 ## Demo local
@@ -28,7 +29,7 @@ La demo contiene vistas de miembros, cuentas corrientes, obligaciones mensuales 
 
 ## Portal conectado a la API
 
-`portal.html` ofrece una primera interfaz conectada al backend. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
+`portal.html` ofrece una primera interfaz conectada al backend. La recuperación de contraseña está en `reset-password.html`; requiere configurar `RESEND_API_KEY`, `PASSWORD_RESET_FROM` y `PASSWORD_RESET_BASE_URL` en el entorno del servidor. Los enlaces llevan el token en el fragmento de URL y vencen a los 30 minutos. Usa sesiones del servidor, cookie HttpOnly y token CSRF en memoria; no comparte el almacenamiento local de la demo. Incluye vistas iniciales para miembros, servicios, membresías, cuentas corrientes, profesores e invitaciones.
 
 Para desarrollo, seguí [server/README.md](server/README.md): requiere Node.js 22 y PostgreSQL. En terminales separadas, ejecutá la API desde `server/` y el servidor estático desde la raíz; después abrí http://localhost:8000/portal.html. En localhost el portal apunta por defecto a la API en el puerto 3001.
 
