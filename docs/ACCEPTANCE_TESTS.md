@@ -49,3 +49,86 @@
 - [ ] Los profesores no pueden leer datos de miembros ajenos a su alcance.
 - [ ] Se auditan pagos, cambios de membresía, cancelaciones y correcciones de asistencia.
 - [ ] Se verifican copias de seguridad y recuperación antes de importar datos reales.
+
+
+## API authentication foundation
+- [ ] Login accepts only valid JSON and normalizes email addresses.
+- [ ] Wrong email and wrong password use the same public error response.
+- [ ] Unknown accounts do not bypass password-hashing work.
+- [ ] Login rejects missing or unconfigured browser origins.
+- [ ] Session tokens are opaque, random, and stored only as SHA-256 digests.
+- [ ] Session cookies are HttpOnly, SameSite=Strict and Secure in production.
+- [ ] Session expiry and revocation are enforced by the server on every authenticated request.
+- [ ] Logout requires the expected Origin and a valid CSRF token, then revokes the server-side session.
+- [ ] Authentication responses are marked no-store.
+- [ ] Production startup fails when DATABASE_URL, CORS_ORIGINS or a sufficiently long SESSION_SECRET is missing.
+- [ ] Login rate limiting is verified; production multi-instance deployments use a shared rate-limit store.
+- [ ] Cross-member and cross-coach authorization tests pass before any business-data endpoint is released.
+
+
+## PostgreSQL-backed booking API
+- [ ] Two concurrent requests for the last place produce exactly one confirmed booking; the other enters the waitlist.
+- [ ] Confirmed bookings never exceed the session capacity.
+- [ ] A duplicate active booking for the same member/session is rejected.
+- [ ] A booking request inside the 40-minute cutoff is rejected by server time.
+- [ ] A member cannot book on behalf of another member or access a booking owned by another member.
+- [ ] Cancellation inside the 40-minute cutoff is rejected.
+- [ ] Cancelling a confirmed booking before cutoff promotes the oldest waiting booking in the same transaction.
+- [ ] Cancelling a waitlisted booking does not promote another member.
+- [ ] A failed booking/cancellation transaction leaves no partial state changes.
+
+
+## Member profile write authorization
+- [ ] An active member can update only their own phone, address and emergency contact fields.
+- [ ] A member cannot change their status, name, email, DNI, join/exit dates or internal notes.
+- [ ] An administrator can update operational profile fields through a validated allowlist.
+- [ ] Profile updates require an allowed Origin and a valid CSRF token.
+- [ ] Profile changes and audit records commit or roll back together.
+- [ ] Audit records list changed fields and status transitions without copying contact details or DNI into the audit payload.
+- [ ] Invalid date ranges and unique/conflict errors return stable client errors rather than generic server errors.
+
+
+## Account ledger API
+- [ ] Account balance is derived from exact debit/credit movements, not stored as an independently editable total.
+- [ ] Members can read only their own account history; coaches cannot access financial ledgers.
+- [ ] Only administration can create charges, payments, adjustments and refunds.
+- [ ] A charge increases the balance; a payment/refund decreases it; adjustments require explicit debit/credit direction.
+- [ ] Duplicate Idempotency-Key with the same request returns the original movement without changing the balance.
+- [ ] Reusing an Idempotency-Key with a different request returns a conflict.
+- [ ] Ledger movement and audit event commit atomically; ledger history cannot be updated or deleted.
+- [ ] Partial payments remain separate movements; no automatic penalties or percentage-based coach share is introduced.
+- [ ] Payment receipts are labelled internal and are not represented as fiscal invoices.
+
+
+## Coach monthly obligations and payments
+- [ ] An unconfigured coach/month has no obligation and returns a null balance, not a fabricated zero obligation.
+- [ ] One fixed obligation can be configured per coach and month; retries with the same terms do not duplicate it.
+- [ ] A different amount for an already configured coach/month returns a conflict rather than rewriting history.
+- [ ] Partial and excess payments are recorded separately and attributed to the obligation period.
+- [ ] A correction is an append-only signed adjustment with a required reason; prior payments/obligations are never overwritten.
+- [ ] Payment and adjustment Idempotency-Key retries do not duplicate financial records; a changed request with the same key conflicts.
+- [ ] The balance is agreed obligation plus adjustments minus payments; a negative balance is a credit in favor of the coach.
+- [ ] Coaches can read only their own obligation; only administrators can create obligations, payments and adjustments.
+- [ ] No amount is calculated from class reservations, attendance or percentage share.
+
+
+## Attendance API
+- [ ] Only administration or the coach assigned to a class can read/record attendance for that class.
+- [ ] Members can read only their own attendance history and cannot change attendance.
+- [ ] Only confirmed bookings in the requested class session may receive attendance records.
+- [ ] Duplicate booking IDs in one update are rejected before any write.
+- [ ] Recording the same value twice is idempotent; corrections update the record without duplicating it.
+- [ ] Attendance writes and their audit events commit atomically.
+- [ ] A cancelled session cannot receive attendance changes.
+- [ ] A coach cannot read attendance for a class assigned to another coach.
+
+
+## Exercises, routines and assignments
+- [ ] Only administration can create exercises, routines and new routine versions.
+- [ ] Routine versions are immutable; creating a new version does not change an existing member assignment.
+- [ ] Every exercise reference in a routine version must point to an active exercise.
+- [ ] Each routine exercise has sets and either repetitions or duration.
+- [ ] Administration can assign a routine version to a member; a coach can do so only for a member in their scope.
+- [ ] Repeating an identical assignment is idempotent; conflicting terms for the same member/version/start date return a conflict.
+- [ ] A member can read only their own assignments and cannot browse the full routine catalogue or create routines.
+- [ ] Assignment and routine-version changes are audited transactionally.

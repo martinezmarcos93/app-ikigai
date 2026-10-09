@@ -30,9 +30,15 @@ No requiere instalar dependencias. Usa HTML, CSS y JavaScript sin backend. Los c
 - Publicación de avisos y registro de ausencias/llegadas tarde.
 - Diseño responsive para teléfono, tablet y escritorio.
 
+## Backend en desarrollo
+
+La API está en [`server/`](server/README.md). Incluye Node.js 22, TypeScript estricto, Fastify, PostgreSQL y migraciones transaccionales; login con contraseña scrypt, sesiones revocables y protección CSRF/origen; lectura y edición de perfiles con autorización por rol; reservas transaccionales con corte de 40 minutos, capacidad y lista de espera; cuenta corriente con movimientos idempotentes y auditoría; obligaciones mensuales fijas de profesores con pagos parciales y ajustes; asistencia histórica y rutinas versionadas con permisos de alcance. La integración con la interfaz de la demo aún no está hecha.
+
+La API sigue siendo una fundación en desarrollo, no está aprobada para datos reales. Faltan recuperación de contraseña, limitación de intentos compartida entre réplicas, ampliación de pruebas de autorización, restauración de backups ensayada, monitoreo y despliegue seguro. Ejecutá `npm run check`, `npm test`, `npm run build` y `npm run db:migrate` desde `server/` contra una base descartable.
+
 ## Credenciales y límites
 
-No hay inicio de sesión real ni separación de permisos segura: el selector de rol es sólo para recorrer la demo. Los datos son ficticios y se guardan en el navegador. Las notificaciones son internas de la demo; no se envían push, email ni WhatsApp. El registro de asistencia no tiene historial persistente separado. No usar importes de profesores, saldos ni datos de ejemplo para operar el gimnasio.
+No hay inicio de sesión real ni separación de permisos segura: el selector de rol es sólo para recorrer la demo. Los datos son ficticios y se guardan en el navegador. Las notificaciones son internas de la demo; no se envían push, email ni WhatsApp. La asistencia se guarda como historial dentro del estado local del navegador, pero todavía no cuenta con una base compartida ni con auditoría de servidor. No usar importes de profesores, saldos ni datos de ejemplo para operar el gimnasio.
 
 ## Enfoque Android-first
 
@@ -40,4 +46,4 @@ La rama `feat/android-first-product-foundation` incorpora mejoras iniciales para
 
 ## Hoja de ruta
 
-Consultar [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md), [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) y [`docs/ACCEPTANCE_TESTS.md`](docs/ACCEPTANCE_TESTS.md) para las decisiones de producto, el modelo de datos y las pruebas de aceptación. La demo sigue siendo local: no usar datos reales hasta implementar backend, autenticación, autorización del lado servidor, base de datos compartida y pruebas.
+Consultar [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md), [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), [`docs/ACCEPTANCE_TESTS.md`](docs/ACCEPTANCE_TESTS.md) y [`docs/BACKEND_SECURITY_PLAN.md`](docs/BACKEND_SECURITY_PLAN.md) para las decisiones de producto, el modelo de datos y las pruebas de aceptación. La demo del navegador sigue siendo local y todavía no consume la API. La carpeta [server/](server/README.md) contiene la API separada. La demo local no consume todavía esta API. No usar datos reales hasta cerrar los pendientes de seguridad, completar los flujos y verificar la operación.
