@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080808"><title>Ikigai Training — App Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><img src="assets/ikigai-logo.jpg" alt="Ikigai Training"><div><b>IKIGAI</b><span>TRAINING · DEMO</span></div></div>
+    <div class="role-switch"><label for="roleSelect">VISTA DE LA DEMO</label><select id="roleSelect"><option value="admin">Administrador · Agustín</option><option value="member">Miembro</option></select></div>
+    <div class="nav-caption">CENTRO DE CONTROL</div>
+    <nav id="navigation">
+      <button class="nav-item active" data-view="dashboard"><span class="nav-icon">◈</span>Resumen</button>
+      <button class="nav-item admin-only" data-view="members"><span class="nav-icon">♙</span>Miembros <span class="nav-count" id="memberNavCount">24</span></button>
+      <button class="nav-item" data-view="schedule"><span class="nav-icon">▦</span>Turnos y asistencia</button>
+      <button class="nav-item" data-view="routines"><span class="nav-icon">✳</span>Rutinas y ejercicios</button>
+      <button class="nav-item admin-only" data-view="accounts"><span class="nav-icon">＄</span>Cuentas corrientes</button>
+      <button class="nav-item admin-only" data-view="coaches"><span class="nav-icon">♟</span>Profesores</button>
+      <button class="nav-item" data-view="messages"><span class="nav-icon">◉</span>Avisos y notificaciones <span class="unread-dot"></span></button>
+    </nav>
+    <div class="sidebar-bottom"><div class="demo-state"><span class="pulse"></span><div><b>Modo demostración</b><small>Los datos se guardan en este navegador</small></div></div><button class="reset-btn" id="resetDemo">↻ Reiniciar datos de prueba</button></div>
+  </aside>
+  <main class="main-content">
+    <header class="topbar"><button class="mobile-menu" id="mobileMenu" aria-label="Abrir menú">☰</button><div class="breadcrumb">IKIGAI <span>/</span> <b id="breadcrumbLabel">RESUMEN</b></div><div class="topbar-right"><div class="today-pill"><span class="live-dot"></span> ENTORNO LOCAL</div><button class="icon-btn" data-go="messages" aria-label="Notificaciones">♢<i></i></button><div class="user-chip"><div class="avatar" id="topAvatar">AN</div><div><b id="topName">Agustín Navarro</b><small id="topRole">Administrador</small></div></div></div></header>
+    <section class="page" id="page" aria-live="polite"></section>
+    <footer class="app-footer"><span>IKIGAI TRAINING · CENTRO DE ENTRENAMIENTO</span><span>PROTOTIPO LOCAL · NO USA DATOS REALES</span></footer>
+  </main>
+</div>
+<div class="toast-region" id="toastRegion" aria-live="polite"></div>
+<dialog id="modal" class="modal"><div id="modalContent"></div></dialog>
+<script src="app.js"></script>
+</body></html>
