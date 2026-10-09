@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 import type { Database } from "../db.js";
 
 let callsSinceCleanup = 0;
@@ -9,14 +9,20 @@ export interface RateLimitResult {
   retryAfterSeconds: number;
 }
 
-export function opaqueRateLimitKey(namespace: string, value: string): string {
-  const digest = createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
-  return \`\${namespace}:\${digest}\`;
+/**
+ * Use a keyed digest so predictable values such as IP addresses and email
+ * addresses cannot be recovered by dictionary attacks against stored keys.
+ * Rotating SESSION_SECRET resets the rate-limit namespaces, so rotate it only
+ * as an intentional security operation.
+ */
+export function opaqueRateLimitKey(namespace: string, value: string, secret: string): string {
+  const digest = createHmac("sha256", secret).update(value.trim().toLowerCase()).digest("hex");
+  return `${namespace}:${digest}`;
 }
 
 /**
  * Atomic PostgreSQL-backed fixed-window counter shared by all API instances.
- * The key must be opaque; do not persist raw IP addresses or email addresses.
+ * Raw IP addresses and email addresses must never be persisted.
  * Expired counters are pruned opportunistically every 100 auth attempts.
  */
 export async function consumeSharedRateLimit(
