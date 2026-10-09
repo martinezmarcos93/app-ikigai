@@ -87,7 +87,8 @@ CREATE TABLE memberships (
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('scheduled', 'active', 'paused', 'ended')),
   created_by uuid REFERENCES users(id) ON DELETE RESTRICT,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (ends_on IS NULL OR ends_on >= starts_on)
+  CHECK (ends_on IS NULL OR ends_on >= starts_on),
+  CONSTRAINT memberships_member_service_start_unique UNIQUE (member_id, service_id, starts_on)
 );
 CREATE INDEX memberships_member_dates_idx ON memberships(member_id, starts_on DESC);
 
