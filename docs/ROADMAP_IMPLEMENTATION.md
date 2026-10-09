@@ -45,6 +45,7 @@
 - **Criterio de cierre:** recursos versionados, transparencia comprobada, rutas validadas por CI, coherencia entre pantallas y revisión visual en tamaños pequeños y grandes. No se considera aprobado un rediseño que sustituya o distorsione el logo original.
 
 ### Fase 3 — Seguridad y robustez del backend
+**Estado: en curso.** Recuperación de contraseña y rate limiting compartido implementados en la rama de trabajo; CI aún no aporta una ejecución válida con pasos y logs, por lo que no se cierra la fase.
 - [ ] Completar matriz de autorización por rol y alcance, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
 - [x] Implementar endpoints de recuperación con tokens de un solo uso, expiración de 30 minutos, digest almacenado, respuesta genérica, invalidación de sesiones y auditoría; el envío usa Resend con configuración obligatoria en producción.
 - [ ] Crear la pantalla de restablecimiento en el portal durante la fase de integración de interfaz.
