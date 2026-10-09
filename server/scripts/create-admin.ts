@@ -24,13 +24,13 @@ try {
     if (existing.rowCount) {
       throw new Error("An account with ADMIN_EMAIL already exists; refusing to overwrite it.");
     }
-    const inserted = await client.query<{ id: string }>(
+    const inserted = await client.query(
       `INSERT INTO users (email, password_hash, auth_provider, status)
        VALUES ($1, $2, 'local', 'active')
        RETURNING id`,
       [email, passwordHash]
     );
-    const userId = inserted.rows[0]?.id;
+    const userId = inserted.rows[0]?.id as string | undefined;
     if (!userId) throw new Error("Could not create the administrator account.");
     await client.query(
       "INSERT INTO user_roles (user_id, role) VALUES ($1, 'admin')",
