@@ -57,11 +57,12 @@
     const required = opts.required ? " required" : "";
     const min = opts.min !== undefined ? ` min="${esc(opts.min)}"` : "";
     const max = opts.max !== undefined ? ` max="${esc(opts.max)}"` : "";
+    const maxLength = opts.maxLength !== undefined ? ` maxlength="${esc(opts.maxLength)}"` : "";
     const step = opts.step ? ` step="${esc(opts.step)}"` : "";
     const placeholder = opts.placeholder ? ` placeholder="${esc(opts.placeholder)}"` : "";
     const value = opts.value !== undefined ? ` value="${esc(opts.value)}"` : "";
     const wide = opts.wide ? " full-span" : "";
-    return `<div class="field${wide}"><label for="f-${esc(name)}">${esc(label)}</label><input id="f-${esc(name)}" name="${esc(name)}" type="${esc(type)}"${required}${min}${max}${step}${placeholder}${value}></div>`;
+    return `<div class="field${wide}"><label for="f-${esc(name)}">${esc(label)}</label><input id="f-${esc(name)}" name="${esc(name)}" type="${esc(type)}"${required}${min}${max}${maxLength}${step}${placeholder}${value}></div>`;
   };
   const selectField = (label, name, items, selected = "", required = true, wide = false) => {
     const options = items.map(item => {
@@ -428,8 +429,16 @@
     const coachInvite = coachOpts.length
       ? form("Invitar a un profesor","invite-coach",selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")
       : empty("Primero creá un perfil de profesor; después podrás vincularle un acceso.");
+    const adminCoachLink = coachOpts.length
+      ? form("Vincular profesor a una cuenta existente","link-admin-coach",
+        field("Correo de la cuenta administradora","email","email",{required:true,value:state.user?.email || ""})+
+        selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value),
+        "Vincular cuenta",
+        "Reutiliza el login actual. El correo del perfil de profesor debe coincidir con el de la cuenta administradora; no se crea otro usuario.")
+      : empty("Creá primero el perfil de profesor con el correo que usa la cuenta administradora.");
     $("#pageContent").innerHTML = `
       <div class="two-col">${memberInvite}${coachInvite}</div>
+      <div style="margin-top:16px">${adminCoachLink}</div>
       <div id="invitationResult" style="margin-top:16px"></div>
       <p class="footer-note">La API no envía correos todavía. El token aparece una sola vez en esta pantalla: entregalo por un canal seguro y no lo incluyas en capturas o mensajes públicos. Vence a las 24 horas.</p>`;
   }
@@ -441,11 +450,11 @@
     const settings = result.settings || {};
     $( "#pageContent" ).innerHTML = `
       ${form("Configuración institucional","institution-settings",
-        field("Nombre del gimnasio","institution_name","text",{value:settings.institution_name || "",max:120,wide:true})+
-        field("Correo de contacto","contact_email","email",{value:settings.contact_email || "",max:254})+
-        field("Teléfono de contacto","contact_phone","tel",{value:settings.contact_phone || "",max:40})+
-        field("Dirección","address","text",{value:settings.address || "",max:300,wide:true})+
-        field("Horarios y observaciones","opening_hours","text",{value:settings.opening_hours || "",max:1000,wide:true,placeholder:"Ingresá únicamente los horarios confirmados"}),
+        field("Nombre del gimnasio","institution_name","text",{value:settings.institution_name || "",maxLength:120,wide:true})+
+        field("Correo de contacto","contact_email","email",{value:settings.contact_email || "",maxLength:254})+
+        field("Teléfono de contacto","contact_phone","tel",{value:settings.contact_phone || "",maxLength:40})+
+        field("Dirección","address","text",{value:settings.address || "",maxLength:300,wide:true})+
+        field("Horarios y observaciones","opening_hours","text",{value:settings.opening_hours || "",maxLength:1000,wide:true,placeholder:"Ingresá únicamente los horarios confirmados"}),
         "Guardar configuración",
         "Los campos vacíos quedan como no configurados. Los cambios se guardan en PostgreSQL, no en el navegador.") }
       <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}. No se precargan teléfonos, direcciones ni horarios ficticios.</p>`;
@@ -633,6 +642,12 @@
         const key = api.idempotencyKeyFor(formNode,"coach-adjustment",payload);
         await api.createCoachAdjustment($("#coachFinanceMount").dataset.obligationId || "",payload,key);
         showNotice("Ajuste registrado.", "success"); await renderCoachFinance(state.selectedCoach); return;
+      }
+      if (kind === "link-admin-coach") {
+        const result = await api.linkCoachToAdmin({ email:v("email"), coachId:v("coachId") });
+        await renderView("invitations");
+        showNotice(`La cuenta ${result.email} conserva administración y ahora también tiene rol de profesor. No se creó otro usuario.`, "success");
+        return;
       }
       if (kind === "invite-member" || kind === "invite-coach") {
         const role = kind === "invite-member" ? "member" : "coach";

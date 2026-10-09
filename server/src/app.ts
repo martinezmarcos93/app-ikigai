@@ -16,6 +16,7 @@ import { registerMembershipRoutes } from "./routes/memberships.js";
 import { registerInvitationRoutes } from "./routes/invitations.js";
 import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
 import { registerInstitutionalSettingsRoutes } from "./routes/institutional-settings.js";
+import { registerAdminRoleRoutes } from "./routes/admin-roles.js";
 import { createHmac } from "node:crypto";
 
 export interface AppDependencies {
@@ -127,6 +128,7 @@ export async function buildApp(
     registerInvitationRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAdminSecurityRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerInstitutionalSettingsRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerAdminRoleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
   }
 
   app.setNotFoundHandler((_request, reply) => {
