@@ -92,7 +92,7 @@ const exerciseItemSchema = {
     exerciseId: { type: "string", format: "uuid" },
     sets: { type: "string", minLength: 1, maxLength: 80 },
     reps: { type: "string", maxLength: 80 },
-    durationSeconds: { type: "integer", minimum: 0, maximum: 86400 },
+    durationSeconds: { type: "integer", minimum: 1, maximum: 86400 },
     restSeconds: { type: "integer", minimum: 0, maximum: 3600 },
     notes: { type: "string", maxLength: 500 }
   }
