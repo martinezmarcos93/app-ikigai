@@ -86,3 +86,15 @@
 - [ ] Profile changes and audit records commit or roll back together.
 - [ ] Audit records list changed fields and status transitions without copying contact details or DNI into the audit payload.
 - [ ] Invalid date ranges and unique/conflict errors return stable client errors rather than generic server errors.
+
+
+## Account ledger API
+- [ ] Account balance is derived from exact debit/credit movements, not stored as an independently editable total.
+- [ ] Members can read only their own account history; coaches cannot access financial ledgers.
+- [ ] Only administration can create charges, payments, adjustments and refunds.
+- [ ] A charge increases the balance; a payment/refund decreases it; adjustments require explicit debit/credit direction.
+- [ ] Duplicate Idempotency-Key with the same request returns the original movement without changing the balance.
+- [ ] Reusing an Idempotency-Key with a different request returns a conflict.
+- [ ] Ledger movement and audit event commit atomically; ledger history cannot be updated or deleted.
+- [ ] Partial payments remain separate movements; no automatic penalties or percentage-based coach share is introduced.
+- [ ] Payment receipts are labelled internal and are not represented as fiscal invoices.
