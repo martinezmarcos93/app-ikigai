@@ -46,7 +46,8 @@
 
 ### Fase 3 — Seguridad y robustez del backend
 - [ ] Completar matriz de autorización por rol y alcance, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
-- [x] Implementar endpoints de recuperación con tokens de un solo uso, expiración de 30 minutos, digest almacenado, respuesta genérica, invalidación de sesiones y auditoría; el envío usa Resend con configuración obligatoria en producción.\n- [ ] Crear la pantalla de restablecimiento en el portal durante la fase de integración de interfaz.
+- [x] Implementar endpoints de recuperación con tokens de un solo uso, expiración de 30 minutos, digest almacenado, respuesta genérica, invalidación de sesiones y auditoría; el envío usa Resend con configuración obligatoria en producción.
+- [ ] Crear la pantalla de restablecimiento en el portal durante la fase de integración de interfaz.
 - [x] Sustituir el limitador de login y recuperación por contadores atómicos PostgreSQL compartidos entre instancias; las claves se almacenan como hashes.
 - [ ] Revisar cookies, CSRF, validación de Origin, CORS, expiración/revocación de sesión, cabeceras y respuestas `no-store`.
 - [ ] Revisar validación de entrada, límites de tamaño, errores estables, idempotencia, transacciones y auditoría.
