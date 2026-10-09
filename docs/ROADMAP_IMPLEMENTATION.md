@@ -73,7 +73,8 @@
 - [x] Añadir al resumen administrativo una lista de primera puesta en marcha para servicios, profesores y miembros.
 - [x] Corregir el service worker para no almacenar respuestas de `/api/` ni respuestas con `Cache-Control: no-store`; las respuestas autenticadas no deben entrar en caché.
 - [ ] Validar CI y comprobar manualmente el primer inicio de sesión, dashboard vacío, navegación a configuración y actualización/limpieza del service worker.
-- [ ] Resolver la asignación segura de más de un rol a una misma cuenta si Agustín necesita ser simultáneamente administrador y profesor.
+- [x] Añadir un flujo de administración para vincular un perfil de profesor al usuario administrador existente: exige cuenta activa, rol admin previo, correo coincidente, CSRF, transacción y auditoría; agrega coach sin revocar admin ni crear otra cuenta.
+- [ ] Validar el flujo de roles múltiples con PostgreSQL/CI y prueba manual; comprobar que la sesión conserva ambos roles y que los permisos de cada rol siguen validados en servidor.
 - [x] Diseñar e implementar la configuración institucional persistida en PostgreSQL: nombre, contacto, dirección y horarios, con valores vacíos/no configurados por defecto; lectura/escritura sólo de administración, CSRF, respuestas no cacheables y auditoría de campos modificados.
 - [ ] Validar la configuración institucional contra PostgreSQL mediante CI y prueba manual de lectura/edición/recarga; no usar valores de demostración como configuración real.
 
