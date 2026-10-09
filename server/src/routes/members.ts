@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import type { Database } from "../db.js";
+import type { Database, TransactionalDatabase } from "../db.js";
 import { canAccessMember, coachHasMemberScope, resolveActor } from "../security/actor.js";
+import { requireCsrf } from "../security/csrf.js";
 
 interface MemberParams {
   id: string;
@@ -9,6 +10,20 @@ interface MemberParams {
 interface MemberListQuery {
   limit?: number;
   offset?: number;
+}
+
+interface PatchMemberBody {
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  dni?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  status?: "trial" | "active" | "suspended" | "debtor" | "exited";
+  joined_on?: string;
+  exited_on?: string;
+  notes?: string;
 }
 
 interface MemberRow extends Record<string, unknown> {
@@ -26,9 +41,48 @@ interface MemberRow extends Record<string, unknown> {
   notes: string | null;
 }
 
+const memberEditableFields = new Set([
+  "phone", "address", "emergency_contact_name", "emergency_contact_phone"
+]);
+
+const adminEditableColumns: Record<keyof PatchMemberBody, string> = {
+  full_name: "full_name",
+  email: "email",
+  phone: "phone",
+  address: "address",
+  dni: "dni",
+  emergency_contact_name: "emergency_contact_name",
+  emergency_contact_phone: "emergency_contact_phone",
+  status: "status",
+  joined_on: "joined_on",
+  exited_on: "exited_on",
+  notes: "notes"
+};
+
+function memberView(member: MemberRow, roles: string[], targetId: string, ownMemberId: string | null) {
+  if (roles.includes("admin")) return member;
+  if (roles.includes("member") && ownMemberId === targetId) {
+    const { dni: _dni, notes: _notes, ...ownProfile } = member;
+    return ownProfile;
+  }
+  return {
+    id: member.id,
+    full_name: member.full_name,
+    phone: member.phone,
+    emergency_contact_name: member.emergency_contact_name,
+    emergency_contact_phone: member.emergency_contact_phone,
+    status: member.status
+  };
+}
+
+function invalid(reply: Parameters<FastifyInstance["get"]>[1] extends (...args: infer A) => unknown ? A[1] : never, message: string) {
+  return reply.code(400).send({ error: "invalid_member_update", message });
+}
+
 export function registerMemberRoutes(
   app: FastifyInstance,
-  db: Database
+  db: Database,
+  transactionalDb?: TransactionalDatabase
 ): void {
   app.get<{ Querystring: MemberListQuery }>(
     "/api/v1/members",
@@ -107,7 +161,6 @@ export function registerMemberRoutes(
         coachScopeAllowed = await coachHasMemberScope(db, actor.coachId, targetId);
       }
       if (!canAccessMember(actor, targetId, coachScopeAllowed)) {
-        // Avoid confirming the existence of profiles outside the caller's scope.
         return reply.code(404).send({
           error: "not_found",
           message: "The requested resource was not found."
@@ -129,23 +182,154 @@ export function registerMemberRoutes(
         message: "The requested resource was not found."
       });
 
-      if (actor.roles.includes("admin")) return reply.send({ member });
-      if (actor.roles.includes("member") && actor.memberId === targetId) {
-        const { dni: _dni, notes: _notes, ...ownProfile } = member;
-        return reply.send({ member: ownProfile });
+      return reply.send({
+        member: memberView(member, actor.roles, targetId, actor.memberId)
+      });
+    }
+  );
+
+  if (!transactionalDb) return;
+
+  app.patch<{ Params: MemberParams; Body: PatchMemberBody }>(
+    "/api/v1/members/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          additionalProperties: false,
+          properties: { id: { type: "string", format: "uuid" } }
+        },
+        body: {
+          type: "object",
+          minProperties: 1,
+          additionalProperties: false,
+          properties: {
+            full_name: { type: "string", minLength: 1, maxLength: 120 },
+            email: { type: "string", format: "email", maxLength: 254 },
+            phone: { type: "string", maxLength: 40 },
+            address: { type: "string", maxLength: 240 },
+            dni: { type: "string", maxLength: 30 },
+            emergency_contact_name: { type: "string", maxLength: 120 },
+            emergency_contact_phone: { type: "string", maxLength: 40 },
+            status: { type: "string", enum: ["trial", "active", "suspended", "debtor", "exited"] },
+            joined_on: { type: "string", format: "date" },
+            exited_on: { type: "string", format: "date" },
+            notes: { type: "string", maxLength: 2000 }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      const actor = await resolveActor(request, db);
+      if (!actor) return reply.code(401).send({
+        error: "unauthenticated",
+        message: "A valid session is required."
+      });
+
+      const targetId = request.params.id;
+      const isAdmin = actor.roles.includes("admin");
+      const isOwner = actor.roles.includes("member") && actor.memberId === targetId;
+      if (!isAdmin && !isOwner) {
+        return reply.code(404).send({
+          error: "not_found",
+          message: "The requested resource was not found."
+        });
       }
 
-      // Coaches get the minimum profile information needed to supervise assigned members.
-      return reply.send({
-        member: {
-          id: member.id,
-          full_name: member.full_name,
-          phone: member.phone,
-          emergency_contact_name: member.emergency_contact_name,
-          emergency_contact_phone: member.emergency_contact_phone,
-          status: member.status
-        }
-      });
+      const bodyEntries = Object.entries(request.body).filter(([, value]) => value !== undefined);
+      if (!isAdmin && bodyEntries.some(([key]) => !memberEditableFields.has(key))) {
+        return reply.code(403).send({
+          error: "forbidden",
+          message: "Members can only edit their contact information."
+        });
+      }
+      if (!requireCsrf(request, reply, actor.sessionToken, {
+        ...({} as never),
+      } as never)) return;
+
+      const normalized: Partial<PatchMemberBody> = {};
+      for (const [key, value] of bodyEntries) {
+        if (typeof value !== "string") continue;
+        const typedKey = key as keyof PatchMemberBody;
+        normalized[typedKey] = typedKey === "email"
+          ? value.trim().toLowerCase()
+          : ["full_name", "phone", "address", "dni", "emergency_contact_name", "emergency_contact_phone", "notes"].includes(key)
+            ? value.trim()
+            : value;
+      }
+      if (normalized.full_name !== undefined && !normalized.full_name) {
+        return invalid(reply, "El nombre no puede quedar vacío.");
+      }
+
+      try {
+        const updated = await transactionalDb.transaction(async (tx) => {
+          const currentResult = await tx.query<MemberRow>(
+            `SELECT id, full_name, email, phone, address, dni,
+                    emergency_contact_name, emergency_contact_phone,
+                    status, joined_on, exited_on, notes
+               FROM member_profiles
+              WHERE id = $1
+              FOR UPDATE`,
+            [targetId]
+          );
+          const current = currentResult.rows[0];
+          if (!current) return null;
+
+          const entries = Object.entries(normalized).filter(([key, value]) =>
+            value !== undefined && current[key as keyof MemberRow] !== value
+          );
+          if (entries.length === 0) return current;
+
+          const fields = entries.map(([key]) => key);
+          const assignments = entries.map(([key], index) =>
+            `${adminEditableColumns[key as keyof PatchMemberBody]} = $${index + 1}`
+          );
+          const values = entries.map(([, value]) => value);
+          values.push(targetId);
+          const updateResult = await tx.query<MemberRow>(
+            `UPDATE member_profiles
+                SET ${assignments.join(", ")}, updated_at = clock_timestamp()
+              WHERE id = $${values.length}
+              RETURNING id, full_name, email, phone, address, dni,
+                        emergency_contact_name, emergency_contact_phone,
+                        status, joined_on, exited_on, notes`,
+            values
+          );
+          const updatedMember = updateResult.rows[0];
+          if (!updatedMember) throw new Error("Member update did not return a row.");
+
+          const beforeData: Record<string, unknown> = { changedFields: fields };
+          const afterData: Record<string, unknown> = { changedFields: fields };
+          if (fields.includes("status")) {
+            beforeData.status = current.status;
+            afterData.status = updatedMember.status;
+          }
+          await tx.query(
+            `INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, before_data, after_data)
+             VALUES ($1, 'member.profile_updated', 'member_profile', $2, $3, $4::jsonb, $5::jsonb)`,
+            [
+              actor.userId,
+              targetId,
+              request.id,
+              JSON.stringify(beforeData),
+              JSON.stringify(afterData)
+            ]
+          );
+          return updatedMember;
+        });
+
+        if (!updated) return reply.code(404).send({
+          error: "not_found",
+          message: "The requested resource was not found."
+        });
+        return reply.send({
+          member: memberView(updated, actor.roles, targetId, actor.memberId)
+        });
+      } catch (error) {
+        throw error;
+      }
     }
   );
 }
