@@ -182,6 +182,9 @@ export function registerAuthRoutes(
     async (request, reply) => {
       reply.header("Cache-Control", "no-store");
       if (!requireAllowedOrigin(request, reply, config)) return;
+      if (!transactionalDb) {
+        return reply.code(503).send({ error: "reset_unavailable", message: "Password reset is temporarily unavailable." });
+      }
       const email = request.body.email.trim().toLowerCase();
       const rawToken = randomBytes(32).toString("base64url");
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
@@ -207,9 +210,7 @@ export function registerAuthRoutes(
         return { email: user.email, userId: user.id, tokenId: String(row.id) };
       };
 
-      delivery = transactionalDb
-        ? await transactionalDb.transaction(createReset)
-        : await createReset(db);
+      delivery = await transactionalDb.transaction(createReset);
 
       if (delivery && config.passwordResetDeliveryUrl && config.passwordResetDeliveryToken && config.passwordResetPublicUrl) {
         const resetUrl = new URL(config.passwordResetPublicUrl);
