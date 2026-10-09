@@ -135,3 +135,24 @@ Usar respuestas de error consistentes (`400` entrada inválida, `401` sin sesió
 - Confirmar zona horaria operativa y reglas de cambios de horario.
 - Definir política de conservación de datos y consentimiento para notificaciones.
 - Seleccionar proveedor concreto de hosting/autenticación/base de datos tras comparar costo, exportabilidad, backups y operación desde Argentina.
+
+## Implementation status — 2026-10-08
+
+The first backend foundation has been added under `server/`:
+- Node.js 22+, TypeScript strict checks, Fastify, security headers and exact-origin CORS configuration.
+- Health-only endpoints: `GET /healthz` and `GET /api/v1/health`.
+- Pure booking decision helpers for the 40-minute cutoff, capacity, duplicate active booking rejection and waitlist eligibility, with unit tests.
+- Initial PostgreSQL schema covering the core product entities, including append-only triggers for member ledger entries, coach payments and audit events.
+- Transactional, advisory-lock-protected SQL migration runner.
+- CI typecheck/test/build plus a disposable PostgreSQL migration and repeat-run check.
+
+This is an executable foundation, not the production system. Authentication/session management, authorization middleware, rate limiting, CSRF strategy, data endpoints, transactional booking repository, audit-writing integration, backups and deployment are still pending. The pure booking rules are not yet connected to database transactions; no production booking endpoint should be added before that integration is designed and tested.
+
+## Implementation sequence updated
+
+1. Complete this baseline with CI results and correct any migration/type/test failures.
+2. Implement authentication and secure sessions; decide whether to store local password hashes or delegate identity to a managed provider before writing login flows.
+3. Add role/scope authorization primitives and negative tests for cross-member/cross-coach access.
+4. Add repository/transaction layer and implement the first protected vertical slice (member profile read/update).
+5. Implement booking transactions with row/advisory locking, capacity enforcement, cutoff enforcement and waitlist promotion.
+6. Add PostgreSQL integration tests for concurrency, ledger append-only behavior and role isolation before exposing production data.
