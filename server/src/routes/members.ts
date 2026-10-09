@@ -13,6 +13,20 @@ interface MemberListQuery {
   offset?: number;
 }
 
+interface CreateMemberBody {
+  full_name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  dni?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  status?: "trial" | "active" | "suspended" | "debtor" | "exited";
+  joined_on?: string;
+  exited_on?: string;
+  notes?: string;
+}
+
 interface PatchMemberBody {
   full_name?: string;
   email?: string;
@@ -198,6 +212,111 @@ export function registerMemberRoutes(
   );
 
   if (!transactionalDb) return;
+
+  app.post<{ Body: CreateMemberBody }>(
+    "/api/v1/members",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["full_name"],
+          additionalProperties: false,
+          properties: {
+            full_name: { type: "string", minLength: 1, maxLength: 120 },
+            email: { type: "string", format: "email", maxLength: 254 },
+            phone: { type: "string", maxLength: 40 },
+            address: { type: "string", maxLength: 240 },
+            dni: { type: "string", maxLength: 30 },
+            emergency_contact_name: { type: "string", maxLength: 120 },
+            emergency_contact_phone: { type: "string", maxLength: 40 },
+            status: { type: "string", enum: ["trial", "active", "suspended", "debtor", "exited"] },
+            joined_on: { type: "string", format: "date" },
+            exited_on: { type: "string", format: "date" },
+            notes: { type: "string", maxLength: 2000 }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      const actor = await resolveActor(request, db);
+      if (!actor) return reply.code(401).send({
+        error: "unauthenticated",
+        message: "A valid session is required."
+      });
+      if (!actor.roles.includes("admin")) return reply.code(403).send({
+        error: "forbidden",
+        message: "Administrator permission is required."
+      });
+      if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
+
+      const body = request.body;
+      const fullName = body.full_name.trim();
+      if (!fullName) return invalid(reply, "El nombre no puede quedar vacío.");
+      const joinedOn = body.joined_on ?? null;
+      const exitedOn = body.exited_on ?? null;
+      if (joinedOn && exitedOn && exitedOn < joinedOn) {
+        return reply.code(400).send({
+          error: "invalid_date_range",
+          message: "La fecha de baja no puede ser anterior a la fecha de alta."
+        });
+      }
+
+      try {
+        const member = await transactionalDb.transaction(async (tx) => {
+          const inserted = await tx.query<MemberRow>(
+            `INSERT INTO member_profiles
+               (full_name, email, phone, address, dni, emergency_contact_name,
+                emergency_contact_phone, status, joined_on, exited_on, notes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             RETURNING id, full_name, email, phone, address, dni,
+                       emergency_contact_name, emergency_contact_phone,
+                       status, joined_on, exited_on, notes`,
+            [
+              fullName,
+              body.email?.trim().toLowerCase() ?? null,
+              body.phone?.trim() ?? null,
+              body.address?.trim() ?? null,
+              body.dni?.trim() ?? null,
+              body.emergency_contact_name?.trim() ?? null,
+              body.emergency_contact_phone?.trim() ?? null,
+              body.status ?? "trial",
+              joinedOn,
+              exitedOn,
+              body.notes?.trim() ?? null
+            ]
+          );
+          const created = inserted.rows[0];
+          if (!created) throw new Error("Member insert did not return a row.");
+          await tx.query(
+            `INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, after_data)
+             VALUES ($1, 'member.created', 'member_profile', $2, $3, $4::jsonb)`,
+            [
+              actor.userId,
+              created.id,
+              request.id,
+              JSON.stringify({ status: created.status, createdFields: Object.keys(body).filter((key) => key !== "dni" && key !== "notes") })
+            ]
+          );
+          return created;
+        });
+        return reply.code(201).send({ member });
+      } catch (error) {
+        const dbCode = typeof error === "object" && error !== null && "code" in error
+          ? String((error as { code?: unknown }).code)
+          : "";
+        if (dbCode === "23505") return reply.code(409).send({
+          error: "member_conflict",
+          message: "The new member conflicts with an existing record."
+        });
+        if (dbCode === "23514" || dbCode === "23502") return reply.code(400).send({
+          error: "invalid_member",
+          message: "One or more member fields violate a data constraint."
+        });
+        throw error;
+      }
+    }
+  );
 
   app.patch<{ Params: MemberParams; Body: PatchMemberBody }>(
     "/api/v1/members/:id",
