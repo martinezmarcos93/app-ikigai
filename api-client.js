@@ -115,12 +115,29 @@
   }
 
   const id = value => encodeURIComponent(String(value));
+  const idempotencyState = new WeakMap();
+  function idempotencyKeyFor(scope, prefix, payload) {
+    if (!scope || (typeof scope !== "object" && typeof scope !== "function")) {
+      throw new ApiError(0, "invalid_idempotency_scope", "No se pudo asociar una clave segura al formulario.");
+    }
+    const operation = String(prefix || "operation");
+    const fingerprint = operation + ":" + JSON.stringify(payload);
+    const previous = idempotencyState.get(scope);
+    if (previous && previous.fingerprint === fingerprint) return previous.key;
+    const randomPart = window.crypto && typeof window.crypto.randomUUID === "function"
+      ? window.crypto.randomUUID()
+      : Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+    const key = "ikigai-" + operation + "-" + randomPart;
+    idempotencyState.set(scope, { fingerprint, key });
+    return key;
+  }
   const api = {
     ApiError,
     get baseUrl() { return baseUrl; },
     get configurationError() { return configurationError; },
     get user() { return currentUser; },
     request,
+    idempotencyKeyFor,
     login,
     me,
     logout,
