@@ -27,6 +27,7 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `GET /api/v1/auth/me`: current user, current roles, and CSRF token.
 - `POST /api/v1/auth/logout`: CSRF- and origin-checked session revocation.
 - `POST /api/v1/admin/invitations`: administrator-only invitation for an unlinked member or coach profile. The disabled account is activated only after acceptance.
+- `POST /api/v1/admin/invitations/:id/resend`: issues a replacement token for an unaccepted invitation, revoking previous outstanding tokens.
 - `POST /api/v1/auth/accept-invitation`: accepts a one-time token and sets the account password; the token is stored only as a digest and expires after 24 hours. The raw token is returned once to the administrator and must be delivered securely out of band; no email is sent.
 - `GET /api/v1/members?limit=&offset=`: administrator-only paginated member list.
 - `GET /api/v1/members/:id`: administrator, self-member, or assigned-coach access with role-specific field minimization.
