@@ -49,6 +49,7 @@
 **Estado: implementación en validación. No habilita todavía datos reales.**
 
 - [ ] Completar matriz de autorización por rol y alcance para todos los endpoints, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
+- [x] Añadir regresiones para el helper de alcance miembro/profesor/administración y comprobar en PostgreSQL que un profesor asignado puede gestionar asistencia mientras otro profesor queda bloqueado.
 - [x] Implementar recuperación de contraseña con token aleatorio de un solo uso, digest persistido, expiración de 30 minutos, invalidación de tokens previos, revocación de sesiones y respuesta que evita enumerar cuentas.
 - [x] Añadir la pantalla de solicitud/confirmación; el token viaja en el fragmento URL, se elimina de la barra al leerlo y la página no carga recursos de terceros.
 - [x] Exigir en producción un adaptador de entrega HTTPS autenticado para enviar el enlace de recuperación; la configuración del proveedor concreto sigue siendo una tarea de despliegue.
