@@ -2,10 +2,10 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { Database } from "../db.js";
-import { verifyPassword } from "../security/password.js";
+import { hashPassword, verifyPassword } from "../security/password.js";
 
 const SESSION_COOKIE = "ikigai_session";
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;\nconst dummyPasswordHash = hashPassword("dummy-password-used-for-timing-equalization");
 
 interface LoginBody {
   email: string;
@@ -131,7 +131,7 @@ export function registerAuthRoutes(
       const user = result.rows[0];
       if (!user) {
         // Equalize the dominant password-hashing cost for unknown accounts.
-        await verifyPassword(password, "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        await verifyPassword(password, await dummyPasswordHash);
         return reply.code(401).send({
           error: "invalid_credentials",
           message: "Email or password is incorrect."
