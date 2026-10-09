@@ -644,7 +644,6 @@
     try {
       const result = await api.login(valueOf(formNode,"email"),new FormData(formNode).get("password"));
       setAuthenticated(result.user);
-      await refreshReferenceData();
       await renderView("dashboard");
     } catch (error) { showError(error); }
     finally { button.disabled=false; button.innerHTML='Ingresar <span aria-hidden="true">↗</span>'; }
@@ -667,7 +666,6 @@
     try {
       const result = await api.me();
       setAuthenticated(result.user);
-      await refreshReferenceData();
       await renderView("dashboard");
     } catch (error) {
       setUnauthenticated();
