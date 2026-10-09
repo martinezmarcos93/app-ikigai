@@ -140,13 +140,15 @@ Usar respuestas de error consistentes (`400` entrada inválida, `401` sin sesió
 
 The first backend foundation has been added under `server/`:
 - Node.js 22+, TypeScript strict checks, Fastify, security headers and exact-origin CORS configuration.
-- Health-only endpoints: `GET /healthz` and `GET /api/v1/health`.
+- Health endpoints: `GET /healthz` and `GET /api/v1/health`.
+- Local email/password login using scrypt password hashes, generic invalid-credential responses, and a one-time administrator bootstrap command.
+- Opaque server-side sessions with SHA-256 token digests, seven-day expiry, revocation, HttpOnly/SameSite=Strict cookies, CSRF HMAC tokens, strict Origin checks on authentication mutations, and per-IP in-memory login rate limiting.
 - Pure booking decision helpers for the 40-minute cutoff, capacity, duplicate active booking rejection and waitlist eligibility, with unit tests.
 - Initial PostgreSQL schema covering the core product entities, including append-only triggers for member ledger entries, coach payments and audit events.
 - Transactional, advisory-lock-protected SQL migration runner.
 - CI typecheck/test/build plus a disposable PostgreSQL migration and repeat-run check.
 
-This is an executable foundation, not the production system. Authentication/session management, authorization middleware, rate limiting, CSRF strategy, data endpoints, transactional booking repository, audit-writing integration, backups and deployment are still pending. The pure booking rules are not yet connected to database transactions; no production booking endpoint should be added before that integration is designed and tested.
+This is an executable foundation, not the production system. Resource-level authorization middleware, password recovery, a shared rate-limit store for multiple replicas, business data endpoints, transactional booking repository, audit-writing integration, backups and deployment are still pending. The current login/session implementation needs successful CI and PostgreSQL migration checks before it should be treated as a stable foundation. The pure booking rules are not yet connected to database transactions; no production booking endpoint should be added before that integration is designed and tested.
 
 ## Implementation sequence updated
 
