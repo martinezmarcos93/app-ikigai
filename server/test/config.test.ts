@@ -21,29 +21,29 @@ test("production requires explicit CORS origins", () => {
 
 test("production accepts exact origins and rejects wildcard/path origins", () => {
   assert.deepEqual(
-    loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "test-session-secret-with-more-than-32-characters" }).corsOrigins,
+    loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "test-session-secret-with-more-than-32-characters", PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/ikigai-reset", PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters", PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password" }).corsOrigins,
     ["https://gym.example.com"]
   );
   assert.throws(
-    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "*", SESSION_SECRET: "test-session-secret-with-more-than-32-characters" }),
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "*", SESSION_SECRET: "test-session-secret-with-more-than-32-characters", PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/ikigai-reset", PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters", PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password" }),
     /Invalid CORS origin/
   );
   assert.throws(
-    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com/app", SESSION_SECRET: "test-session-secret-with-more-than-32-characters" }),
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "test-session-secret-with-more-than-32-characters", PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/ikigai-reset", PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters", PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/app/reset-password" }),
     /exact HTTP\(S\) origins/
   );
 });
 
 test("production requires a strong session secret", () => {
   assert.throws(
-    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "short" }),
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", SESSION_SECRET: "short", PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/ikigai-reset", PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters", PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password" }),
     /SESSION_SECRET must be explicitly configured/
   );
 });
 
 test("production cannot use the development session-secret fallback", () => {
   assert.throws(
-    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com" }),
+    () => loadConfig({ NODE_ENV: "production", CORS_ORIGINS: "https://gym.example.com", PASSWORD_RESET_DELIVERY_URL: "https://mail.example.com/ikigai-reset", PASSWORD_RESET_DELIVERY_TOKEN: "test-delivery-token-with-more-than-32-characters", PASSWORD_RESET_PUBLIC_URL: "https://gym.example.com/reset-password" }),
     /SESSION_SECRET must be explicitly configured/
   );
 });
