@@ -15,7 +15,7 @@ import { registerRoutineRoutes } from "./routes/routines.js";
 import { registerMembershipRoutes } from "./routes/memberships.js";
 import { registerInvitationRoutes } from "./routes/invitations.js";
 import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 export interface AppDependencies {
   db?: Database;
@@ -75,7 +75,7 @@ export async function buildApp(
         .replace(/^\/api\/v1\/admin\/invitations\/[^/]+\/(resend|revoke)$/, "/api/v1/admin/invitations/:id/$1")
         .replace(/^\/api\/v1\/admin\/users\/[^/]+\/(reset-access|sessions\/revoke)$/, "/api/v1/admin/users/:id/$1");
       const identity = `${request.method}:${routeKey}:${request.ip}`;
-      const key = createHash("sha256").update(identity).digest("hex");
+      const key = createHmac("sha256", config.sessionSecret).update(identity).digest("hex");
       const result = await dependencies.db!.query<{ request_count: number } & Record<string, unknown>>(
         `INSERT INTO rate_limit_buckets (bucket_key, window_started_at, request_count, updated_at)
          VALUES ($1, clock_timestamp(), 1, clock_timestamp())
