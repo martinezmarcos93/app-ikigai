@@ -24,5 +24,7 @@ CREATE INDEX password_reset_tokens_user_active_idx
   ON password_reset_tokens(user_id, expires_at)
   WHERE used_at IS NULL;
 CREATE INDEX password_reset_tokens_expiry_idx ON password_reset_tokens(expires_at);
+CREATE UNIQUE INDEX password_reset_tokens_one_open_per_user
+  ON password_reset_tokens(user_id) WHERE used_at IS NULL;
 
 COMMIT;
