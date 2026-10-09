@@ -541,6 +541,7 @@
     const btn = formNode.querySelector('button[type="submit"]');
     if (kind === "institution-settings") {
       if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+      if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
       try {
         await api.updateInstitutionSettings({
           institution_name: v("institution_name"),
