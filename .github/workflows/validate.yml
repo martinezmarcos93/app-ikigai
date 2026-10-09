@@ -141,6 +141,13 @@ jobs:
           node-version: 22
       - name: Install API dependencies
         run: npm ci --no-audit --no-fund
+      - name: Validate backup script syntax and remote-host guard
+        run: |
+          bash -n scripts/backup-restore-smoke.sh
+          if DATABASE_URL=postgres://test:test@example.invalid:5432/source RESTORE_DATABASE_URL=postgres://test:test@localhost:5432/postgres bash scripts/backup-restore-smoke.sh; then
+            echo "Backup smoke test must reject non-local source hosts." >&2
+            exit 1
+          fi
       - name: Install PostgreSQL client utilities
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Type-check API
