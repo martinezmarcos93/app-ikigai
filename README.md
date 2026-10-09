@@ -30,7 +30,7 @@ No requiere instalar dependencias. Usa HTML, CSS y JavaScript sin backend. Los c
 - Publicación de avisos y registro de ausencias/llegadas tarde.
 - Diseño responsive para teléfono, tablet y escritorio.
 
-## Backend en desarrollo\n\nLa base inicial de la API está en [`server/`](server/README.md): Node.js 22, TypeScript, Fastify, validación de configuración, cabeceras de seguridad, CORS por lista permitida, endpoints de salud, lógica pura de reservas con pruebas y una migración inicial de PostgreSQL. Para ejecutar los checks, consultá `server/README.md`. Todavía no hay login, sesiones, autorización de recursos ni endpoints operativos; no es apta para datos reales.\n\n## Credenciales y límites
+## Backend en desarrollo\n\nLa base inicial de la API está en [`server/`](server/README.md): Node.js 22, TypeScript, Fastify, validación de configuración, cabeceras de seguridad, CORS por lista permitida, endpoints de salud, login local con scrypt, sesiones revocables y CSRF, lógica pura de reservas con pruebas y migraciones PostgreSQL. Para ejecutar los checks, consultá `server/README.md`. Todavía no hay login, sesiones, autorización de recursos ni endpoints operativos; no es apta para datos reales.\n\n## Credenciales y límites
 
 No hay inicio de sesión real ni separación de permisos segura: el selector de rol es sólo para recorrer la demo. Los datos son ficticios y se guardan en el navegador. Las notificaciones son internas de la demo; no se envían push, email ni WhatsApp. La asistencia se guarda como historial dentro del estado local del navegador, pero todavía no cuenta con una base compartida ni con auditoría de servidor. No usar importes de profesores, saldos ni datos de ejemplo para operar el gimnasio.
 
