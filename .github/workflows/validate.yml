@@ -145,6 +145,10 @@ jobs:
         run: npm run check
       - name: Apply schema migrations to disposable PostgreSQL
         run: npm run db:migrate
+      - name: Install PostgreSQL client tools for backup verification
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Verify PostgreSQL backup and restore in an isolated database
+        run: bash scripts/backup-restore-check.sh
       - name: Run API, domain, and PostgreSQL integration tests
         run: npm test
       - name: Build API
