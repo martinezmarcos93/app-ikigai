@@ -113,8 +113,8 @@ export function registerAuthRoutes(
       reply.header("Cache-Control", "no-store");
       if (!requireAllowedOrigin(request, reply, config)) return;
       const email = request.body.email.trim().toLowerCase();
-      const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("login-ip", request.ip), 10, 60);
-      const emailLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("login-email", email), 5, 60);
+      const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("login-ip", request.ip, config.sessionSecret), 10, 60);
+      const emailLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("login-email", email, config.sessionSecret), 5, 60);
       if (!ipLimit.allowed || !emailLimit.allowed) {
         const retryAfter = Math.max(ipLimit.retryAfterSeconds, emailLimit.retryAfterSeconds);
         reply.header("Retry-After", String(retryAfter));
@@ -193,8 +193,8 @@ export function registerAuthRoutes(
     reply.header("Cache-Control", "no-store");
     if (!requireAllowedOrigin(request, reply, config)) return;
     const email = request.body.email.trim().toLowerCase();
-    const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-ip", request.ip), 10, 60);
-    const emailLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-email", email), 3, 3600);
+    const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-ip", request.ip, config.sessionSecret), 10, 60);
+    const emailLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-email", email, config.sessionSecret), 3, 3600);
     const genericResponse = {
       message: "If an eligible account exists, instructions will be sent to its registered email address."
     };
@@ -252,7 +252,7 @@ export function registerAuthRoutes(
   }, async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     if (!requireAllowedOrigin(request, reply, config)) return;
-    const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-complete-ip", request.ip), 10, 3600);
+    const ipLimit = await consumeSharedRateLimit(db, opaqueRateLimitKey("reset-complete-ip", request.ip, config.sessionSecret), 10, 3600);
     if (!ipLimit.allowed) {
       reply.header("Retry-After", String(ipLimit.retryAfterSeconds));
       return reply.code(429).send({
