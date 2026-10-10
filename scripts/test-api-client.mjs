@@ -269,3 +269,36 @@ test("booking creation and cancellation use the server contract with CSRF and no
 });
 
 console.log("Portal API client contract checks loaded.");
+
+
+test("class session listing validates pagination and sends bounded date filters without caching", async () => {
+  let observed;
+  const api = loadClient(async (url, options) => {
+    observed = { url: String(url), options };
+    return new Response(JSON.stringify({ items: [], total: 0, limit: 25, offset: 10 }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  });
+  const from = "2026-10-10T00:00:00.000Z";
+  const to = "2026-10-20T00:00:00.000Z";
+  const result = await api.listClassSessions({ from, to, limit: 25, offset: 10 });
+  const url = new URL(observed.url);
+  assert.equal(url.pathname, "/api/v1/class-sessions");
+  assert.equal(url.searchParams.get("from"), from);
+  assert.equal(url.searchParams.get("to"), to);
+  assert.equal(url.searchParams.get("limit"), "25");
+  assert.equal(url.searchParams.get("offset"), "10");
+  assert.equal(observed.options.method, "GET");
+  assert.equal(observed.options.cache, "no-store");
+  assert.equal(result.total, 0);
+
+  for (const filters of [
+    { limit: 0 }, { limit: 101 }, { offset: -1 }, { offset: 10001 },
+    { from: "not-a-date" }, { from, to: "2026-10-09T00:00:00.000Z" }
+  ]) {
+    assert.throws(
+      () => api.listClassSessions(filters),
+      error => error && ["invalid_pagination", "invalid_date_range"].includes(error.code)
+    );
+  }
+});
