@@ -65,6 +65,112 @@ export function registerBookingRoutes(
   transactionalDb: TransactionalDatabase,
   config: AppConfig
 ): void {
+
+  app.get<{
+    Querystring: { from?: string; to?: string; limit?: number; offset?: number };
+  }>(
+    "/api/v1/class-sessions",
+    {
+      schema: {
+        querystring: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            from: { type: "string", format: "date-time", maxLength: 40 },
+            to: { type: "string", format: "date-time", maxLength: 40 },
+            limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+            offset: { type: "integer", minimum: 0, maximum: 10000, default: 0 }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      const actor = await resolveActor(request, db);
+      if (!actor) return reply.code(401).send({
+        error: "unauthenticated",
+        message: "A valid session is required."
+      });
+
+      const isAdmin = actor.roles.includes("admin");
+      const isMember = actor.roles.includes("member") && Boolean(actor.memberId);
+      const isCoach = actor.roles.includes("coach");
+      if (!isAdmin && !isMember && !isCoach) return reply.code(403).send({
+        error: "forbidden",
+        message: "A valid gym role is required to view class sessions."
+      });
+
+      const now = new Date();
+      const from = request.query.from ? new Date(request.query.from) : now;
+      const to = request.query.to
+        ? new Date(request.query.to)
+        : new Date(from.getTime() + 30 * 24 * 60 * 60 * 1000);
+      if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || to <= from) {
+        return reply.code(400).send({
+          error: "invalid_date_range",
+          message: "The end of the date range must be later than its start."
+        });
+      }
+      if (to.getTime() - from.getTime() > 90 * 24 * 60 * 60 * 1000) {
+        return reply.code(400).send({
+          error: "date_range_too_large",
+          message: "Class session searches are limited to a 90-day window."
+        });
+      }
+
+      const coachScope = !isAdmin && !isMember && isCoach ? actor.coachId : null;
+      const limit = request.query.limit ?? 50;
+      const offset = request.query.offset ?? 0;
+      const filters = `cs.starts_at >= $1::timestamptz
+        AND cs.starts_at < $2::timestamptz
+        AND cs.status = 'scheduled'
+        AND ($3::uuid IS NULL OR ct.coach_id = $3)`;
+      const values = [from.toISOString(), to.toISOString(), coachScope];
+
+      const [rows, count] = await Promise.all([
+        db.query(
+          `SELECT cs.id, cs.starts_at, cs.ends_at, cs.status,
+                  cs.capacity_snapshot AS capacity,
+                  s.id AS service_id, s.name AS service_name,
+                  cp.id AS coach_id, cp.full_name AS coach_name,
+                  (SELECT count(*)::int FROM bookings b
+                    WHERE b.session_id = cs.id AND b.status = 'confirmed') AS confirmed_count,
+                  (SELECT count(*)::int FROM bookings b
+                    WHERE b.session_id = cs.id AND b.status = 'waitlist') AS waitlist_count,
+                  mine.status AS my_booking_status
+             FROM class_sessions cs
+             JOIN class_templates ct ON ct.id = cs.template_id
+             JOIN services s ON s.id = ct.service_id
+             JOIN coach_profiles cp ON cp.id = ct.coach_id
+             LEFT JOIN bookings mine
+               ON mine.session_id = cs.id
+              AND mine.member_id = $4::uuid
+              AND mine.status IN ('confirmed', 'waitlist')
+            WHERE ${filters}
+            ORDER BY cs.starts_at ASC, cs.id ASC
+            LIMIT $5 OFFSET $6`,
+          [...values, actor.memberId, limit, offset]
+        ),
+        db.query(
+          `SELECT count(*)::int AS total
+             FROM class_sessions cs
+             JOIN class_templates ct ON ct.id = cs.template_id
+            WHERE ${filters}`,
+          values
+        )
+      ]);
+
+      return reply.send({
+        items: rows.rows,
+        total: count.rows[0]?.total ?? 0,
+        limit,
+        offset,
+        from: from.toISOString(),
+        to: to.toISOString()
+      });
+    }
+  );
+
   app.post<{ Params: SessionParams }>(
     "/api/v1/class-sessions/:id/bookings",
     {
