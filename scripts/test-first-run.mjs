@@ -42,6 +42,7 @@ assert.match(sw, /api\(\?:/);
 assert.match(sw, /test\(url\.pathname\)/);
 assert.match(sw, /Cache-Control/);
 assert.match(sw, /no-store/);
+assert.match(sw, /ikigai-shell-v7/);
 assert.match(sw, /url\.pathname\.endsWith\('\/demo\.html'\)/);
 assert.match(setupGuide, /npm run admin:create/);
 assert.match(setupGuide, /No hay registro público de administradores/);
