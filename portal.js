@@ -554,8 +554,8 @@
         : future && !bookingOpen ? "Reservas cerradas"
         : session.confirmed_count >= session.capacity ? "Cupo completo" : "Disponible";
       let action = "";
-      if (isMemberUser && future && booked && bookingOpen) {
-        action = `<button class="button ghost small" type="button" data-action="cancel-booking" data-id="${esc(session.id)}">Cancelar reserva</button>`;
+      if (isMemberUser && future && booked && bookingOpen && session.my_booking_id) {
+        action = `<button class="button ghost small" type="button" data-action="cancel-booking" data-id="${esc(session.my_booking_id)}">Cancelar reserva</button>`;
       } else if (isMemberUser && future && bookingOpen && session.status === "scheduled") {
         action = `<button class="button primary small" type="button" data-action="create-booking" data-id="${esc(session.id)}">${session.confirmed_count >= session.capacity ? "Anotarme en espera" : "Reservar clase"}</button>`;
       }
