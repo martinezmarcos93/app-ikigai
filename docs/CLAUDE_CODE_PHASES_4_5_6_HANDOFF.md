@@ -103,7 +103,7 @@ Claude Code debe inspeccionar el árbol y el estado real del repositorio antes d
 ## Seguridad / preproducción: gates transversales que siguen abiertos
 
 - [ ] Resolver la falla externa de asignación de runner en GitHub Actions; confirmar un run real con jobs/steps ejecutados y resultado verde.
-- [ ] Revisar cobertura completa de autorización negativa y aislamiento entre miembros/profesores.
+- [ ] Revisar cobertura completa de autorización negativa y aislamiento entre miembros/profesores. La lectura de agenda deniega explícitamente a un rol profesor sin perfil vinculado.
 - [ ] Obtener revisión de seguridad independiente y resolver hallazgos.
 - [ ] Ejecutar backup/restore en PostgreSQL descartable y conservar evidencia del resultado.
 - [ ] Definir y verificar política del proveedor de producción: frecuencia, retención, cifrado, permisos, alertas, RPO/RTO y prueba periódica de restauración.
