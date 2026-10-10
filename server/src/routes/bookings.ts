@@ -118,7 +118,12 @@ export function registerBookingRoutes(
         });
       }
 
-      const coachScope = !isAdmin && !isMember && isCoach ? actor.coachId : null;
+      const coachOnly = isCoach && !isAdmin && !isMember;
+      if (coachOnly && !actor.coachId) return reply.code(403).send({
+        error: "coach_profile_required",
+        message: "A coach profile must be linked before viewing the instructor agenda."
+      });
+      const coachScope = coachOnly ? actor.coachId : null;
       const limit = request.query.limit ?? 50;
       const offset = request.query.offset ?? 0;
       const filters = `cs.starts_at >= $1::timestamptz
