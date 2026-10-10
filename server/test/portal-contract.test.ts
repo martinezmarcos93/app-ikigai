@@ -51,3 +51,23 @@ test("API client sends cookies, CSRF tokens, and disables response caching", asy
   assert.ok(client.includes("/admin/invitations"));
   assert.match(client, /Por seguridad, la API debe compartir origen/);
 });
+
+
+test("agenda and attendance actions are connected to real API methods", async () => {
+  const portal = await readRoot("portal.js");
+  const html = await readRoot("portal.html");
+  const client = await readRoot("api-client.js");
+  const bookings = await readRoot("server/src/routes/bookings.ts");
+  const attendance = await readRoot("server/src/routes/attendance.ts");
+  assert.match(html, /data-view="schedule"/);
+  assert.match(portal, /async function renderSchedule/);
+  assert.match(portal, /api\.listClassSessions\(\)/);
+  assert.match(portal, /api\.createBooking\(/);
+  assert.match(portal, /api\.cancelBooking\(/);
+  assert.match(portal, /api\.getSessionAttendance\(/);
+  assert.match(portal, /api\.updateAttendance\(/);
+  assert.match(client, /listClassSessions:/);
+  assert.match(client, /getSessionAttendance:/);
+  assert.match(bookings, /\/api\/v1\/class-sessions/);
+  assert.match(attendance, /\/api\/v1\/class-sessions\/:id\/attendance/);
+});
