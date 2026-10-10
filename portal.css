@@ -166,3 +166,31 @@ td strong { display:block; }
   .attendance-entry { min-height: 48px; }
   .form-actions .button { flex: 1 1 100%; }
 }
+
+
+/* Mobile/PWA hardening: preserve local horizontal scroll and respect device cutouts. */
+html { min-width: 0; overflow-x: clip; }
+body { overflow-x: clip; }
+.portal-layout > *, .portal-content, #pageContent, .panel, .content-grid > *, .two-col > * { min-width: 0; }
+.table-wrap { max-width: 100%; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.table-wrap:focus-within { outline: 2px solid var(--red); outline-offset: 2px; }
+img, svg, video, canvas { max-width: 100%; }
+button, .button, .nav-link, input[type="checkbox"], input[type="radio"] { touch-action: manipulation; }
+@supports (padding: max(0px)) {
+  .portal-topbar { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .portal-main { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .portal-footer { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+}
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px; }
+  .button.small { min-height: 44px; }
+  .table-wrap { border-radius: 6px; }
+  .portal-topbar { gap: 10px; flex-wrap: wrap; }
+  .portal-brand-logo { width: 44px; height: 44px; }
+  .account-area { max-width: 100%; }
+  .account-copy { min-width: 0; overflow-wrap: anywhere; }
+  .page-heading { gap: 10px; flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
