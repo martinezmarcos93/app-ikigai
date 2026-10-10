@@ -206,6 +206,7 @@
     },
     createBooking: sessionId => request(`/class-sessions/${id(sessionId)}/bookings`, { method: "POST", body: {} }),
     cancelBooking: bookingId => request(`/bookings/${id(bookingId)}/cancel`, { method: "POST", body: {} }),
+    getSessionAttendance: sessionId => request(`/class-sessions/${id(sessionId)}/attendance`),
     listAttendance: memberId => request(`/members/${id(memberId)}/attendance`),
     updateAttendance: (sessionId, records) => request(`/class-sessions/${id(sessionId)}/attendance`, { method: "PUT", body: { records } })
   };
