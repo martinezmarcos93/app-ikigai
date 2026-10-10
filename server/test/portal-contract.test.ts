@@ -78,6 +78,8 @@ test("agenda UI reflects the server booking cutoff before offering reservations"
   assert.match(portal, /40 \* 60 \* 1000/);
   assert.match(portal, /Reservas cerradas/);
   assert.match(portal, /future && bookingOpen && session\.status === "scheduled"/);
+  assert.match(portal, /future && booked && bookingOpen/);
+  assert.match(portal, /cancelación cerrada/);
 });
 
 
