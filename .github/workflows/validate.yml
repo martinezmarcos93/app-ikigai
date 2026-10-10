@@ -179,6 +179,13 @@ jobs:
         run: npm run check
       - name: Apply schema migrations to disposable PostgreSQL
         run: npm run db:migrate
+      - name: Check backup script syntax and reject remote PostgreSQL hosts
+        run: |
+          bash -n scripts/backup-restore-check.sh
+          if DATABASE_URL=postgres://test:test@example.invalid:5432/source bash scripts/backup-restore-check.sh; then
+            echo "Backup/restore check must reject non-local PostgreSQL hosts." >&2
+            exit 1
+          fi
       - name: Install PostgreSQL client tools for backup verification
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Verify PostgreSQL backup and restore in an isolated database
