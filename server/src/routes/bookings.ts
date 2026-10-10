@@ -101,10 +101,10 @@ export function registerBookingRoutes(
       });
 
       const now = new Date();
-      const from = request.query.from ? new Date(request.query.from) : now;
+      const from = request.query.from ? new Date(request.query.from) : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const to = request.query.to
         ? new Date(request.query.to)
-        : new Date(from.getTime() + 30 * 24 * 60 * 60 * 1000);
+        : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || to <= from) {
         return reply.code(400).send({
           error: "invalid_date_range",
@@ -123,7 +123,7 @@ export function registerBookingRoutes(
       const offset = request.query.offset ?? 0;
       const filters = `cs.starts_at >= $1::timestamptz
         AND cs.starts_at < $2::timestamptz
-        AND cs.status = 'scheduled'
+        AND cs.status IN ('scheduled', 'completed')
         AND ($3::uuid IS NULL OR ct.coach_id = $3)`;
       const values = [from.toISOString(), to.toISOString(), coachScope];
 
