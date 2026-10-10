@@ -182,24 +182,42 @@
     setPage("Resumen");
     setLoading("Cargando información de tu cuenta…");
     if (isAdmin()) {
-      const [members, services, coaches] = await Promise.all([
+      const results = await Promise.allSettled([
         api.listMembers(100, 0), api.listServices(), api.listCoaches()
       ]);
-      state.members = members.items || [];
-      state.services = services.services || [];
-      state.coaches = coaches.coaches || [];
-      const firstRunChecklist = renderFirstRunChecklist(members.total ?? state.members.length, state.services, state.coaches);
+      const sessionError = results.find(result => result.status === "rejected" && result.reason?.status === 401);
+      if (sessionError) throw sessionError.reason;
+
+      const [membersResult, servicesResult, coachesResult] = results;
+      const membersOk = membersResult.status === "fulfilled";
+      const servicesOk = servicesResult.status === "fulfilled";
+      const coachesOk = coachesResult.status === "fulfilled";
+      if (membersOk) state.members = membersResult.value.items || [];
+      if (servicesOk) state.services = servicesResult.value.services || [];
+      if (coachesOk) state.coaches = coachesResult.value.coaches || [];
+
+      const metric = (label, value, available) => `<div class="stat-card"><small>${esc(label)}</small><strong>${available ? esc(value) : "No disponible"}</strong>${available ? "" : '<small class="muted">No se pudo consultar la API</small>'}</div>`;
+      const firstRunChecklist = membersOk && servicesOk && coachesOk
+        ? renderFirstRunChecklist(membersResult.value.total ?? state.members.length, state.services, state.coaches)
+        : '<section class="panel"><h2 class="section-title">Configuración inicial</h2><p class="footer-note">No se muestra una lista de configuración incompleta porque uno o más recursos no pudieron consultarse. Reintentá la carga para obtener un estado fiable.</p></section>';
+      const memberRows = membersOk
+        ? table(["Nombre","Estado","Alta"], state.members.slice(0,6).map(m => row([`<strong>${esc(m.full_name)}</strong><small class="muted">${esc(m.email || m.phone || "Sin contacto")}</small>`,statusBadge(m.status),date(m.joined_on)])))
+        : empty("No se pudieron consultar los miembros. Volvé a intentar.");
+      const serviceRows = servicesOk
+        ? table(["Servicio","Precio actual"], state.services.slice(0,6).map(s => row([`<strong>${esc(s.name)}</strong><small class="muted">${esc(s.description || "")}</small>`,s.current_price == null ? "Sin configurar" : money(s.current_price)])))
+        : empty("No se pudieron consultar los servicios. Volvé a intentar.");
       $("#pageContent").innerHTML = `
         <div class="stats-grid">
-          <div class="stat-card"><small>Miembros registrados</small><strong>${members.total ?? state.members.length}</strong></div>
-          <div class="stat-card"><small>Servicios activos</small><strong>${state.services.filter(s => s.active).length}</strong></div>
-          <div class="stat-card"><small>Profesores activos</small><strong>${state.coaches.filter(c => c.active).length}</strong></div>
+          ${metric("Miembros registrados", membersOk ? (membersResult.value.total ?? state.members.length) : "", membersOk)}
+          ${metric("Servicios activos", servicesOk ? state.services.filter(s => s.active).length : "", servicesOk)}
+          ${metric("Profesores activos", coachesOk ? state.coaches.filter(coach => coach.active).length : "", coachesOk)}
         </div>
         ${firstRunChecklist}
         <div class="content-grid">
-          <section class="panel"><h2 class="section-title">Últimos miembros</h2>${table(["Nombre","Estado","Alta"], state.members.slice(0,6).map(m => row([`<strong>${esc(m.full_name)}</strong><small class="muted">${esc(m.email || m.phone || "Sin contacto")}</small>`,statusBadge(m.status),date(m.joined_on)])))}</section>
-          <section class="panel"><h2 class="section-title">Servicios disponibles</h2>${table(["Servicio","Precio actual"], state.services.slice(0,6).map(s => row([`<strong>${esc(s.name)}</strong><small class="muted">${esc(s.description || "")}</small>`,s.current_price == null ? "Sin configurar" : money(s.current_price)])))}</section>
+          <section class="panel"><h2 class="section-title">Últimos miembros</h2>${memberRows}</section>
+          <section class="panel"><h2 class="section-title">Servicios disponibles</h2>${serviceRows}</section>
         </div>
+        ${results.some(result => result.status === "rejected") ? '<p class="footer-note" role="status">Algunas secciones no están disponibles. Los datos visibles corresponden sólo a las consultas que respondieron correctamente.</p>' : ""}
         <p class="footer-note">Los indicadores se consultan al servidor. Esta pantalla no lee ni modifica el localStorage de la demo anterior.</p>`;
     } else if (isMember() && state.user.memberId) {
       const [profile, memberships, ledger] = await Promise.all([
