@@ -20,7 +20,7 @@ Claude Code debe inspeccionar el árbol y el estado real del repositorio antes d
 
 ### Barrido de implementación
 - [ ] Ejecutar y corregir todos los tests de cliente, frontend, backend, typecheck, build, migraciones y recursos PWA. No aceptar “pending” o un workflow sin jobs como prueba.
-- [ ] Mejorar el dashboard para que un fallo aislado de servicios o profesores no borre todas las métricas; presentar estado por recurso sin convertir un 401 en un estado vacío.
+- [x] Implementado en la rama: dashboard de administración y resumen del miembro cargan recursos de forma independiente; fallos aislados muestran `No disponible`/mensaje por sección y un 401 sigue invalidando la sesión. **Pendiente de ejecutar los tests estáticos añadidos y validar en navegador.**
 - [ ] Normalizar manejo visual de 401/403/404/409/422/429/5xx/red en todas las pantallas; evitar errores duplicados, mensajes técnicos crudos y éxito falso.
 - [ ] Miembros: probar paginación completa, búsqueda/filtros, página vacía, error de carga, edición permitida, validación y actualización del total; verificar que no se pierda el offset ni se muestre dato viejo como actualizado.
 - [ ] Servicios: alta/edición, estado activo/inactivo, importe nulo, valores límite y preservación de precios históricos en membresías/cargos anteriores.
