@@ -175,6 +175,7 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(listedFuture.capacity, 1);
   assert.equal(listedFuture.confirmed_count, 0);
   assert.equal(listedFuture.my_booking_status, null);
+  assert.ok(Number.isFinite(Date.parse(listedFuture.server_now)));
   assert.equal(agenda.json().limit, 25);
   assert.ok(agenda.json().total >= 2);
 
