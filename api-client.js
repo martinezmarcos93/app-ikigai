@@ -182,6 +182,28 @@
     createRoutineVersion: (routineId, body) => request(`/routines/${id(routineId)}/versions`, { method: "POST", body }),
     listRoutineAssignments: memberId => request(`/members/${id(memberId)}/routine-assignments`),
     assignRoutine: (memberId, body) => request(`/members/${id(memberId)}/routine-assignments`, { method: "POST", body }),
+    listClassSessions: (filters = {}) => {
+      const limit = filters.limit === undefined ? 50 : Number(filters.limit);
+      const offset = filters.offset === undefined ? 0 : Number(filters.offset);
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100
+          || !Number.isSafeInteger(offset) || offset < 0 || offset > 10000) {
+        throw new ApiError(0, "invalid_pagination", "La agenda admite un límite de 1 a 100 y un desplazamiento de 0 a 10000.");
+      }
+      const query = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      for (const key of ["from", "to"]) {
+        if (filters[key] !== undefined && filters[key] !== null && filters[key] !== "") {
+          if (typeof filters[key] !== "string" || !Number.isFinite(Date.parse(filters[key]))) {
+            throw new ApiError(0, "invalid_date_range", "La fecha de la agenda debe ser una fecha ISO válida.");
+          }
+          query.set(key, filters[key]);
+        }
+      }
+      if (query.has("from") && query.has("to")
+          && Date.parse(query.get("to")) <= Date.parse(query.get("from"))) {
+        throw new ApiError(0, "invalid_date_range", "La fecha final debe ser posterior a la fecha inicial.");
+      }
+      return request(`/class-sessions?${query.toString()}`);
+    },
     createBooking: sessionId => request(`/class-sessions/${id(sessionId)}/bookings`, { method: "POST", body: {} }),
     cancelBooking: bookingId => request(`/bookings/${id(bookingId)}/cancel`, { method: "POST", body: {} }),
     listAttendance: memberId => request(`/members/${id(memberId)}/attendance`),
