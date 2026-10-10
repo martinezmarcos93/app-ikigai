@@ -48,7 +48,7 @@
 ### Fase 3 — Seguridad y robustez del backend
 **Estado: implementación en validación. No habilita todavía datos reales.**
 
-- [ ] Completar matriz de autorización por rol y alcance para todos los endpoints, con pruebas negativas de acceso cruzado entre miembros, profesores y administración.
+- [ ] Completar matriz de autorización por rol y alcance para todos los endpoints, con pruebas negativas de acceso cruzado entre miembros, profesores y administración. La matriz existe, pero todavía registra cobertura por confirmar para algunos endpoints y su ejecución depende de CI funcional.
 - [x] Añadir regresiones para el helper de alcance miembro/profesor/administración y comprobar en PostgreSQL que un profesor asignado puede gestionar asistencia mientras otro profesor queda bloqueado.
 - [x] Implementar recuperación de contraseña con token aleatorio de un solo uso, digest persistido, expiración de 30 minutos, invalidación de tokens previos, revocación de sesiones y respuesta que evita enumerar cuentas.
 - [x] Añadir la pantalla de solicitud/confirmación; el token viaja en el fragmento URL, se elimina de la barra al leerlo y la página no carga recursos de terceros.
@@ -60,8 +60,8 @@
 - [x] Mantener esquemas de entrada estrictos, límite de cuerpo, errores estables, idempotencia, transacciones y auditoría; reducir payloads de auditoría que contenían emails o datos descriptivos innecesarios.
 - [x] Validar configuración por entorno y documentar secretos del proveedor de recuperación; no se agregan secretos reales al repositorio.
 - [x] Añadir un ensayo automatizado de backup/restore PostgreSQL que comprueba esquema, historial de migraciones y datos restaurados en una base descartable.
-- [ ] Confirmar el ensayo de backup/restore con CI verde en el commit final y definir el procedimiento de backup/restore para el proveedor de producción.
-- [ ] Completar revisión de autorización y seguridad independiente antes de datos reales.
+- [ ] Confirmar el ensayo de backup/restore con CI verde en el commit final y definir el procedimiento de backup/restore para el proveedor de producción. Se agregó un guard que rechaza `DATABASE_URL` remotas antes de invocar herramientas PostgreSQL y un test negativo en el workflow; el PR #16 se fusionó, pero CI falló antes de asignar runners (`runner_id: 0`, `steps: []`), por lo que el guard aún no tiene ejecución automatizada demostrada.
+- [ ] Completar revisión de autorización y seguridad independiente antes de datos reales. No se considera realizada por esta revisión de código; requiere auditoría independiente y resolución de hallazgos.
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
@@ -72,7 +72,7 @@
 - [x] Configurar la PWA para abrir el portal conectado y conservar el prototipo en `demo.html`.
 - [x] Añadir al resumen administrativo una lista de primera puesta en marcha para servicios, profesores y miembros.
 - [x] Corregir el service worker para no almacenar respuestas de `/api/` ni respuestas con `Cache-Control: no-store`; las respuestas autenticadas no deben entrar en caché.
-- [ ] Validar CI y comprobar manualmente el primer inicio de sesión, dashboard vacío, navegación a configuración y actualización/limpieza del service worker.
+- [ ] Validar CI y comprobar manualmente el primer inicio de sesión, dashboard vacío, navegación a configuración y actualización/limpieza del service worker. Sigue bloqueado por la falta de ejecución real de GitHub Actions y de evidencia de navegador.
 - [x] Añadir un flujo de administración para vincular un perfil de profesor al usuario administrador existente: exige cuenta activa, rol admin previo, correo coincidente, CSRF, transacción y auditoría; agrega coach sin revocar admin ni crear otra cuenta.
 - [ ] Validar el flujo de roles múltiples con PostgreSQL/CI y prueba manual; comprobar que la sesión conserva ambos roles y que los permisos de cada rol siguen validados en servidor.
 - [x] Diseñar e implementar la configuración institucional persistida en PostgreSQL: nombre, contacto, dirección y horarios, con valores vacíos/no configurados por defecto; lectura/escritura sólo de administración, CSRF, respuestas no cacheables y auditoría de campos modificados.
@@ -81,11 +81,11 @@
 **Estado: en curso — primer barrido de inventario y endurecimiento del cliente.** El portal ya consume parcialmente varios endpoints; no se considera completa la integración ni se presupone que CI esté verde.
 
 - [x] Inventariar cada superficie relevante y clasificar su estado inicial en [docs/PORTAL_API_INVENTORY.md](PORTAL_API_INVENTORY.md). El inventario está basado en lectura estática y marca explícitamente los flujos cuya ejecución aún debe comprobarse.
-- [ ] Completar y probar la capa de cliente API uniforme con sesión, CSRF, errores, carga, estados vacíos y política de reintentos seguros. Se añadió navegación de miembros en páginas de 25 registros usando el `limit/offset` del servidor; el contrato estático se amplió, pero su ejecución CI y la prueba de navegador siguen pendientes. Se añadió validación de paginación de miembros, codificación de parámetros, claves idempotentes estables por formulario para reintentos financieros sin cambiar el payload y smoke tests del cliente en `scripts/test-api-client.mjs`, incorporados al workflow; las ejecuciones de GitHub Actions de esta rama terminan en fallo antes de exponer pasos o logs; por ello no hay evidencia de que los tests hayan empezado y no se atribuye ese fallo al código.
+- [ ] Completar y probar la capa de cliente API uniforme con sesión, CSRF, errores, carga, estados vacíos y política de reintentos seguros. Se añadió navegación de miembros en páginas de 25 registros usando el `limit/offset` del servidor; el contrato estático se amplió, pero su ejecución CI y la prueba de navegador siguen pendientes. Se añadió validación de paginación de miembros, codificación de parámetros, claves idempotentes estables por formulario para reintentos financieros sin cambiar el payload y smoke tests del cliente en `scripts/test-api-client.mjs`, incorporados al workflow; las ejecuciones de GitHub Actions de esta rama terminan en fallo antes de exponer pasos o logs; por ello no hay evidencia de que los tests hayan empezado y no se atribuye ese fallo al código. En el barrido actual se añadieron cinco contratos al smoke test del cliente: limpieza de identidad/CSRF tras 401, limpieza aun si logout falla, normalización de errores no JSON, métodos/CSRF/URL codificada para servicios y lectura/escritura de configuración institucional. Quedan pendientes de ejecución real.
 - [ ] Completar los flujos de miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
 - [x] Mantener explícita la separación entre demo local con `localStorage` y portal autenticado con datos del servidor; verificar que ningún flujo conectado informe sincronización local ficticia.
 - [ ] Auditar permisos de navegación y renderizadores como ayuda de UX, conservando la autorización efectiva en el servidor.
-- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados, empezando por sesión, miembros y servicios.
+- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados, empezando por sesión, miembros y servicios. Se ampliaron los contratos del cliente para sesión expirada, logout, errores no JSON, servicios y configuración institucional; su ejecución sigue pendiente.
 - **Criterio de cierre:** cada flujo declara su origen de datos, manejo de errores y permisos; operaciones críticas probadas contra PostgreSQL.
 
 ### Fase 5 — Completar los flujos del gimnasio
