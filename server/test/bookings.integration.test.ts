@@ -106,6 +106,38 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   const first = await createActor(pool, `Integration Member A ${suffix}`);
   const second = await createActor(pool, `Integration Member B ${suffix}`);
 
+  const agendaFrom = new Date(Date.now() - 60 * 60_000).toISOString();
+  const agendaTo = new Date(Date.now() + 6 * 60 * 60_000).toISOString();
+  const agenda = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaFrom)}&to=${encodeURIComponent(agendaTo)}&limit=25&offset=0`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(agenda.statusCode, 200);
+  assert.ok(agenda.json().items.some((item: { id: string }) => item.id === futureSessionId));
+  const listedFuture = agenda.json().items.find((item: { id: string }) => item.id === futureSessionId);
+  assert.equal(listedFuture.capacity, 1);
+  assert.equal(listedFuture.confirmed_count, 0);
+  assert.equal(listedFuture.my_booking_status, null);
+  assert.equal(agenda.json().limit, 25);
+  assert.ok(agenda.json().total >= 3);
+
+  const invertedAgenda = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaTo)}&to=${encodeURIComponent(agendaFrom)}`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(invertedAgenda.statusCode, 400);
+  assert.equal(invertedAgenda.json().error, "invalid_date_range");
+
+  const oversizedAgenda = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaFrom)}&to=${encodeURIComponent(new Date(Date.now() + 91 * 24 * 60 * 60_000).toISOString())}`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(oversizedAgenda.statusCode, 400);
+  assert.equal(oversizedAgenda.json().error, "date_range_too_large");
+
   const profilePatch = await app.inject({
     method: "PATCH",
     url: `/api/v1/members/${first.memberId}`,
@@ -682,6 +714,16 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
     [firstBooking.status, secondBooking.status].sort(),
     ["confirmed", "waitlist"]
   );
+
+  const agendaAfterBooking = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaFrom)}&to=${encodeURIComponent(agendaTo)}`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(agendaAfterBooking.statusCode, 200);
+  const listedAfterBooking = agendaAfterBooking.json().items.find((item: { id: string }) => item.id === futureSessionId);
+  assert.equal(listedAfterBooking.my_booking_status, firstBooking.status === "confirmed" || firstBooking.status === "waitlist" ? firstBooking.status : null);
+  assert.equal(listedAfterBooking.confirmed_count, 1);
 
   const duplicateActor = firstBooking.status === "confirmed" ? first : second;
   const duplicate = await book(duplicateActor, futureSessionId);
