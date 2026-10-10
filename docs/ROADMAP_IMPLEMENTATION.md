@@ -151,3 +151,12 @@
 5. Revisar el diff y ejecutar el pipeline disponible.
 6. Abrir o actualizar un PR con resultados, riesgos y pruebas manuales pendientes.
 7. No integrar ni eliminar ramas históricas sin una decisión explícita o una política previamente acordada.
+
+
+## Continuidad de implementación — Fases 4, 5 y 6
+
+El plan detallado y ejecutable para Claude Code está en [`docs/CLAUDE_CODE_PHASES_4_5_6_HANDOFF.md`](./CLAUDE_CODE_PHASES_4_5_6_HANDOFF.md). Debe leerse junto con `docs/ACCEPTANCE_TESTS.md` y `docs/PORTAL_API_INVENTORY.md`; no reemplaza los criterios de cierre de esta hoja de ruta.
+
+**Avance remoto de esta rama:** se añadieron contratos de API cliente y los métodos `createBooking` / `cancelBooking` según las rutas existentes del backend. El cliente ya puede expresar ambas operaciones, pero el flujo de agenda no está completo porque aún falta la lectura/gestión de instancias y la UI conectada. Las pruebas escritas no equivalen a pruebas ejecutadas.
+
+**No marcar fases como cerradas** hasta contar con pruebas reales ejecutadas, aceptación por rol, pruebas de autorización negativa, validación móvil y cierre de los bloqueos de seguridad/operación aplicables. Si la infraestructura CI sigue sin asignar runner, Claude Code debe ejecutar localmente los scripts disponibles y documentar el resultado exacto, sin borrar el bloqueo de CI externo.
