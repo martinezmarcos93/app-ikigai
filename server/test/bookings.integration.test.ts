@@ -54,6 +54,39 @@ async function createActor(pool: pg.Pool, name: string, role: "member" | "admin"
   };
 }
 
+interface TestCoachActor {
+  userId: string;
+  coachId: string;
+  token: string;
+  csrfToken: string;
+}
+
+async function createCoachActor(pool: pg.Pool, name: string): Promise<TestCoachActor> {
+  const email = `it-coach-${randomUUID()}@example.test`;
+  const insertedUser = await pool.query(
+    `INSERT INTO users (email, password_hash, auth_provider, status)
+     VALUES ($1, $2, 'local', 'active')
+     RETURNING id`,
+    [email, "integration-test-placeholder-hash"]
+  );
+  const userId = insertedUser.rows[0]?.id as string;
+  await pool.query("INSERT INTO user_roles (user_id, role) VALUES ($1, 'coach')", [userId]);
+  const insertedCoach = await pool.query(
+    `INSERT INTO coach_profiles (user_id, full_name, discipline, active)
+     VALUES ($1, $2, 'Test', true)
+     RETURNING id`,
+    [userId, name]
+  );
+  const coachId = insertedCoach.rows[0]?.id as string;
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  await pool.query(
+    "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+    [userId, tokenHash, new Date(Date.now() + 60 * 60 * 1000).toISOString()]
+  );
+  return { userId, coachId, token, csrfToken: csrfTokenFor(token, config.sessionSecret) };
+}
+
 async function createSession(pool: pg.Pool, templateId: string, startOffsetMinutes: number): Promise<string> {
   const startsAt = new Date(Date.now() + startOffsetMinutes * 60_000);
   const endsAt = new Date(startsAt.getTime() + 60 * 60_000);
@@ -106,6 +139,16 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   const first = await createActor(pool, `Integration Member A ${suffix}`);
   const second = await createActor(pool, `Integration Member B ${suffix}`);
 
+  const scopedCoach = await createCoachActor(pool, `Scoped Coach ${suffix}`);
+  const scopedTemplate = await pool.query(
+    `INSERT INTO class_templates
+       (service_id, coach_id, weekday, local_start_time, duration_minutes, capacity, active)
+     VALUES ($1, $2, $3, '19:00', 60, 5, true)
+     RETURNING id`,
+    [serviceId, scopedCoach.coachId, new Date().getUTCDay()]
+  );
+  const scopedSessionId = await createSession(pool, String(scopedTemplate.rows[0]?.id), 240);
+
   const agendaFrom = new Date(Date.now() - 60 * 60_000).toISOString();
   const agendaTo = new Date(Date.now() + 6 * 60 * 60_000).toISOString();
   const agenda = await app.inject({
@@ -134,6 +177,15 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(listedFuture.my_booking_status, null);
   assert.equal(agenda.json().limit, 25);
   assert.ok(agenda.json().total >= 2);
+
+  const coachAgenda = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaFrom)}&to=${encodeURIComponent(agendaTo)}`,
+    headers: { cookie: `ikigai_session=${scopedCoach.token}` }
+  });
+  assert.equal(coachAgenda.statusCode, 200);
+  assert.ok(coachAgenda.json().items.some((item: { id: string }) => item.id === scopedSessionId));
+  assert.ok(coachAgenda.json().items.every((item: { coach_id: string }) => item.coach_id === scopedCoach.coachId));
 
   const invertedAgenda = await app.inject({
     method: "GET",
