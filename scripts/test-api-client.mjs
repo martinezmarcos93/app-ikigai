@@ -302,3 +302,25 @@ test("class session listing validates pagination and sends bounded date filters 
     );
   }
 });
+
+
+test("session attendance roster uses authenticated no-store GET contract", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-attendance-token",
+        user: { id: "coach-user", roles: ["coach"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ sessionId: "session-test", records: [] }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  });
+  await api.login("coach@example.test", "not-a-real-password");
+  await api.getSessionAttendance("session-test");
+  assert.match(calls[1].url, /\/class-sessions\/session-test\/attendance$/);
+  assert.equal(calls[1].options.method, "GET");
+  assert.equal(calls[1].options.cache, "no-store");
+});
