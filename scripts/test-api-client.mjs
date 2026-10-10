@@ -6,7 +6,17 @@ import vm from "node:vm";
 const source = await readFile(new URL("../api-client.js", import.meta.url), "utf8");
 
 function loadClient(fetchImpl, href = "http://localhost:8000/portal.html") {
-  const window = { location: { href, search: new URL(href).search } };
+  const parsed = new URL(href);
+  const window = {
+    location: {
+      href: parsed.href,
+      origin: parsed.origin,
+      protocol: parsed.protocol,
+      hostname: parsed.hostname,
+      port: parsed.port,
+      search: parsed.search
+    }
+  };
   vm.runInNewContext(source, {
     window,
     fetch: fetchImpl,
@@ -81,13 +91,13 @@ test("login keeps CSRF in memory and sends it on authenticated writes", async ()
   assert.equal(api.user.id, "user-test");
 });
 
-test("invalid API base is surfaced as a configuration error", () => {
+test("invalid API base is surfaced as a configuration error", async () => {
   const api = loadClient(async () => {
     throw new Error("fetch must not run");
   }, "https://portal.example.test/portal.html?apiBase=https%3A%2F%2Fevil.example%2Fapi%2Fv1");
 
   assert.match(api.configurationError, /compartir origen|mismo host local/i);
-  assert.throws(() => api.listMembers(), error => error && error.code === "api_configuration");
+  await assert.rejects(() => api.listMembers(), error => error && error.code === "api_configuration");
 });
 
 test("financial idempotency key is stable for an unchanged retry and rotates when the payload changes", () => {

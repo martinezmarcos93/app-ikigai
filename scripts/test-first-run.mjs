@@ -45,7 +45,7 @@ assert.match(sw, /no-store/);
 assert.match(sw, /ikigai-shell-v7/);
 assert.match(sw, /url\.pathname\.endsWith\('\/demo\.html'\)/);
 assert.match(setupGuide, /npm run admin:create/);
-assert.match(setupGuide, /No hay registro público de administradores/);
+assert.match(setupGuide, /no hay registro público de administradores/i);
 assert.match(setupGuide, /datos reales/);
 
 console.log("First-run setup, empty prototype, connected entry point, and API cache boundaries passed.");
