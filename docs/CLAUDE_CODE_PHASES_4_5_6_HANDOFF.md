@@ -80,7 +80,7 @@ Claude Code debe inspeccionar el árbol y el estado real del repositorio antes d
 
 ### Implementación técnica
 - [ ] Ejecutar validación de manifest, iconos, shell, service worker y rutas locales; resolver todos los paths rotos.
-- [x] Añadida exclusión por segmento `/api` al service worker, también cuando la aplicación está bajo una subruta; la regla evita cachear cualquier URL del mismo origen cuyo path contenga el segmento `api`. **Pendiente ejecutar las pruebas estáticas y probar el service worker en navegador.**
+- [x] Añadida exclusión por segmento `/api` al service worker, también cuando la aplicación está bajo una subruta; la regla evita cachear cualquier URL del mismo origen cuyo path contenga el segmento `api`. Se incrementó la versión de caché a `ikigai-shell-v7` para invalidar el caché previo y retirar entradas que pudieran haberse almacenado bajo rutas API anidadas. **Pendiente ejecutar las pruebas estáticas y probar el service worker en navegador.**
 - [ ] Revisar estrategia de actualización de caché y recuperación offline: informar claramente que una operación no se pudo sincronizar; no poner en cola operaciones financieras/reservas de forma implícita.
 - [ ] Añadir feedback de conectividad y un estado offline que no presente información cacheada como datos actuales del servidor.
 - [ ] Revisar actualización de sesión tras volver de background, cierre de sesión, expiración y cambio de usuario en un mismo dispositivo.
