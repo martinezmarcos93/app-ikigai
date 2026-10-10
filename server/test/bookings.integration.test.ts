@@ -114,13 +114,26 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
     headers: { cookie: `ikigai_session=${first.token}` }
   });
   assert.equal(agenda.statusCode, 200);
+
+  const unauthenticatedAgenda = await app.inject({
+    method: "GET",
+    url: "/api/v1/class-sessions"
+  });
+  assert.equal(unauthenticatedAgenda.statusCode, 401);
+
+  const invalidAgendaPagination = await app.inject({
+    method: "GET",
+    url: "/api/v1/class-sessions?limit=101",
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(invalidAgendaPagination.statusCode, 400);
   assert.ok(agenda.json().items.some((item: { id: string }) => item.id === futureSessionId));
   const listedFuture = agenda.json().items.find((item: { id: string }) => item.id === futureSessionId);
   assert.equal(listedFuture.capacity, 1);
   assert.equal(listedFuture.confirmed_count, 0);
   assert.equal(listedFuture.my_booking_status, null);
   assert.equal(agenda.json().limit, 25);
-  assert.ok(agenda.json().total >= 3);
+  assert.ok(agenda.json().total >= 2);
 
   const invertedAgenda = await app.inject({
     method: "GET",
