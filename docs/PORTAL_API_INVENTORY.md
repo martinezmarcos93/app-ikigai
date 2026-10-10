@@ -57,3 +57,12 @@ En la rama `feat/phase-3-closeout-phase-4-integration`:
 La rama `feat/phase-4-schedule-api-sweep` agrega la lectura real de sesiones de clase y el método `listClassSessions` al cliente. La API usa `cache: no-store`, devuelve total/paginación y limita consultas a una ventana de hasta 90 días. El rol profesor queda limitado a sus propias sesiones; administración y miembros con sesión válida pueden consultar la agenda programada. El cliente valida rangos de fechas y límites antes de enviar solicitudes.
 
 **No se considera validado todavía:** faltan typecheck, tests de integración contra PostgreSQL, CI con jobs/steps ejecutados y conexión de la vista del portal. El workflow más reciente sigue mostrando jobs fallidos sin pasos ni logs disponibles; eso no demuestra un fallo de código ni una aprobación.
+
+
+## Barrido funcional y PWA — 2026-10-10
+
+Se corrigió un defecto de integración detectado en la revisión estática de agenda: la acción de cancelar enviaba el ID de la clase al endpoint que espera el ID de la reserva. El endpoint de listado ahora expone `my_booking_id` para la reserva activa del miembro y la interfaz utiliza ese identificador al cancelar. Se agregaron aserciones estáticas para impedir que esta discrepancia vuelva a introducirse.
+
+Se endureció el CSS móvil/PWA: áreas seguras de dispositivos, contención del desplazamiento horizontal, scroll táctil dentro de tablas, tamaño mínimo de 44 px para botones pequeños en móvil, tamaño de fuente de formularios para evitar zoom automático en navegadores móviles y respeto por `prefers-reduced-motion`. Se incrementó la versión de caché del shell a `ikigai-shell-v8` para invalidar los recursos anteriores.
+
+**Evidencia y límites:** cambios inspeccionados en el código remoto y aserciones añadidas; todavía no ejecutadas porque GitHub Actions no está iniciando pasos. No se afirma validación real en Chrome Android ni en dispositivos físicos. Siguen pendientes pruebas de integración PostgreSQL, verificación visual en anchos 320–480 px y comprobación de instalación/actualización/offline en dispositivo.

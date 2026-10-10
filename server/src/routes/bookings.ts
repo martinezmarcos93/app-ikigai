@@ -143,6 +143,7 @@ export function registerBookingRoutes(
                     WHERE b.session_id = cs.id AND b.status = 'confirmed') AS confirmed_count,
                   (SELECT count(*)::int FROM bookings b
                     WHERE b.session_id = cs.id AND b.status = 'waitlist') AS waitlist_count,
+                  mine.id AS my_booking_id,
                   mine.status AS my_booking_status
              FROM class_sessions cs
              JOIN class_templates ct ON ct.id = cs.template_id

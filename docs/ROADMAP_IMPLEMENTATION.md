@@ -165,3 +165,12 @@ El plan detallado y ejecutable para Claude Code está en [`docs/CLAUDE_CODE_PHAS
 ## Barrido remoto — agenda/API (2026-10-10)
 
 En la rama `feat/phase-4-schedule-api-sweep` se añade `GET /api/v1/class-sessions` con filtros temporales acotados, paginación y alcance de profesor, junto con `IkigaiApi.listClassSessions()` y pruebas de contrato del cliente. La UI todavía no consume este endpoint. La validación se mantiene pendiente hasta ejecutar typecheck, pruebas, build y migraciones PostgreSQL en un runner disponible; el estado fallido sin pasos/logs de GitHub Actions no se interpreta como fallo funcional confirmado.
+
+
+## Barrido funcional y PWA — 2026-10-10
+
+**Punto 4 — agenda, reservas, asistencia, miembros y cuenta corriente:** la revisión estática encontró y corrigió una discrepancia real en cancelación de reservas: el portal enviaba el identificador de sesión cuando la API exige el identificador de reserva. La consulta de agenda ahora incluye `my_booking_id`, y la acción de cancelación usa ese ID. Se añadió una aserción de contrato estática que comprueba tanto la respuesta SQL como el uso en el portal. El resto de los flujos sigue sujeto a aceptación por rol y pruebas contra PostgreSQL; no se considera cerrado sólo por la inspección del código.
+
+**Punto 5 — Android/PWA:** se añadieron protecciones CSS para áreas seguras, evitar desbordamiento horizontal global, conservar el scroll táctil de tablas dentro de sus contenedores, asegurar 44 px de área táctil para botones pequeños en móvil, evitar zoom automático en campos y respetar movimiento reducido. Se incrementó la caché del shell a `ikigai-shell-v8`.
+
+**Validación:** se añadieron aserciones estáticas; no se pudieron ejecutar por el bloqueo actual de GitHub Actions. Quedan pendientes emulación visual en 320/360/390/412/480 px, instalación/actualización/offline, prueba en dos dispositivos Android y pruebas de integración/autorización reales. La PWA y los flujos del gimnasio no se declaran completos ni aprobados para datos reales.

@@ -401,6 +401,10 @@
     const picker = isAdmin() ? `<form class="panel inline-form" data-form="select-member"><div class="field"><label for="memberPick">Miembro</label><select id="memberPick" name="memberId">${options.map(o=>`<option value="${esc(o.value)}"${o.value===state.selectedMember?" selected":""}>${esc(o.label)}</option>`).join("")}</select></div><button class="button" type="submit">Consultar</button></form><div style="height:14px"></div>` : "";
     const create = isAdmin() ? form("Registrar movimiento","create-ledger",
       selectField("Tipo","type",["charge","payment","adjustment","refund"],"payment")+
+      selectField("Dirección (solo para ajustes)","direction",[
+        {value:"debit",label:"Débito — aumenta deuda"},
+        {value:"credit",label:"Crédito — reconoce saldo a favor"}
+      ],"debit",false)+
       field("Importe (ARS)","amount","number",{required:true,min:"0.01",step:"0.01"})+
       field("Fecha del movimiento","occurred_on","date",{required:true,value:today()})+
       field("Período aplicado","applied_period","date",{value:month()+"-01"})+
@@ -554,8 +558,8 @@
         : future && !bookingOpen ? "Reservas cerradas"
         : session.confirmed_count >= session.capacity ? "Cupo completo" : "Disponible";
       let action = "";
-      if (isMemberUser && future && booked && bookingOpen) {
-        action = `<button class="button ghost small" type="button" data-action="cancel-booking" data-id="${esc(session.id)}">Cancelar reserva</button>`;
+      if (isMemberUser && future && booked && bookingOpen && session.my_booking_id) {
+        action = `<button class="button ghost small" type="button" data-action="cancel-booking" data-id="${esc(session.my_booking_id)}">Cancelar reserva</button>`;
       } else if (isMemberUser && future && bookingOpen && session.status === "scheduled") {
         action = `<button class="button primary small" type="button" data-action="create-booking" data-id="${esc(session.id)}">${session.confirmed_count >= session.capacity ? "Anotarme en espera" : "Reservar clase"}</button>`;
       }
@@ -588,8 +592,12 @@
     const records = result.records || [];
     const fields = records.map(record => `
       <label class="attendance-entry">
-        <input type="checkbox" data-booking-id="${esc(record.booking_id)}" ${record.attended === true ? "checked" : ""}>
-        <span><strong>${esc(record.member_name || "Miembro")}</strong><small>${record.attended === true ? "Presente" : record.attended === false ? "Ausente" : "Sin registrar"}</small></span>
+        <span><strong>${esc(record.member_name || "Miembro")}</strong><small>${record.attended === true ? "Último registro: presente" : record.attended === false ? "Último registro: ausente" : "Todavía sin registrar"}</small></span>
+        <select data-booking-id="${esc(record.booking_id)}" aria-label="Asistencia de ${esc(record.member_name || "Miembro")}">
+          <option value="" ${record.attended == null ? "selected" : ""}>Sin registrar</option>
+          <option value="true" ${record.attended === true ? "selected" : ""}>Presente</option>
+          <option value="false" ${record.attended === false ? "selected" : ""}>Ausente</option>
+        </select>
       </label>`).join("");
     $("#pageContent").innerHTML = `
       <section class="panel"><p class="section-subtitle">Los cambios quedan auditados en el servidor.</p>
@@ -684,11 +692,10 @@
     try {
       if (kind === "record-attendance") {
         if (!(isAdmin() || isCoach())) throw new Error("Sólo administración o el profesor asignado pueden registrar asistencia.");
-        const records = Array.from(formNode.querySelectorAll("[data-booking-id]")).map(input => ({
-          bookingId: input.dataset.bookingId,
-          attended: input.checked
-        }));
-        if (!records.length) throw new Error("No hay reservas confirmadas para registrar.");
+        const records = Array.from(formNode.querySelectorAll("[data-booking-id]"))
+          .filter(input => input.value === "true" || input.value === "false")
+          .map(input => ({ bookingId: input.dataset.bookingId, attended: input.value === "true" }));
+        if (!records.length) throw new Error("Elegí Presente o Ausente para al menos una persona antes de guardar.");
         const result = await api.updateAttendance(v("sessionId"), records);
         showNotice(`Asistencia guardada: ${result.created} nuevos, ${result.updated} corregidos y ${result.unchanged} sin cambios.`, "success");
         await renderView("schedule");
@@ -737,9 +744,9 @@
         const payload = { type, amount:v("amount"), description:v("description"), occurred_on:v("occurred_on"),
           applied_period:optional("applied_period"), payment_method:optional("payment_method"), reference:optional("reference") };
         if (type === "adjustment") {
-          const direction = window.prompt("Dirección del ajuste: escribí 'debit' para sumar deuda o 'credit' para reconocer un crédito.");
-          if (!["debit","credit"].includes(String(direction).trim().toLowerCase())) throw new Error("El ajuste necesita dirección debit o credit.");
-          payload.direction = String(direction).trim().toLowerCase();
+          const direction = v("direction");
+          if (!["debit","credit"].includes(direction)) throw new Error("Elegí si el ajuste aumenta la deuda o reconoce un crédito.");
+          payload.direction = direction;
         }
         const key = api.idempotencyKeyFor(formNode,"ledger",payload);
         await api.createLedgerEntry(memberId(),payload,key);

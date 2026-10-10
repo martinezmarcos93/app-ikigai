@@ -722,14 +722,67 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(payment.json().balance, "35000.00");
   assert.equal(payment.json().receiptType, "internal");
 
+  const adjustmentKey = `ledger-adjustment-${suffix}`;
+  const adjustmentPayload = {
+    type: "adjustment",
+    direction: "debit",
+    amount: "2500",
+    description: "Ajuste de prueba",
+    occurred_on: "2026-10-09",
+    applied_period: "2026-10-01"
+  };
+  const adjustment = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": adjustmentKey
+    },
+    payload: adjustmentPayload
+  });
+  assert.equal(adjustment.statusCode, 201);
+  assert.equal(adjustment.json().entry.direction, "debit");
+  assert.equal(adjustment.json().balance, "37500.00");
+
+  const adjustmentReplay = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": adjustmentKey
+    },
+    payload: adjustmentPayload
+  });
+  assert.equal(adjustmentReplay.statusCode, 200);
+  assert.equal(adjustmentReplay.json().entry.id, adjustment.json().entry.id);
+  assert.equal(adjustmentReplay.json().balance, "37500.00");
+
+  const adjustmentMissingDirection = await app.inject({
+    method: "POST",
+    url: `/api/v1/members/${first.memberId}/ledger-entries`,
+    headers: {
+      origin,
+      cookie: `ikigai_session=${admin.token}`,
+      "x-csrf-token": admin.csrfToken,
+      "idempotency-key": `ledger-adjustment-missing-${suffix}`
+    },
+    payload: { ...adjustmentPayload, direction: undefined }
+  });
+  assert.equal(adjustmentMissingDirection.statusCode, 400);
+  assert.equal(adjustmentMissingDirection.json().error, "adjustment_direction_required");
+
   const ownLedger = await app.inject({
     method: "GET",
     url: `/api/v1/members/${first.memberId}/ledger-entries`,
     headers: { cookie: `ikigai_session=${first.token}` }
   });
   assert.equal(ownLedger.statusCode, 200);
-  assert.equal(ownLedger.json().entries.length, 2);
-  assert.equal(ownLedger.json().balance, "35000.00");
+  assert.equal(ownLedger.json().entries.length, 3);
+  assert.equal(ownLedger.json().balance, "37500.00");
 
   const memberCannotPostLedger = await app.inject({
     method: "POST",
@@ -752,9 +805,9 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   const ledgerAudit = await pool.query(
     `SELECT count(*)::int AS total FROM audit_events
       WHERE action = 'ledger.entry_created' AND entity_id = ANY($1::text[])`,
-    [[charge.json().entry.id, payment.json().entry.id]]
+    [[charge.json().entry.id, payment.json().entry.id, adjustment.json().entry.id]]
   );
-  assert.equal(ledgerAudit.rows[0]?.total, 2);
+  assert.equal(ledgerAudit.rows[0]?.total, 3);
 
   async function book(actor: TestActor, sessionId: string) {
     return app.inject({
@@ -789,6 +842,8 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(agendaAfterBooking.statusCode, 200);
   const listedAfterBooking = agendaAfterBooking.json().items.find((item: { id: string }) => item.id === futureSessionId);
   assert.equal(listedAfterBooking.my_booking_status, firstBooking.status === "confirmed" || firstBooking.status === "waitlist" ? firstBooking.status : null);
+  assert.equal(listedAfterBooking.my_booking_id, firstBooking.id);
+  assert.equal(listedAfterBooking.my_booking_id, firstBooking.id);
   assert.equal(listedAfterBooking.confirmed_count, 1);
 
   const duplicateActor = firstBooking.status === "confirmed" ? first : second;

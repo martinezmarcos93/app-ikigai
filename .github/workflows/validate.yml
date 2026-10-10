@@ -5,14 +5,21 @@ on:
     branches: [main]
   push:
     branches: [main, "feat/**"]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# Keep one canonical pipeline and avoid wasting hosted runners on duplicate pushes.
+concurrency:
+  group: ikigai-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   prototype-checks:
     name: Prototype syntax, PWA assets, and product rules
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -146,6 +153,7 @@ jobs:
   api-checks:
     name: API typecheck, tests, build, and PostgreSQL migration
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -190,6 +198,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Verify PostgreSQL backup and restore in an isolated database
         run: bash scripts/backup-restore-check.sh
+      - name: Assert PostgreSQL integration tests are enabled
+        run: |
+          test "$IKIGAI_INTEGRATION_TESTS" = "1"
+          test -n "$DATABASE_URL"
       - name: Run API, domain, and PostgreSQL integration tests
         run: npm test
       - name: Build API
