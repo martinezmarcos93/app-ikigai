@@ -238,3 +238,33 @@ test("institution settings contract sends an authenticated PATCH without caching
 });
 
 console.log("Portal API client contract checks loaded.");
+
+
+test("booking creation and cancellation use the server contract with CSRF and no-store", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-booking-token",
+        user: { id: "member-user", roles: ["member"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ booking: { id: "booking-test", status: "confirmed" } }), {
+      status: 201, headers: { "content-type": "application/json" }
+    });
+  });
+
+  await api.login("member@example.test", "not-a-real-password");
+  await api.createBooking("session/with space");
+  await api.cancelBooking("booking/with space");
+
+  assert.match(calls[1].url, /\/class-sessions\/session%2Fwith%20space\/bookings$/);
+  assert.equal(calls[1].options.method, "POST");
+  assert.equal(calls[1].options.headers["X-CSRF-Token"], "csrf-booking-token");
+  assert.equal(calls[1].options.cache, "no-store");
+  assert.match(calls[2].url, /\/bookings\/booking%2Fwith%20space\/cancel$/);
+  assert.equal(calls[2].options.method, "POST");
+  assert.equal(calls[2].options.headers["X-CSRF-Token"], "csrf-booking-token");
+  assert.equal(calls[2].options.cache, "no-store");
+});
