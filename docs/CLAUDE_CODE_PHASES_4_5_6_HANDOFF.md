@@ -74,7 +74,8 @@ Claude Code debe inspeccionar el árbol y el estado real del repositorio antes d
 ### Cierre de Fase 5
 - [ ] Todas las reglas anteriores tienen tests de integración de servidor con PostgreSQL descartable.
 - [x] API de lectura de agenda añadida en `GET /api/v1/class-sessions`, con ventana temporal acotada, paginación, rol autenticado y alcance de profesor; el contrato del cliente incorpora validación de fechas/paginación y `cache: no-store`. **Pendiente ejecutar CI e integración PostgreSQL.**
-- [ ] UI de agenda conectada de extremo a extremo; ninguna acción crítica sólo modifica el estado local.
+- [x] Vista de agenda conectada al cliente real: lectura de clases, reservas/cancelaciones y toma de asistencia para administración/profesor; la asistencia se guarda en el backend auditado. **Pendiente ejecutar CI, probar por rol y validar errores/cupo en navegador.**
+- [ ] UI para crear/editar plantillas y generar instancias de clases; el portal consume las instancias existentes, pero no las administra.
 - [ ] Pruebas de concurrencia y autorización aprobadas.
 - [ ] Flujos críticos probados con usuarios ficticios de cada rol.
 
