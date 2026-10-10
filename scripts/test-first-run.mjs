@@ -34,6 +34,11 @@ assert.match(portal, /api\.getMember\(state\.user\.memberId\)/);
 assert.match(portal, /Algunas secciones no están disponibles/);
 assert.match(portal, /sessionError\.reason/);
 assert.match(portal, /No disponible/);
+assert.match(portal, /session\.my_booking_id/);
+assert.match(portal, /data-action="cancel-booking" data-id="\$\{esc\(session\.my_booking_id\)\}"/);
+assert.match(portal, /data-action="create-booking"/);
+assert.match(portal, /data-action="session-attendance"/);
+
 assert.match(portal, /no se muestra una lista de configuración incompleta/i);
 assert.match(portal, /data-view="services"/);
 assert.match(portal, /data-view="coaches"/);
@@ -42,7 +47,12 @@ assert.match(sw, /api\(\?:/);
 assert.match(sw, /test\(url\.pathname\)/);
 assert.match(sw, /Cache-Control/);
 assert.match(sw, /no-store/);
-assert.match(sw, /ikigai-shell-v7/);
+const mobileStyles = await read("portal.css");
+assert.match(mobileStyles, /env\(safe-area-inset-bottom\)/);
+assert.match(mobileStyles, /prefers-reduced-motion/);
+assert.match(mobileStyles, /\.button\.small \{ min-height: 44px; \}/);
+
+assert.match(sw, /ikigai-shell-v8/);
 assert.match(sw, /url\.pathname\.endsWith\('\/demo\.html'\)/);
 assert.match(setupGuide, /npm run admin:create/);
 assert.match(setupGuide, /no hay registro público de administradores/i);
