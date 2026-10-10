@@ -2,7 +2,7 @@ import test from "node:test";
 import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { QueryResult, TransactionalDatabase } from "../src/db.js";
+import type { Database, QueryResult, TransactionalDatabase } from "../src/db.js";
 import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { csrfTokenFor } from "../src/security/csrf.js";
@@ -48,7 +48,7 @@ class ServicesDatabase implements TransactionalDatabase {
     return { rows: rows as Row[], rowCount: rows.length };
   }
 
-  async transaction<T>(work: (transaction: import("../src/db.js").Database) => Promise<T>): Promise<T> {
+  async transaction<T>(work: (transaction: Database) => Promise<T>): Promise<T> {
     return work(this);
   }
 }
