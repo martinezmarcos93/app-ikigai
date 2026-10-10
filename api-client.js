@@ -182,6 +182,8 @@
     createRoutineVersion: (routineId, body) => request(`/routines/${id(routineId)}/versions`, { method: "POST", body }),
     listRoutineAssignments: memberId => request(`/members/${id(memberId)}/routine-assignments`),
     assignRoutine: (memberId, body) => request(`/members/${id(memberId)}/routine-assignments`, { method: "POST", body }),
+    createBooking: sessionId => request(`/class-sessions/${id(sessionId)}/bookings`, { method: "POST", body: {} }),
+    cancelBooking: bookingId => request(`/bookings/${id(bookingId)}/cancel`, { method: "POST", body: {} }),
     listAttendance: memberId => request(`/members/${id(memberId)}/attendance`),
     updateAttendance: (sessionId, records) => request(`/class-sessions/${id(sessionId)}/attendance`, { method: "PUT", body: { records } })
   };

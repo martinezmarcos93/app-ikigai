@@ -109,4 +109,163 @@ test("financial idempotency key is stable for an unchanged retry and rotates whe
   assert.notEqual(first, separate);
 });
 
+
+test("expired sessions clear the cached user and CSRF token before later writes", async () => {
+  const calls = [];
+  let expired = false;
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-before-expiry",
+        user: { id: "user-test", roles: ["admin"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (expired) {
+      return new Response(JSON.stringify({
+        error: "unauthenticated",
+        message: "A valid session is required."
+      }), { status: 401, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  });
+
+  await api.login("admin@example.com", "fictional-password");
+  assert.equal(api.user.id, "user-test");
+  expired = true;
+  await assert.rejects(api.listMembers(25, 0), error => error.status === 401);
+  assert.equal(api.user, null);
+  expired = false;
+  await api.createMember({ full_name: "Persona ficticia" });
+  assert.equal(calls.at(-1).options.headers["X-CSRF-Token"], undefined);
+});
+
+test("logout clears local identity and CSRF state even when the API request fails", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-logout-test",
+        user: { id: "user-test", roles: ["admin"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      error: "network_unavailable",
+      message: "Logout could not reach the server."
+    }), { status: 503, headers: { "content-type": "application/json" } });
+  });
+
+  await api.login("admin@example.com", "fictional-password");
+  await assert.rejects(api.logout(), error => error.status === 503);
+  assert.equal(api.user, null);
+  assert.equal(calls.at(-1).options.headers["X-CSRF-Token"], "csrf-logout-test");
+});
+
+test("non-JSON API errors are normalized without leaking raw response text", async () => {
+  const api = loadClient(async () => new Response("internal stack trace and secrets", {
+    status: 500,
+    headers: { "content-type": "text/plain" }
+  }));
+
+  await assert.rejects(api.listMembers(25, 0), error => {
+    assert.equal(error.status, 500);
+    assert.equal(error.code, "api_error");
+    assert.equal(error.message, "La API devolvió una respuesta no válida.");
+    assert.equal(JSON.stringify(error).includes("internal stack trace"), false);
+    return true;
+  });
+});
+
+
+test("service API contracts use expected methods, encoded identifiers, CSRF, and no-store", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-services-test",
+        user: { id: "admin-test", roles: ["admin"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ service: { id: "service/with space" }, services: [] }), {
+      status: String(options.method || "GET") === "POST" ? 201 : 200,
+      headers: { "content-type": "application/json" }
+    });
+  });
+
+  await api.login("admin@example.com", "fictional-password");
+  await api.listServices();
+  await api.createService({ name: "Yoga ficticio", currentPrice: "1250.00" });
+  await api.updateService("service/with space", { active: false });
+
+  assert.equal(new URL(calls[1].url).pathname, "/api/v1/services");
+  assert.equal(calls[1].options.method, "GET");
+  assert.equal(calls[1].options.cache, "no-store");
+  assert.equal(calls[2].options.method, "POST");
+  assert.equal(calls[2].options.headers["X-CSRF-Token"], "csrf-services-test");
+  assert.equal(calls[3].options.method, "PATCH");
+  assert.match(calls[3].url, /service%2Fwith%20space$/);
+  assert.equal(calls[3].options.headers["X-CSRF-Token"], "csrf-services-test");
+});
+
+test("institution settings contract sends an authenticated PATCH without caching", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-settings-test",
+        user: { id: "admin-test", roles: ["admin"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ institution_name: null }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  });
+
+  await api.login("admin@example.com", "fictional-password");
+  await api.getInstitutionSettings();
+  await api.updateInstitutionSettings({ institution_name: "Gimnasio ficticio" });
+
+  assert.equal(calls[1].options.method, "GET");
+  assert.equal(calls[1].options.cache, "no-store");
+  assert.equal(calls[2].options.method, "PATCH");
+  assert.equal(calls[2].options.headers["X-CSRF-Token"], "csrf-settings-test");
+  assert.equal(JSON.parse(calls[2].options.body).institution_name, "Gimnasio ficticio");
+});
+
+
+
+test("booking creation and cancellation use the server contract with CSRF and no-store", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-booking-token",
+        user: { id: "member-user", roles: ["member"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ booking: { id: "booking-test", status: "confirmed" } }), {
+      status: 201, headers: { "content-type": "application/json" }
+    });
+  });
+
+  await api.login("member@example.test", "not-a-real-password");
+  await api.createBooking("session/with space");
+  await api.cancelBooking("booking/with space");
+
+  assert.match(calls[1].url, /\/class-sessions\/session%2Fwith%20space\/bookings$/);
+  assert.equal(calls[1].options.method, "POST");
+  assert.equal(calls[1].options.headers["X-CSRF-Token"], "csrf-booking-token");
+  assert.equal(calls[1].options.cache, "no-store");
+  assert.match(calls[2].url, /\/bookings\/booking%2Fwith%20space\/cancel$/);
+  assert.equal(calls[2].options.method, "POST");
+  assert.equal(calls[2].options.headers["X-CSRF-Token"], "csrf-booking-token");
+  assert.equal(calls[2].options.cache, "no-store");
+});
+
 console.log("Portal API client contract checks loaded.");

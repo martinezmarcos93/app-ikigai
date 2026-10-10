@@ -1,7 +1,7 @@
 # Inventario de integración portal/API — Fase 4
 
 **Estado:** barrido inicial documentado; no equivale a aceptación funcional ni a aprobación de seguridad.  
-**Rama de trabajo:** `feat/phase-4-api-integration`  
+**Rama de trabajo:** `feat/phase-3-closeout-phase-4-integration`  
 **Fuente de verdad:** el portal conectado consulta la API; la demo `index.html` continúa siendo local y usa `localStorage`.
 
 ## Estados
@@ -25,7 +25,7 @@
 | Invitaciones / accesos | Parcial | Crear invitación y mostrar token una sola vez; el backend también expone revocar, reenviar y restablecer acceso | Verificar qué acciones tienen UI y cubrir expiración, revocación y entrega segura; no persistir el token en almacenamiento local |
 | Mi rutina | Conectado en lectura | El portal consulta asignaciones del miembro y muestra ejercicios/versión | Añadir pruebas de contrato y revisar estados de error/ausencia de asignaciones |
 | Asistencia | Parcial | El miembro puede consultar su historial; el cliente también expone escritura de asistencia por instancia | La UI de administración/profesor para seleccionar clase y corregir asistencia no está conectada; probar historial propio y permisos |
-| Agenda / reservas / lista de espera | Pendiente en el portal conectado | La demo local tiene vistas, pero no deben confundirse con datos persistidos por la API | Integración posterior a confirmar contratos y estado de agenda; no simular persistencia |
+| Agenda / reservas / lista de espera | Parcial en cliente; UI conectada pendiente | El cliente expone creación y cancelación de reserva con CSRF, rutas codificadas y `no-store`; el backend implementa reglas de cupo, corte de 40 minutos y promoción de lista de espera | Falta API de lectura/administración de instancias de agenda y UI conectada; no simular persistencia ni inventar rutas sin modelo/backend |
 | Avisos y notificaciones | Pendiente | Sin flujo de entrega validado en el portal | Definir proveedor, consentimiento y operación antes de habilitar |
 | Demo local `index.html` | Local por diseño | Usa `localStorage` y datos demostrativos | Mantener separada del portal; nunca indicar que sus cambios se sincronizaron con la API |
 
@@ -37,14 +37,16 @@
 - Las vistas deben distinguir carga, estado vacío, falta de permisos, sesión vencida y error de red/servidor. No conservar como “actualizados” datos antiguos tras fallar una escritura.
 - No se debe cambiar el contrato de respuesta del servidor desde el frontend por conveniencia. Si un endpoint no cumple el contrato esperado, corregirlo con pruebas del lado API.
 
-## Prioridades del siguiente barrido
+## Avance de este barrido
 
-1. Completar la comprobación del resto de formularios y contrastar el inventario con pruebas ejecutadas.
-2. Endurecer y probar la capa cliente común, incluidos parámetros de paginación y errores.
-3. Corregir discrepancias entre navegación, permisos de UX y renderizadores.
-4. Añadir pruebas de contrato para los flujos ya conectados, comenzando por sesión, miembros y servicios.
-5. Incorporar progresivamente los flujos restantes sólo cuando existan endpoints y pruebas de autorización verificables.
+En la rama `feat/phase-3-closeout-phase-4-integration`:
 
-## Evidencia y límites
+- Se añadieron cinco contratos automatizados en `scripts/test-api-client.mjs`: sesión expirada/limpieza de CSRF, limpieza al fallar logout, normalización de error no JSON, métodos de servicios/ajustes institucionales y contratos de servicios/configuración institucional.
+- Se añadió un sexto contrato que comprueba creación y cancelación de reservas con método, ruta codificada, CSRF y `cache: no-store`.
+- `api-client.js` expone ahora `createBooking(sessionId)` y `cancelBooking(bookingId)` conforme a las rutas reales registradas en `server/src/routes/bookings.ts`. Esto no significa que la agenda esté integrada de extremo a extremo: falta lectura/gestión de instancias y UI.
+- Se creó `docs/CLAUDE_CODE_PHASES_4_5_6_HANDOFF.md` con un plan de implementación ejecutable para Claude Code, cubriendo integración portal/API, reservas/asistencia/finanzas, PWA Android y gates de seguridad/preproducción.
+- El resumen de administración y el panel del miembro ahora cargan sus recursos con `Promise.allSettled`: un fallo aislado no oculta los recursos que sí respondieron; una sesión expirada (401) sigue invalidando la vista y exige volver a autenticarse. Se añadieron aserciones estáticas de este comportamiento a `scripts/test-first-run.mjs`; aún deben ejecutarse localmente/CI.
+- El service worker excluye las rutas con un segmento `/api` incluso cuando la aplicación se sirve bajo una subruta y se incrementó la caché a `ikigai-shell-v7` para eliminar entradas antiguas potencialmente almacenadas bajo rutas API anidadas. Se actualizaron aserciones estáticas para esa frontera; las pruebas deben ejecutarse y confirmarse en navegador.
+- Se actualizó la hoja de ruta con el estado de seguridad/CI y se mantiene el bloqueo de validación externa.
 
-Este documento se basa en la lectura estática de `portal.html`, `portal.js`, `api-client.js`, los contratos documentados en `server/README.md` y los esquemas visibles de las rutas. No afirma que el portal se haya ejecutado en un navegador ni que los tests de API/CI estén verdes. Antes de usar datos reales siguen siendo obligatorias la validación de seguridad independiente, la ejecución del pipeline y las pruebas con una base descartable.
+**Estado de ejecución:** los contratos añadidos todavía requieren ejecución local/CI. No se declara que hayan pasado. Las corridas anteriores de GitHub Actions no llegaron a asignar runner, por lo que no constituyen evidencia de que el código haya fallado ni de que haya pasado.
