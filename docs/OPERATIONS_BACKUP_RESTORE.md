@@ -19,7 +19,7 @@ npm run db:migrate
 bash scripts/backup-restore-check.sh
 ```
 
-El script crea una base de restauración con nombre temporal en el mismo servidor indicado por `DATABASE_URL`, valida el esquema y los datos restaurados, y la elimina al finalizar. **No lo ejecutes contra una base con datos reales ni contra un servidor de producción.** Usa credenciales locales de prueba y verifica que `DATABASE_URL` apunte a la base descartable correcta antes de ejecutarlo.
+El script solo acepta URLs PostgreSQL cuyo host sea `localhost`, `127.0.0.1` o `[::1]`; rechaza hosts remotos antes de ejecutar herramientas de PostgreSQL. Crea una base de restauración con nombre temporal en el mismo servidor local indicado por `DATABASE_URL`, valida el esquema y los datos restaurados, y la elimina al finalizar. **No lo ejecutes contra una base con datos reales.** Usa credenciales locales de prueba y verifica que `DATABASE_URL` apunte a la base descartable correcta antes de ejecutarlo.
 
 ## Controles obligatorios antes de producción
 
