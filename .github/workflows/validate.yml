@@ -198,6 +198,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Verify PostgreSQL backup and restore in an isolated database
         run: bash scripts/backup-restore-check.sh
+      - name: Assert PostgreSQL integration tests are enabled
+        run: |
+          test "$IKIGAI_INTEGRATION_TESTS" = "1"
+          test -n "$DATABASE_URL"
       - name: Run API, domain, and PostgreSQL integration tests
         run: npm test
       - name: Build API
