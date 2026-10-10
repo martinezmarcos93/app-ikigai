@@ -549,12 +549,12 @@
       const timeLabel = `${startsAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}–${endsAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`;
       const booked = ["confirmed", "waitlist"].includes(session.my_booking_status);
       const status = session.status === "completed" ? "Finalizada"
-        : session.my_booking_status === "confirmed" ? "Reservada"
-        : session.my_booking_status === "waitlist" ? "Lista de espera"
+        : session.my_booking_status === "confirmed" ? (future && !bookingOpen ? "Reservada · cancelación cerrada" : "Reservada")
+        : session.my_booking_status === "waitlist" ? (future && !bookingOpen ? "En espera · cancelación cerrada" : "Lista de espera")
         : future && !bookingOpen ? "Reservas cerradas"
         : session.confirmed_count >= session.capacity ? "Cupo completo" : "Disponible";
       let action = "";
-      if (isMemberUser && future && booked) {
+      if (isMemberUser && future && booked && bookingOpen) {
         action = `<button class="button ghost small" type="button" data-action="cancel-booking" data-id="${esc(session.id)}">Cancelar reserva</button>`;
       } else if (isMemberUser && future && bookingOpen && session.status === "scheduled") {
         action = `<button class="button primary small" type="button" data-action="create-booking" data-id="${esc(session.id)}">${session.confirmed_count >= session.capacity ? "Anotarme en espera" : "Reservar clase"}</button>`;
