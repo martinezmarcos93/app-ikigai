@@ -79,3 +79,12 @@ test("agenda UI reflects the server booking cutoff before offering reservations"
   assert.match(portal, /Reservas cerradas/);
   assert.match(portal, /future && bookingOpen && session\.status === "scheduled"/);
 });
+
+
+test("agenda API supplies authoritative time for booking cutoff decisions", async () => {
+  const bookings = await readRoot("server/src/routes/bookings.ts");
+  const portal = await readRoot("portal.js");
+  assert.match(bookings, /clock_timestamp\(\) AS server_now/);
+  assert.match(portal, /Date\.parse\(session\.server_now\)/);
+  assert.match(portal, /en espera/);
+});
