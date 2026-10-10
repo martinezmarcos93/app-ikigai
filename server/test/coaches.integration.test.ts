@@ -2,7 +2,7 @@ import test from "node:test";
 import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { Database, QueryResult } from "../src/db.js";
+import type { Database, QueryResult, TransactionalDatabase } from "../src/db.js";
 import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 
@@ -13,7 +13,7 @@ const token = "test-session-token-coaches";
 const tokenHash = createHash("sha256").update(token).digest("hex");
 const origin = "https://app.example.com";
 
-class CoachesDatabase implements Database {
+class CoachesDatabase implements TransactionalDatabase {
   constructor(
     readonly roles: string[],
     readonly ownCoachId: string | null = null
@@ -50,6 +50,10 @@ class CoachesDatabase implements Database {
     }
     return { rows: rows as Row[], rowCount: rows.length };
   }
+
+  async transaction<T>(work: (transaction: Database) => Promise<T>): Promise<T> {
+    return work(this);
+  }
 }
 
 async function setup(t: TestContext, db: CoachesDatabase) {
@@ -57,7 +61,7 @@ async function setup(t: TestContext, db: CoachesDatabase) {
     NODE_ENV: "test",
     CORS_ORIGINS: origin,
     SESSION_SECRET: "test-session-secret-with-more-than-32-characters"
-  }), { db });
+  }), { db, transactionalDb: db });
   t.after(() => app.close());
   return app;
 }
