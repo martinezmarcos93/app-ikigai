@@ -30,6 +30,8 @@ assert.match(app, /removeItem\(LEGACY_STORAGE_KEY\)/);
 assert.doesNotMatch(app, /Lucía Fernández|Agustín Navarro|Nicolás Sosa|Florencia Díaz|[a-z.]+@mail\.com/);
 assert.match(portal, /Preparar Ikigai para empezar/);
 assert.match(portal, /Promise\.allSettled\(/);
+assert.match(portal, /api\.getMember\(state\.user\.memberId\)/);
+assert.match(portal, /Algunas secciones no están disponibles/);
 assert.match(portal, /sessionError\.reason/);
 assert.match(portal, /No disponible/);
 assert.match(portal, /no se muestra una lista de configuración incompleta/i);
