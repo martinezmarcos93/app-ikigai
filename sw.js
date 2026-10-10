@@ -13,7 +13,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   // Never cache API responses: they may contain authenticated personal or financial data.
-  if (url.pathname === '/api' || url.pathname.startsWith('/api/')) return;
+  if (/(^|\\/)api(?:\\/|$)/.test(url.pathname)) return;
   if (url.pathname.endsWith('/demo.html') || url.pathname.endsWith('/app.js') || url.pathname.endsWith('/styles.css')) return;
   if (request.cache === 'no-store') return;
   event.respondWith(
