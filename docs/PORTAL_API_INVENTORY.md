@@ -1,7 +1,7 @@
 # Inventario de integración portal/API — Fase 4
 
 **Estado:** barrido inicial documentado; no equivale a aceptación funcional ni a aprobación de seguridad.  
-**Rama de trabajo:** `feat/phase-4-api-integration`  
+**Rama de trabajo:** `feat/phase-3-closeout-phase-4-integration`  
 **Fuente de verdad:** el portal conectado consulta la API; la demo `index.html` continúa siendo local y usa `localStorage`.
 
 ## Estados
@@ -37,13 +37,25 @@
 - Las vistas deben distinguir carga, estado vacío, falta de permisos, sesión vencida y error de red/servidor. No conservar como “actualizados” datos antiguos tras fallar una escritura.
 - No se debe cambiar el contrato de respuesta del servidor desde el frontend por conveniencia. Si un endpoint no cumple el contrato esperado, corregirlo con pruebas del lado API.
 
+## Avance de este barrido
+
+Se añadieron tres contratos automatizados en `scripts/test-api-client.mjs`:
+
+- Una respuesta `401` limpia el usuario y el token CSRF en memoria; la siguiente escritura no reutiliza el token anterior.
+- `logout()` limpia la identidad local y el CSRF incluso si la API responde con error.
+- Las respuestas de error no JSON se normalizan sin exponer el texto crudo del servidor.
+
+**Estado de ejecución:** añadidos al workflow, pero todavía no validados por CI en este barrido. GitHub Actions había fallado antes de asignar runner; no se considera que estos tests hayan pasado hasta ver sus pasos ejecutados.
+
 ## Prioridades del siguiente barrido
 
-1. Completar la comprobación del resto de formularios y contrastar el inventario con pruebas ejecutadas.
-2. Endurecer y probar la capa cliente común, incluidos parámetros de paginación y errores.
-3. Corregir discrepancias entre navegación, permisos de UX y renderizadores.
-4. Añadir pruebas de contrato para los flujos ya conectados, comenzando por sesión, miembros y servicios.
-5. Incorporar progresivamente los flujos restantes sólo cuando existan endpoints y pruebas de autorización verificables.
+1. Recuperar una ejecución completa de GitHub Actions y ejecutar los nuevos contratos.
+2. Completar contratos de sesión, miembros, servicios y estados HTTP 401/403/404/5xx.
+3. Validar con navegador la primera sesión, dashboard vacío, paginación y persistencia después de recargar.
+4. Validar configuración institucional y vínculo de roles múltiples contra PostgreSQL.
+5. Completar la UI de asistencia y conectar agenda/reservas sólo cuando los contratos y permisos estén verificados.
+6. Corregir discrepancias entre navegación, permisos de UX y renderizadores.
+7. Incorporar los flujos restantes sin mezclar el estado de la demo.
 
 ## Evidencia y límites
 
