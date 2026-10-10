@@ -40,6 +40,11 @@ assert.match(portal, /session\.my_booking_id/);
 assert.match(portal, /data-action="cancel-booking" data-id="\$\{esc\(session\.my_booking_id\)\}"/);
 assert.match(portal, /data-action="create-booking"/);
 assert.match(portal, /data-action="session-attendance"/);
+assert.match(portal, /option value="true"/);
+assert.match(portal, /option value="false"/);
+assert.match(portal, /input.value === "true" \\|\\| input.value === "false"/);
+assert.match(portal, /selectField\\("Dirección \\(solo para ajustes\\)"/);
+assert.match(portal, /payload.direction = direction/);
 
 assert.match(portal, /no se muestra una lista de configuración incompleta/i);
 assert.match(portal, /data-view="services"/);
