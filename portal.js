@@ -544,15 +544,17 @@
       const startsAt = new Date(session.starts_at);
       const endsAt = new Date(session.ends_at);
       const future = startsAt.getTime() > now;
+      const bookingOpen = startsAt.getTime() - now > 40 * 60 * 1000;
       const booked = ["confirmed", "waitlist"].includes(session.my_booking_status);
       const status = session.status === "completed" ? "Finalizada"
         : session.my_booking_status === "confirmed" ? "Reservada"
         : session.my_booking_status === "waitlist" ? "Lista de espera"
+        : future && !bookingOpen ? "Reservas cerradas"
         : session.confirmed_count >= session.capacity ? "Cupo completo" : "Disponible";
       let action = "";
       if (isMemberUser && future && booked) {
         action = `<button class="button ghost small" type="button" data-action="cancel-booking" data-id="${esc(session.id)}">Cancelar reserva</button>`;
-      } else if (isMemberUser && future && session.status === "scheduled") {
+      } else if (isMemberUser && future && bookingOpen && session.status === "scheduled") {
         action = `<button class="button primary small" type="button" data-action="create-booking" data-id="${esc(session.id)}">${session.confirmed_count >= session.capacity ? "Anotarme en espera" : "Reservar clase"}</button>`;
       }
       if (canTakeAttendance && !future && session.status !== "cancelled") {
