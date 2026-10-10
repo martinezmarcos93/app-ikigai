@@ -25,7 +25,7 @@
 | Invitaciones / accesos | Parcial | Crear invitación y mostrar token una sola vez; el backend también expone revocar, reenviar y restablecer acceso | Verificar qué acciones tienen UI y cubrir expiración, revocación y entrega segura; no persistir el token en almacenamiento local |
 | Mi rutina | Conectado en lectura | El portal consulta asignaciones del miembro y muestra ejercicios/versión | Añadir pruebas de contrato y revisar estados de error/ausencia de asignaciones |
 | Asistencia | Parcial | El miembro puede consultar su historial; el cliente también expone escritura de asistencia por instancia | La UI de administración/profesor para seleccionar clase y corregir asistencia no está conectada; probar historial propio y permisos |
-| Agenda / reservas / lista de espera | Pendiente en el portal conectado | La demo local tiene vistas, pero no deben confundirse con datos persistidos por la API | Integración posterior a confirmar contratos y estado de agenda; no simular persistencia |
+| Agenda / reservas / lista de espera | Parcial en cliente; UI conectada pendiente | El cliente expone creación y cancelación de reserva con CSRF, rutas codificadas y `no-store`; el backend implementa reglas de cupo, corte de 40 minutos y promoción de lista de espera | Falta API de lectura/administración de instancias de agenda y UI conectada; no simular persistencia ni inventar rutas sin modelo/backend |
 | Avisos y notificaciones | Pendiente | Sin flujo de entrega validado en el portal | Definir proveedor, consentimiento y operación antes de habilitar |
 | Demo local `index.html` | Local por diseño | Usa `localStorage` y datos demostrativos | Mantener separada del portal; nunca indicar que sus cambios se sincronizaron con la API |
 
@@ -39,24 +39,12 @@
 
 ## Avance de este barrido
 
-Se añadieron tres contratos automatizados en `scripts/test-api-client.mjs`:
+En la rama `feat/phase-3-closeout-phase-4-integration`:
 
-- Una respuesta `401` limpia el usuario y el token CSRF en memoria; la siguiente escritura no reutiliza el token anterior.
-- `logout()` limpia la identidad local y el CSRF incluso si la API responde con error.
-- Las respuestas de error no JSON se normalizan sin exponer el texto crudo del servidor.
+- Se añadieron cinco contratos automatizados en `scripts/test-api-client.mjs`: sesión expirada/limpieza de CSRF, limpieza al fallar logout, normalización de error no JSON, métodos de servicios/ajustes institucionales y contratos de servicios/configuración institucional.
+- Se añadió un sexto contrato que comprueba creación y cancelación de reservas con método, ruta codificada, CSRF y `cache: no-store`.
+- `api-client.js` expone ahora `createBooking(sessionId)` y `cancelBooking(bookingId)` conforme a las rutas reales registradas en `server/src/routes/bookings.ts`. Esto no significa que la agenda esté integrada de extremo a extremo: falta lectura/gestión de instancias y UI.
+- Se creó `docs/CLAUDE_CODE_PHASES_4_5_6_HANDOFF.md` con un plan de implementación ejecutable para Claude Code, cubriendo integración portal/API, reservas/asistencia/finanzas, PWA Android y gates de seguridad/preproducción.
+- Se actualizó la hoja de ruta con el estado de seguridad/CI y se mantiene el bloqueo de validación externa.
 
-**Estado de ejecución:** añadidos al workflow, pero todavía no validados por CI en este barrido. GitHub Actions había fallado antes de asignar runner; no se considera que estos tests hayan pasado hasta ver sus pasos ejecutados.
-
-## Prioridades del siguiente barrido
-
-1. Recuperar una ejecución completa de GitHub Actions y ejecutar los nuevos contratos.
-2. Completar contratos de sesión, miembros, servicios y estados HTTP 401/403/404/5xx.
-3. Validar con navegador la primera sesión, dashboard vacío, paginación y persistencia después de recargar.
-4. Validar configuración institucional y vínculo de roles múltiples contra PostgreSQL.
-5. Completar la UI de asistencia y conectar agenda/reservas sólo cuando los contratos y permisos estén verificados.
-6. Corregir discrepancias entre navegación, permisos de UX y renderizadores.
-7. Incorporar los flujos restantes sin mezclar el estado de la demo.
-
-## Evidencia y límites
-
-Este documento se basa en la lectura estática de `portal.html`, `portal.js`, `api-client.js`, los contratos documentados en `server/README.md` y los esquemas visibles de las rutas. No afirma que el portal se haya ejecutado en un navegador ni que los tests de API/CI estén verdes. Antes de usar datos reales siguen siendo obligatorias la validación de seguridad independiente, la ejecución del pipeline y las pruebas con una base descartable.
+**Estado de ejecución:** los contratos añadidos todavía requieren ejecución local/CI. No se declara que hayan pasado. Las corridas anteriores de GitHub Actions no llegaron a asignar runner, por lo que no constituyen evidencia de que el código haya fallado ni de que haya pasado.
