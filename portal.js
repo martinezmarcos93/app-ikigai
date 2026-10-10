@@ -220,24 +220,35 @@
         ${results.some(result => result.status === "rejected") ? '<p class="footer-note" role="status">Algunas secciones no están disponibles. Los datos visibles corresponden sólo a las consultas que respondieron correctamente.</p>' : ""}
         <p class="footer-note">Los indicadores se consultan al servidor. Esta pantalla no lee ni modifica el localStorage de la demo anterior.</p>`;
     } else if (isMember() && state.user.memberId) {
-      const [profile, memberships, ledger] = await Promise.all([
+      const results = await Promise.allSettled([
         api.getMember(state.user.memberId),
         api.listMemberships(state.user.memberId),
         api.listLedger(state.user.memberId)
       ]);
+      const sessionError = results.find(result => result.status === "rejected" && result.reason?.status === 401);
+      if (sessionError) throw sessionError.reason;
+      const [profileResult, membershipsResult, ledgerResult] = results;
+      const profileOk = profileResult.status === "fulfilled";
+      const membershipsOk = membershipsResult.status === "fulfilled";
+      const ledgerOk = ledgerResult.status === "fulfilled";
+      const profile = profileOk ? profileResult.value.member : null;
+      const memberships = membershipsOk ? membershipsResult.value.memberships : [];
+      const ledger = ledgerOk ? ledgerResult.value : null;
       $("#pageContent").innerHTML = `
         <div class="stats-grid">
-          <div class="stat-card"><small>Estado de cuenta</small><strong>${money(ledger.balance)}</strong></div>
-          <div class="stat-card"><small>Membresías</small><strong>${memberships.memberships.length}</strong></div>
-          <div class="stat-card"><small>Estado del perfil</small><strong>${esc(labels[profile.member.status] || profile.member.status)}</strong></div>
+          <div class="stat-card"><small>Estado de cuenta</small><strong>${ledgerOk ? money(ledger.balance) : "No disponible"}</strong>${ledgerOk ? "" : '<small class="muted">No se pudo consultar</small>'}</div>
+          <div class="stat-card"><small>Membresías</small><strong>${membershipsOk ? memberships.length : "No disponible"}</strong>${membershipsOk ? "" : '<small class="muted">No se pudo consultar</small>'}</div>
+          <div class="stat-card"><small>Estado del perfil</small><strong>${profileOk ? esc(labels[profile.status] || profile.status) : "No disponible"}</strong>${profileOk ? "" : '<small class="muted">No se pudo consultar</small>'}</div>
         </div>
         <section class="panel"><h2 class="section-title">Mi perfil</h2>
-        ${table(["Dato","Información"],[
-          row(["Nombre",esc(profile.member.full_name)]),
-          row(["Correo",esc(profile.member.email || "—")]),
-          row(["Teléfono",esc(profile.member.phone || "—")]),
-          row(["Dirección",esc(profile.member.address || "—")])
-        ])}</section><p class="footer-note">Tu cuenta muestra exclusivamente información asociada a tu perfil.</p>`;
+        ${profileOk ? table(["Dato","Información"],[
+          row(["Nombre",esc(profile.full_name)]),
+          row(["Correo",esc(profile.email || "—")]),
+          row(["Teléfono",esc(profile.phone || "—")]),
+          row(["Dirección",esc(profile.address || "—")])
+        ]) : empty("No se pudo consultar el perfil. Volvé a intentar.")}</section>
+        ${results.some(result => result.status === "rejected") ? '<p class="footer-note" role="status">Algunas secciones no están disponibles. Los datos visibles corresponden sólo a las consultas que respondieron correctamente.</p>' : ""}
+        <p class="footer-note">Tu cuenta muestra exclusivamente información asociada a tu perfil.</p>`; 
     } else if (isCoach() && state.user.coachId) {
       const result = await api.getCoachObligations(state.user.coachId, month());
       $("#pageContent").innerHTML = `
