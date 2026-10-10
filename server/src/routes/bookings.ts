@@ -135,6 +135,7 @@ export function registerBookingRoutes(
       const [rows, count] = await Promise.all([
         db.query(
           `SELECT cs.id, cs.starts_at, cs.ends_at, cs.status,
+                  clock_timestamp() AS server_now,
                   cs.capacity_snapshot AS capacity,
                   s.id AS service_id, s.name AS service_name,
                   cp.id AS coach_id, cp.full_name AS coach_name,
