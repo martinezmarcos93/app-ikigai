@@ -109,4 +109,74 @@ test("financial idempotency key is stable for an unchanged retry and rotates whe
   assert.notEqual(first, separate);
 });
 
+
+test("expired sessions clear the cached user and CSRF token before later writes", async () => {
+  const calls = [];
+  let expired = false;
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-before-expiry",
+        user: { id: "user-test", roles: ["admin"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (expired) {
+      return new Response(JSON.stringify({
+        error: "unauthenticated",
+        message: "A valid session is required."
+      }), { status: 401, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  });
+
+  await api.login("admin@example.com", "fictional-password");
+  assert.equal(api.user.id, "user-test");
+  expired = true;
+  await assert.rejects(api.listMembers(25, 0), error => error.status === 401);
+  assert.equal(api.user, null);
+  expired = false;
+  await api.createMember({ full_name: "Persona ficticia" });
+  assert.equal(calls.at(-1).options.headers["X-CSRF-Token"], undefined);
+});
+
+test("logout clears local identity and CSRF state even when the API request fails", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-logout-test",
+        user: { id: "user-test", roles: ["admin"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      error: "network_unavailable",
+      message: "Logout could not reach the server."
+    }), { status: 503, headers: { "content-type": "application/json" } });
+  });
+
+  await api.login("admin@example.com", "fictional-password");
+  await assert.rejects(api.logout(), error => error.status === 503);
+  assert.equal(api.user, null);
+  assert.equal(calls.at(-1).options.headers["X-CSRF-Token"], "csrf-logout-test");
+});
+
+test("non-JSON API errors are normalized without leaking raw response text", async () => {
+  const api = loadClient(async () => new Response("internal stack trace and secrets", {
+    status: 500,
+    headers: { "content-type": "text/plain" }
+  }));
+
+  await assert.rejects(api.listMembers(25, 0), error => {
+    assert.equal(error.status, 500);
+    assert.equal(error.code, "api_error");
+    assert.equal(error.message, "La API devolvió una respuesta no válida.");
+    assert.equal(JSON.stringify(error).includes("internal stack trace"), false);
+    return true;
+  });
+});
+
 console.log("Portal API client contract checks loaded.");
