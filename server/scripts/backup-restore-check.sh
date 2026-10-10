@@ -1,7 +1,33 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${DATABASE_URL:?DATABASE_URL must point to a disposable PostgreSQL database}"
+: "${DATABASE_URL:?DATABASE_URL must point to a disposable local PostgreSQL database}"
+
+# This check must run before invoking any PostgreSQL client or creating temporary files.
+# The script writes a marker row and creates/drops a database, so remote hosts are forbidden.
+node --input-type=module - "$DATABASE_URL" <<'NODE'
+const raw = process.argv[2];
+let url;
+try {
+  url = new URL(raw);
+} catch {
+  console.error("DATABASE_URL must be a valid PostgreSQL URL.");
+  process.exit(1);
+}
+if (!["postgres:", "postgresql:"].includes(url.protocol)) {
+  console.error("DATABASE_URL must use the postgres:// or postgresql:// scheme.");
+  process.exit(1);
+}
+if (!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) {
+  console.error("Backup/restore check refuses non-local PostgreSQL hosts.");
+  process.exit(1);
+}
+if (!url.pathname || url.pathname === "/") {
+  console.error("DATABASE_URL must include a database name.");
+  process.exit(1);
+}
+NODE
+
 command -v pg_dump >/dev/null || { echo "pg_dump is required" >&2; exit 1; }
 command -v pg_restore >/dev/null || { echo "pg_restore is required" >&2; exit 1; }
 command -v psql >/dev/null || { echo "psql is required" >&2; exit 1; }
