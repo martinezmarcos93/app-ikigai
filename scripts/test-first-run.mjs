@@ -13,6 +13,7 @@ const [index, demo, app, portal, portalHtml, sw, manifestText, setupGuide] = awa
   read("docs/INITIAL_SETUP.md")
 ]);
 const manifest = JSON.parse(manifestText);
+const bookingRoutes = await read("server/src/routes/bookings.ts");
 
 assert.match(index, /url=\.\/portal\.html/);
 assert.equal(manifest.start_url, "./portal.html");
@@ -34,6 +35,7 @@ assert.match(portal, /api\.getMember\(state\.user\.memberId\)/);
 assert.match(portal, /Algunas secciones no están disponibles/);
 assert.match(portal, /sessionError\.reason/);
 assert.match(portal, /No disponible/);
+assert.match(bookingRoutes, /mine\.id AS my_booking_id/);
 assert.match(portal, /session\.my_booking_id/);
 assert.match(portal, /data-action="cancel-booking" data-id="\$\{esc\(session\.my_booking_id\)\}"/);
 assert.match(portal, /data-action="create-booking"/);
