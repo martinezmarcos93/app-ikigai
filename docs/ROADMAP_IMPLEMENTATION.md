@@ -160,3 +160,8 @@ El plan detallado y ejecutable para Claude Code está en [`docs/CLAUDE_CODE_PHAS
 **Avance remoto de esta rama:** se añadieron contratos de API cliente y los métodos `createBooking` / `cancelBooking` según las rutas existentes del backend. El cliente ya puede expresar ambas operaciones, pero el flujo de agenda no está completo porque aún falta la lectura/gestión de instancias y la UI conectada. Las pruebas escritas no equivalen a pruebas ejecutadas.
 
 **No marcar fases como cerradas** hasta contar con pruebas reales ejecutadas, aceptación por rol, pruebas de autorización negativa, validación móvil y cierre de los bloqueos de seguridad/operación aplicables. Si la infraestructura CI sigue sin asignar runner, Claude Code debe ejecutar localmente los scripts disponibles y documentar el resultado exacto, sin borrar el bloqueo de CI externo.
+
+
+## Barrido remoto — agenda/API (2026-10-10)
+
+En la rama `feat/phase-4-schedule-api-sweep` se añade `GET /api/v1/class-sessions` con filtros temporales acotados, paginación y alcance de profesor, junto con `IkigaiApi.listClassSessions()` y pruebas de contrato del cliente. La UI todavía no consume este endpoint. La validación se mantiene pendiente hasta ejecutar typecheck, pruebas, build y migraciones PostgreSQL en un runner disponible; el estado fallido sin pasos/logs de GitHub Actions no se interpreta como fallo funcional confirmado.

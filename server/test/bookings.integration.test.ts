@@ -54,6 +54,39 @@ async function createActor(pool: pg.Pool, name: string, role: "member" | "admin"
   };
 }
 
+interface TestCoachActor {
+  userId: string;
+  coachId: string;
+  token: string;
+  csrfToken: string;
+}
+
+async function createCoachActor(pool: pg.Pool, name: string): Promise<TestCoachActor> {
+  const email = `it-coach-${randomUUID()}@example.test`;
+  const insertedUser = await pool.query(
+    `INSERT INTO users (email, password_hash, auth_provider, status)
+     VALUES ($1, $2, 'local', 'active')
+     RETURNING id`,
+    [email, "integration-test-placeholder-hash"]
+  );
+  const userId = insertedUser.rows[0]?.id as string;
+  await pool.query("INSERT INTO user_roles (user_id, role) VALUES ($1, 'coach')", [userId]);
+  const insertedCoach = await pool.query(
+    `INSERT INTO coach_profiles (user_id, full_name, discipline, active)
+     VALUES ($1, $2, 'Test', true)
+     RETURNING id`,
+    [userId, name]
+  );
+  const coachId = insertedCoach.rows[0]?.id as string;
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  await pool.query(
+    "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+    [userId, tokenHash, new Date(Date.now() + 60 * 60 * 1000).toISOString()]
+  );
+  return { userId, coachId, token, csrfToken: csrfTokenFor(token, config.sessionSecret) };
+}
+
 async function createSession(pool: pg.Pool, templateId: string, startOffsetMinutes: number): Promise<string> {
   const startsAt = new Date(Date.now() + startOffsetMinutes * 60_000);
   const endsAt = new Date(startsAt.getTime() + 60 * 60_000);
@@ -105,6 +138,71 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   const nearSessionId = await createSession(pool, templateId, 30);
   const first = await createActor(pool, `Integration Member A ${suffix}`);
   const second = await createActor(pool, `Integration Member B ${suffix}`);
+
+  const scopedCoach = await createCoachActor(pool, `Scoped Coach ${suffix}`);
+  const scopedTemplate = await pool.query(
+    `INSERT INTO class_templates
+       (service_id, coach_id, weekday, local_start_time, duration_minutes, capacity, active)
+     VALUES ($1, $2, $3, '19:00', 60, 5, true)
+     RETURNING id`,
+    [serviceId, scopedCoach.coachId, new Date().getUTCDay()]
+  );
+  const scopedSessionId = await createSession(pool, String(scopedTemplate.rows[0]?.id), 240);
+
+  const agendaFrom = new Date(Date.now() - 60 * 60_000).toISOString();
+  const agendaTo = new Date(Date.now() + 6 * 60 * 60_000).toISOString();
+  const agenda = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaFrom)}&to=${encodeURIComponent(agendaTo)}&limit=25&offset=0`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(agenda.statusCode, 200);
+
+  const unauthenticatedAgenda = await app.inject({
+    method: "GET",
+    url: "/api/v1/class-sessions"
+  });
+  assert.equal(unauthenticatedAgenda.statusCode, 401);
+
+  const invalidAgendaPagination = await app.inject({
+    method: "GET",
+    url: "/api/v1/class-sessions?limit=101",
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(invalidAgendaPagination.statusCode, 400);
+  assert.ok(agenda.json().items.some((item: { id: string }) => item.id === futureSessionId));
+  const listedFuture = agenda.json().items.find((item: { id: string }) => item.id === futureSessionId);
+  assert.equal(listedFuture.capacity, 1);
+  assert.equal(listedFuture.confirmed_count, 0);
+  assert.equal(listedFuture.my_booking_status, null);
+  assert.ok(Number.isFinite(Date.parse(listedFuture.server_now)));
+  assert.equal(agenda.json().limit, 25);
+  assert.ok(agenda.json().total >= 2);
+
+  const coachAgenda = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaFrom)}&to=${encodeURIComponent(agendaTo)}`,
+    headers: { cookie: `ikigai_session=${scopedCoach.token}` }
+  });
+  assert.equal(coachAgenda.statusCode, 200);
+  assert.ok(coachAgenda.json().items.some((item: { id: string }) => item.id === scopedSessionId));
+  assert.ok(coachAgenda.json().items.every((item: { coach_id: string }) => item.coach_id === scopedCoach.coachId));
+
+  const invertedAgenda = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaTo)}&to=${encodeURIComponent(agendaFrom)}`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(invertedAgenda.statusCode, 400);
+  assert.equal(invertedAgenda.json().error, "invalid_date_range");
+
+  const oversizedAgenda = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaFrom)}&to=${encodeURIComponent(new Date(Date.now() + 91 * 24 * 60 * 60_000).toISOString())}`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(oversizedAgenda.statusCode, 400);
+  assert.equal(oversizedAgenda.json().error, "date_range_too_large");
 
   const profilePatch = await app.inject({
     method: "PATCH",
@@ -682,6 +780,16 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
     [firstBooking.status, secondBooking.status].sort(),
     ["confirmed", "waitlist"]
   );
+
+  const agendaAfterBooking = await app.inject({
+    method: "GET",
+    url: `/api/v1/class-sessions?from=${encodeURIComponent(agendaFrom)}&to=${encodeURIComponent(agendaTo)}`,
+    headers: { cookie: `ikigai_session=${first.token}` }
+  });
+  assert.equal(agendaAfterBooking.statusCode, 200);
+  const listedAfterBooking = agendaAfterBooking.json().items.find((item: { id: string }) => item.id === futureSessionId);
+  assert.equal(listedAfterBooking.my_booking_status, firstBooking.status === "confirmed" || firstBooking.status === "waitlist" ? firstBooking.status : null);
+  assert.equal(listedAfterBooking.confirmed_count, 1);
 
   const duplicateActor = firstBooking.status === "confirmed" ? first : second;
   const duplicate = await book(duplicateActor, futureSessionId);

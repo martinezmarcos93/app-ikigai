@@ -153,3 +153,16 @@ td strong { display:block; }
 .setup-state { display: inline-block; padding: 3px 8px; border-radius: 20px; background: #352719; color: #ffdaaa; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; }
 .setup-state.is-done { background: #183323; color: #bff2d0; }
 @media (max-width: 900px) { .setup-grid { grid-template-columns: 1fr; } .setup-item p { min-height: 0; } }
+
+
+/* Agenda and attendance states — retain the approved Ikigai dark/red identity. */
+.attendance-list { display: grid; gap: 8px; margin: 18px 0; }
+.attendance-entry { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--ikigai-surface, #080808); cursor: pointer; }
+.attendance-entry input { width: 20px; height: 20px; accent-color: var(--ikigai-red, #d51f2a); flex: 0 0 auto; }
+.attendance-entry span { display: grid; gap: 3px; }
+.attendance-entry small { color: var(--muted); font-size: 12px; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+@media (max-width: 640px) {
+  .attendance-entry { min-height: 48px; }
+  .form-actions .button { flex: 1 1 100%; }
+}

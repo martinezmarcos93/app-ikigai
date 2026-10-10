@@ -1,7 +1,8 @@
 # Handoff ejecutable para Claude Code — Fases 4, 5 y 6
 
 **Repositorio:** `martinezmarcos93/app-ikigai`  
-**Rama de trabajo actual:** `feat/phase-3-closeout-phase-4-integration`  
+**Rama base estable:** `main`  
+**Barrido remoto actual:** `feat/phase-4-schedule-api-sweep`  
 **Base funcional:** `main`; no integrar ramas antiguas divergentes completas.  
 **Objetivo:** continuar en barridos amplios hasta agotar todo el trabajo que pueda resolverse sin acceso local, credenciales de terceros o validación en dispositivos físicos.  
 **Regla de evidencia:** distinguir código implementado, pruebas ejecutadas, aceptación manual y bloqueos externos. No declarar una fase cerrada por tener documentación o tests escritos.
@@ -72,7 +73,9 @@ Claude Code debe inspeccionar el árbol y el estado real del repositorio antes d
 
 ### Cierre de Fase 5
 - [ ] Todas las reglas anteriores tienen tests de integración de servidor con PostgreSQL descartable.
-- [ ] API y UI conectadas de extremo a extremo; ninguna acción crítica sólo modifica el estado local.
+- [x] API de lectura de agenda añadida en `GET /api/v1/class-sessions`, con ventana temporal acotada, paginación, rol autenticado y alcance de profesor; el contrato del cliente incorpora validación de fechas/paginación y `cache: no-store`. **Pendiente ejecutar CI e integración PostgreSQL.**
+- [x] Vista de agenda conectada al cliente real: lectura de clases, reservas/cancelaciones y toma de asistencia para administración/profesor; la asistencia se guarda en el backend auditado. **Pendiente ejecutar CI, probar por rol y validar errores/cupo en navegador.**
+- [ ] UI para crear/editar plantillas y generar instancias de clases; el portal consume las instancias existentes, pero no las administra.
 - [ ] Pruebas de concurrencia y autorización aprobadas.
 - [ ] Flujos críticos probados con usuarios ficticios de cada rol.
 
@@ -100,7 +103,7 @@ Claude Code debe inspeccionar el árbol y el estado real del repositorio antes d
 ## Seguridad / preproducción: gates transversales que siguen abiertos
 
 - [ ] Resolver la falla externa de asignación de runner en GitHub Actions; confirmar un run real con jobs/steps ejecutados y resultado verde.
-- [ ] Revisar cobertura completa de autorización negativa y aislamiento entre miembros/profesores.
+- [ ] Revisar cobertura completa de autorización negativa y aislamiento entre miembros/profesores. La lectura de agenda deniega explícitamente a un rol profesor sin perfil vinculado.
 - [ ] Obtener revisión de seguridad independiente y resolver hallazgos.
 - [ ] Ejecutar backup/restore en PostgreSQL descartable y conservar evidencia del resultado.
 - [ ] Definir y verificar política del proveedor de producción: frecuencia, retención, cifrado, permisos, alertas, RPO/RTO y prueba periódica de restauración.

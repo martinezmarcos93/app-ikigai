@@ -1,7 +1,7 @@
 # Inventario de integración portal/API — Fase 4
 
 **Estado:** barrido inicial documentado; no equivale a aceptación funcional ni a aprobación de seguridad.  
-**Rama de trabajo:** `feat/phase-3-closeout-phase-4-integration`  
+**Rama base:** `main`; **barrido actual:** `feat/phase-4-schedule-api-sweep`  
 **Fuente de verdad:** el portal conectado consulta la API; la demo `index.html` continúa siendo local y usa `localStorage`.
 
 ## Estados
@@ -25,7 +25,7 @@
 | Invitaciones / accesos | Parcial | Crear invitación y mostrar token una sola vez; el backend también expone revocar, reenviar y restablecer acceso | Verificar qué acciones tienen UI y cubrir expiración, revocación y entrega segura; no persistir el token en almacenamiento local |
 | Mi rutina | Conectado en lectura | El portal consulta asignaciones del miembro y muestra ejercicios/versión | Añadir pruebas de contrato y revisar estados de error/ausencia de asignaciones |
 | Asistencia | Parcial | El miembro puede consultar su historial; el cliente también expone escritura de asistencia por instancia | La UI de administración/profesor para seleccionar clase y corregir asistencia no está conectada; probar historial propio y permisos |
-| Agenda / reservas / lista de espera | Parcial en cliente; UI conectada pendiente | El cliente expone creación y cancelación de reserva con CSRF, rutas codificadas y `no-store`; el backend implementa reglas de cupo, corte de 40 minutos y promoción de lista de espera | Falta API de lectura/administración de instancias de agenda y UI conectada; no simular persistencia ni inventar rutas sin modelo/backend |
+| Agenda / reservas / lista de espera | API de lectura y UI conectadas parcialmente | `GET /api/v1/class-sessions` expone sesiones programadas por ventana temporal y paginación; incluye servicio, profesor, cupo, ocupación, lista de espera y estado de reserva propia; la lectura limita el rango a 90 días y aplica alcance de profesor | Ejecutar tests/typecheck/CI y pruebas PostgreSQL; probar por rol y estados de cupo/espera; falta UI para crear/editar plantillas/instancias; no simular persistencia |
 | Avisos y notificaciones | Pendiente | Sin flujo de entrega validado en el portal | Definir proveedor, consentimiento y operación antes de habilitar |
 | Demo local `index.html` | Local por diseño | Usa `localStorage` y datos demostrativos | Mantener separada del portal; nunca indicar que sus cambios se sincronizaron con la API |
 
@@ -50,3 +50,10 @@ En la rama `feat/phase-3-closeout-phase-4-integration`:
 - Se actualizó la hoja de ruta con el estado de seguridad/CI y se mantiene el bloqueo de validación externa.
 
 **Estado de ejecución:** los contratos añadidos todavía requieren ejecución local/CI. No se declara que hayan pasado. Las corridas anteriores de GitHub Actions no llegaron a asignar runner, por lo que no constituyen evidencia de que el código haya fallado ni de que haya pasado.
+
+
+## Actualización del barrido de agenda
+
+La rama `feat/phase-4-schedule-api-sweep` agrega la lectura real de sesiones de clase y el método `listClassSessions` al cliente. La API usa `cache: no-store`, devuelve total/paginación y limita consultas a una ventana de hasta 90 días. El rol profesor queda limitado a sus propias sesiones; administración y miembros con sesión válida pueden consultar la agenda programada. El cliente valida rangos de fechas y límites antes de enviar solicitudes.
+
+**No se considera validado todavía:** faltan typecheck, tests de integración contra PostgreSQL, CI con jobs/steps ejecutados y conexión de la vista del portal. El workflow más reciente sigue mostrando jobs fallidos sin pasos ni logs disponibles; eso no demuestra un fallo de código ni una aprobación.
