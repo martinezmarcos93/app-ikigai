@@ -71,3 +71,11 @@ test("agenda and attendance actions are connected to real API methods", async ()
   assert.match(bookings, /\/api\/v1\/class-sessions/);
   assert.match(attendance, /\/api\/v1\/class-sessions\/:id\/attendance/);
 });
+
+
+test("agenda UI reflects the server booking cutoff before offering reservations", async () => {
+  const portal = await readRoot("portal.js");
+  assert.match(portal, /40 \* 60 \* 1000/);
+  assert.match(portal, /Reservas cerradas/);
+  assert.match(portal, /future && bookingOpen && session\.status === "scheduled"/);
+});
