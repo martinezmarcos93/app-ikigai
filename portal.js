@@ -532,6 +532,72 @@
     $("#pageContent").insertAdjacentHTML("beforeend",'<p class="footer-note">Las versiones históricas de una rutina se conservan; esta vista muestra la versión asignada a tu perfil.</p>');
   }
 
+  async function renderSchedule() {
+    setPage("Agenda de clases");
+    setLoading("Consultando agenda del servidor…");
+    const result = await api.listClassSessions();
+    const sessions = result.items || [];
+    const now = Date.now();
+    const isMemberUser = isMember() && Boolean(state.user.memberId);
+    const canTakeAttendance = isAdmin() || isCoach();
+    const rows = sessions.map(session => {
+      const startsAt = new Date(session.starts_at);
+      const endsAt = new Date(session.ends_at);
+      const future = startsAt.getTime() > now;
+      const booked = ["confirmed", "waitlist"].includes(session.my_booking_status);
+      const status = session.status === "completed" ? "Finalizada"
+        : session.my_booking_status === "confirmed" ? "Reservada"
+        : session.my_booking_status === "waitlist" ? "Lista de espera"
+        : session.confirmed_count >= session.capacity ? "Cupo completo" : "Disponible";
+      let action = "";
+      if (isMemberUser && future && booked) {
+        action = `<button class="button ghost small" type="button" data-action="cancel-booking" data-id="${esc(session.id)}">Cancelar reserva</button>`;
+      } else if (isMemberUser && future && session.status === "scheduled") {
+        action = `<button class="button primary small" type="button" data-action="create-booking" data-id="${esc(session.id)}">${session.confirmed_count >= session.capacity ? "Anotarme en espera" : "Reservar clase"}</button>`;
+      }
+      if (canTakeAttendance && !future && session.status !== "cancelled") {
+        action += ` <button class="button ghost small" type="button" data-action="session-attendance" data-id="${esc(session.id)}">Tomar asistencia</button>`;
+      }
+      return row([
+        esc(startsAt.toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })),
+        esc(session.service_name || "Clase"),
+        esc(session.coach_name || "Sin profesor"),
+        esc(`${session.confirmed_count}/${session.capacity}`),
+        esc(status),
+        action || '<span class="muted">—</span>'
+      ]);
+    });
+    $("#pageContent").innerHTML = `
+      <div class="page-heading"><div><p class="section-subtitle">Próximos 30 días y últimas clases</p></div>
+        <button class="button ghost small" type="button" data-action="refresh-schedule">Actualizar</button></div>
+      <section class="panel"><h2 class="section-title">Agenda</h2>
+        ${sessions.length ? table(["Fecha y hora","Servicio","Profesor","Cupo","Estado","Acción"], rows)
+          : empty("No hay clases dentro del período consultado.")}</section>
+      <p class="footer-note">Datos consultados en la API. Las reservas y cancelaciones se validan en el servidor; la lista de espera depende del cupo real al momento de la operación.</p>`;
+  }
+
+  async function renderSessionAttendance(sessionId) {
+    if (!(isAdmin() || isCoach())) throw new Error("Sólo administración o el profesor asignado pueden registrar asistencia.");
+    setPage("Tomar asistencia");
+    setLoading("Consultando lista de clase…");
+    const result = await api.getSessionAttendance(sessionId);
+    const records = result.records || [];
+    const fields = records.map(record => `
+      <label class="attendance-entry">
+        <input type="checkbox" data-booking-id="${esc(record.booking_id)}" ${record.attended === true ? "checked" : ""}>
+        <span><strong>${esc(record.member_name || "Miembro")}</strong><small>${record.attended === true ? "Presente" : record.attended === false ? "Ausente" : "Sin registrar"}</small></span>
+      </label>`).join("");
+    $("#pageContent").innerHTML = `
+      <section class="panel"><p class="section-subtitle">Los cambios quedan auditados en el servidor.</p>
+        <form data-form="record-attendance">
+          <input type="hidden" name="sessionId" value="${esc(sessionId)}">
+          <div class="attendance-list">${fields || '<p class="muted">No hay reservas confirmadas para esta clase.</p>'}</div>
+          <div class="form-actions"><button class="button primary" type="submit" ${records.length ? "" : "disabled"}>Guardar asistencia</button>
+          <button class="button ghost" type="button" data-action="refresh-schedule">Volver a agenda</button></div>
+        </form>
+      </section>`;
+  }
+
   async function renderAttendance() {
     if (!isMember() || !state.user.memberId) throw new Error("Esta sección es exclusiva del perfil de miembro.");
     setPage("Asistencia");
@@ -572,6 +638,7 @@
       else if (view === "accounts") await renderAccounts();
       else if (view === "my-routine") await renderMyRoutine();
       else if (view === "attendance") await renderAttendance();
+      else if (view === "schedule") await renderSchedule();
       else if (view === "coaches") await renderCoaches();
       else if (view === "invitations") await renderInvitations();
       else if (view === "institution-settings") await renderInstitutionSettings();
@@ -611,6 +678,18 @@
     }
     if (btn) { btn.disabled = true; btn.textContent = "Procesando…"; }
     try {
+      if (kind === "record-attendance") {
+        if (!(isAdmin() || isCoach())) throw new Error("Sólo administración o el profesor asignado pueden registrar asistencia.");
+        const records = Array.from(formNode.querySelectorAll("[data-booking-id]")).map(input => ({
+          bookingId: input.dataset.bookingId,
+          attended: input.checked
+        }));
+        if (!records.length) throw new Error("No hay reservas confirmadas para registrar.");
+        const result = await api.updateAttendance(v("sessionId"), records);
+        showNotice(`Asistencia guardada: ${result.created} nuevos, ${result.updated} corregidos y ${result.unchanged} sin cambios.`, "success");
+        await renderView("schedule");
+        return;
+      }
       if (kind === "select-member") {
         state.selectedMember = v("memberId");
         await renderView(state.currentView);
@@ -714,6 +793,22 @@
     const action = event.target.closest("[data-action]");
     if (!action) return;
     try {
+      if (action.dataset.action === "create-booking") {
+        await api.createBooking(action.dataset.id);
+        showNotice("Reserva procesada por el servidor.", "success");
+        await renderView("schedule");
+      }
+      else if (action.dataset.action === "cancel-booking") {
+        await api.cancelBooking(action.dataset.id);
+        showNotice("Reserva cancelada.", "success");
+        await renderView("schedule");
+      }
+      else if (action.dataset.action === "session-attendance") {
+        await renderSessionAttendance(action.dataset.id);
+      }
+      else if (action.dataset.action === "refresh-schedule") {
+        await renderView("schedule");
+      }
       if (action.dataset.action === "members-prev") {
         state.memberOffset = Math.max(0, state.memberOffset - state.memberPageSize);
         await renderView("members");
