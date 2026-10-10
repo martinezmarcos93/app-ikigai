@@ -237,7 +237,6 @@ test("institution settings contract sends an authenticated PATCH without caching
   assert.equal(JSON.parse(calls[2].options.body).institution_name, "Gimnasio ficticio");
 });
 
-console.log("Portal API client contract checks loaded.");
 
 
 test("booking creation and cancellation use the server contract with CSRF and no-store", async () => {
@@ -268,3 +267,5 @@ test("booking creation and cancellation use the server contract with CSRF and no
   assert.equal(calls[2].options.headers["X-CSRF-Token"], "csrf-booking-token");
   assert.equal(calls[2].options.cache, "no-store");
 });
+
+console.log("Portal API client contract checks loaded.");
