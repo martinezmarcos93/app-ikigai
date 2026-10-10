@@ -537,14 +537,16 @@
     setLoading("Consultando agenda del servidor…");
     const result = await api.listClassSessions();
     const sessions = result.items || [];
-    const now = Date.now();
     const isMemberUser = isMember() && Boolean(state.user.memberId);
     const canTakeAttendance = isAdmin() || isCoach();
     const rows = sessions.map(session => {
       const startsAt = new Date(session.starts_at);
       const endsAt = new Date(session.ends_at);
-      const future = startsAt.getTime() > now;
-      const bookingOpen = startsAt.getTime() - now > 40 * 60 * 1000;
+      const serverNow = Number.isFinite(Date.parse(session.server_now)) ? Date.parse(session.server_now) : Date.now();
+      const future = startsAt.getTime() > serverNow;
+      const bookingOpen = startsAt.getTime() - serverNow > 40 * 60 * 1000;
+      const dateLabel = startsAt.toLocaleDateString("es-AR", { dateStyle: "medium" });
+      const timeLabel = `${startsAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}–${endsAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`;
       const booked = ["confirmed", "waitlist"].includes(session.my_booking_status);
       const status = session.status === "completed" ? "Finalizada"
         : session.my_booking_status === "confirmed" ? "Reservada"
@@ -561,10 +563,10 @@
         action += ` <button class="button ghost small" type="button" data-action="session-attendance" data-id="${esc(session.id)}">Tomar asistencia</button>`;
       }
       return row([
-        esc(startsAt.toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })),
+        esc(`${dateLabel} · ${timeLabel}`),
         esc(session.service_name || "Clase"),
         esc(session.coach_name || "Sin profesor"),
-        esc(`${session.confirmed_count}/${session.capacity}`),
+        esc(`${session.confirmed_count}/${session.capacity}${session.waitlist_count > 0 ? ` · ${session.waitlist_count} en espera` : ""}`),
         esc(status),
         action || '<span class="muted">—</span>'
       ]);
