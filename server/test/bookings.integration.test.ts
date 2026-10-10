@@ -842,6 +842,7 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(agendaAfterBooking.statusCode, 200);
   const listedAfterBooking = agendaAfterBooking.json().items.find((item: { id: string }) => item.id === futureSessionId);
   assert.equal(listedAfterBooking.my_booking_status, firstBooking.status === "confirmed" || firstBooking.status === "waitlist" ? firstBooking.status : null);
+  assert.equal(listedAfterBooking.my_booking_id, firstBooking.id);
   assert.equal(listedAfterBooking.confirmed_count, 1);
 
   const duplicateActor = firstBooking.status === "confirmed" ? first : second;
