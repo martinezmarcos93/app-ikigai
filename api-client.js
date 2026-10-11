@@ -206,6 +206,30 @@
     },
     createBooking: sessionId => request(`/class-sessions/${id(sessionId)}/bookings`, { method: "POST", body: {} }),
     cancelBooking: bookingId => request(`/bookings/${id(bookingId)}/cancel`, { method: "POST", body: {} }),
+    listClassTemplates: (filters = {}) => {
+      const query = new URLSearchParams();
+      if (filters.active !== undefined) {
+        if (typeof filters.active !== "boolean") throw new ApiError(0, "invalid_filter", "El filtro de plantillas debe ser verdadero o falso.");
+        query.set("active", String(filters.active));
+      }
+      return request(`/class-templates${query.size ? `?${query.toString()}` : ""}`);
+    },
+    createClassTemplate: body => request("/class-templates", { method: "POST", body }),
+    updateClassTemplate: (templateId, body) => request(`/class-templates/${id(templateId)}`, { method: "PATCH", body }),
+    generateClassSessions: (fromDate, toDate) => {
+      const day = /^\d{4}-\d{2}-\d{2}$/;
+      if (!day.test(String(fromDate)) || !day.test(String(toDate)) || String(toDate) < String(fromDate)) {
+        throw new ApiError(0, "invalid_date_range", "Indicá fechas válidas (AAAA-MM-DD) con el fin igual o posterior al inicio.");
+      }
+      return request("/class-sessions/generate", { method: "POST", body: { from_date: fromDate, to_date: toDate } });
+    },
+    cancelClassSession: (sessionId, reason) =>
+      request(`/class-sessions/${id(sessionId)}/cancel`, { method: "POST", body: reason ? { reason } : {} }),
+    listTemplateAssignments: templateId => request(`/class-templates/${id(templateId)}/assignments`),
+    createTemplateAssignment: (templateId, body) =>
+      request(`/class-templates/${id(templateId)}/assignments`, { method: "POST", body }),
+    endRecurringAssignment: assignmentId =>
+      request(`/recurring-assignments/${id(assignmentId)}/end`, { method: "POST", body: {} }),
     getSessionAttendance: sessionId => request(`/class-sessions/${id(sessionId)}/attendance`),
     listAttendance: memberId => request(`/members/${id(memberId)}/attendance`),
     updateAttendance: (sessionId, records) => request(`/class-sessions/${id(sessionId)}/attendance`, { method: "PUT", body: { records } })

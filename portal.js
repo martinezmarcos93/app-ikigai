@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "schedule-templates":"Horarios y clases" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -563,6 +563,9 @@
       } else if (isMemberUser && future && bookingOpen && session.status === "scheduled") {
         action = `<button class="button primary small" type="button" data-action="create-booking" data-id="${esc(session.id)}">${session.confirmed_count >= session.capacity ? "Anotarme en espera" : "Reservar clase"}</button>`;
       }
+      if (isAdmin() && future && session.status === "scheduled") {
+        action += ` <button class="button ghost small" type="button" data-action="cancel-session" data-id="${esc(session.id)}">Cancelar clase</button>`;
+      }
       if (canTakeAttendance && !future && session.status !== "cancelled") {
         action += ` <button class="button ghost small" type="button" data-action="session-attendance" data-id="${esc(session.id)}">Tomar asistencia</button>`;
       }
@@ -582,6 +585,75 @@
         ${sessions.length ? table(["Fecha y hora","Servicio","Profesor","Cupo","Estado","Acción"], rows)
           : empty("No hay clases dentro del período consultado.")}</section>
       <p class="footer-note">Datos consultados en la API. Las reservas y cancelaciones se validan en el servidor; la lista de espera depende del cupo real al momento de la operación.</p>`;
+  }
+
+  const weekdayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const weekdayOptions = weekdayNames.map((name, index) => ({ value: String(index), label: name }));
+  const addDays = (iso, days) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+
+  async function renderScheduleTemplates() {
+    if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+    setPage("Horarios y clases");
+    setLoading("Consultando horarios del servidor…");
+    await Promise.all([loadServices(), loadCoaches(), loadMembers()]);
+    const result = await api.listClassTemplates();
+    const templates = result.templates || [];
+    const rows = templates.map(tpl => row([
+      esc(weekdayNames[tpl.weekday] || "—"),
+      esc(tpl.localStartTime),
+      esc(tpl.service.name),
+      esc(tpl.coach.name),
+      esc(`${tpl.durationMinutes} min`),
+      esc(String(tpl.capacity)),
+      statusBadge(tpl.active ? "active" : "suspended"),
+      `<button class="button small" type="button" data-action="template-assignments" data-id="${esc(tpl.id)}">Turnos fijos</button> `
+        + `<button class="button ghost small" type="button" data-action="toggle-template" data-id="${esc(tpl.id)}" data-active="${tpl.active ? "false" : "true"}">${tpl.active ? "Desactivar" : "Activar"}</button>`
+    ]));
+    const from = today();
+    $("#pageContent").innerHTML = `
+      <section class="panel"><h2 class="section-title">Plantillas semanales</h2>
+        ${templates.length ? table(["Día","Hora","Servicio","Profesor","Duración","Cupo","Estado","Acción"], rows)
+          : empty("Todavía no hay horarios. Creá la primera plantilla para poder generar clases.")}</section>
+      <div style="height:16px"></div>
+      ${state.services.length && state.coaches.length ? form("Nueva plantilla semanal", "create-template",
+        selectField("Servicio", "service_id", serviceOptions(), "", true)
+        + selectField("Profesor", "coach_id", coachOptions(), "", true)
+        + selectField("Día de la semana", "weekday", weekdayOptions, "1", true)
+        + field("Hora de inicio", "local_start_time", "time", { required: true, value: "19:00" })
+        + field("Duración (minutos)", "duration_minutes", "number", { required: true, min: 1, max: 480, value: 60 })
+        + field("Cupo", "capacity", "number", { required: true, min: 1, max: 30, value: 10 }),
+        "Crear plantilla", "La hora es la local del gimnasio. Cambiar una plantilla no modifica las clases ya generadas.")
+        : `<section class="panel">${empty("Para crear horarios primero tiene que haber al menos un servicio activo y un profesor activo.")}</section>`}
+      <div style="height:16px"></div>
+      ${form("Generar clases", "generate-sessions",
+        field("Desde", "from_date", "date", { required: true, value: from })
+        + field("Hasta", "to_date", "date", { required: true, value: addDays(from, 27) }),
+        "Generar clases", "Se crean las clases de las plantillas activas en ese período (hasta 90 días). Repetirlo no duplica nada y quienes tienen un turno fijo quedan reservados.")}
+      <div id="assignmentsMount" style="margin-top:16px"></div>`;
+  }
+
+  async function renderTemplateAssignments(templateId) {
+    const mount = $("#assignmentsMount");
+    if (!mount) return;
+    mount.innerHTML = `<div class="loading">Consultando turnos fijos…</div>`;
+    const result = await api.listTemplateAssignments(templateId);
+    const members = new Map(state.members.map(m => [m.id, m]));
+    const rows = (result.assignments || []).map(a => row([
+      esc(members.get(a.memberId)?.full_name || "Miembro"),
+      esc(date(a.startsOn)),
+      esc(a.endsOn ? date(a.endsOn) : "Sin fin"),
+      `<button class="button ghost small" type="button" data-action="end-assignment" data-id="${esc(a.id)}" data-template="${esc(templateId)}">Terminar turno</button>`
+    ]));
+    mount.innerHTML = `
+      <section class="panel"><h2 class="section-title">Turnos fijos de la clase</h2>
+        ${rows.length ? table(["Miembro","Desde","Hasta","Acción"], rows) : empty("Nadie tiene un turno fijo en esta clase.")}</section>
+      <div style="height:16px"></div>
+      ${form("Asignar turno fijo", "create-assignment",
+        `<input type="hidden" name="template_id" value="${esc(templateId)}">`
+        + selectField("Miembro", "member_id", memberOptions(), "", true)
+        + field("Desde", "starts_on", "date", { required: true, value: today() })
+        + field("Hasta (opcional)", "ends_on", "date"),
+        "Asignar turno fijo", "Al generar clases, el miembro se reserva solo en cada una; si el cupo está lleno queda en lista de espera.")}`;
   }
 
   async function renderSessionAttendance(sessionId) {
@@ -651,6 +723,7 @@
       else if (view === "my-routine") await renderMyRoutine();
       else if (view === "attendance") await renderAttendance();
       else if (view === "schedule") await renderSchedule();
+      else if (view === "schedule-templates") await renderScheduleTemplates();
       else if (view === "coaches") await renderCoaches();
       else if (view === "invitations") await renderInvitations();
       else if (view === "institution-settings") await renderInstitutionSettings();
@@ -668,6 +741,7 @@
     const optional = name => v(name) || undefined;
     const body = Object.fromEntries(new FormData(formNode).entries());
     const btn = formNode.querySelector('button[type="submit"]');
+    const originalLabel = btn ? btn.textContent : "Guardar";
     if (kind === "institution-settings") {
       if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
       if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
@@ -684,7 +758,7 @@
       } catch (error) {
         showError(error);
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = "Guardar configuración"; }
+        if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
       }
       return;
     }
@@ -697,8 +771,29 @@
           .map(input => ({ bookingId: input.dataset.bookingId, attended: input.value === "true" }));
         if (!records.length) throw new Error("Elegí Presente o Ausente para al menos una persona antes de guardar.");
         const result = await api.updateAttendance(v("sessionId"), records);
-        showNotice(`Asistencia guardada: ${result.created} nuevos, ${result.updated} corregidos y ${result.unchanged} sin cambios.`, "success");
         await renderView("schedule");
+        showNotice(`Asistencia guardada: ${result.created} nuevos, ${result.updated} corregidos y ${result.unchanged} sin cambios.`, "success");
+        return;
+      }
+      if (kind === "create-template") {
+        await api.createClassTemplate({
+          service_id: v("service_id"), coach_id: v("coach_id"), weekday: Number(v("weekday")),
+          local_start_time: v("local_start_time"), duration_minutes: Number(v("duration_minutes")), capacity: Number(v("capacity"))
+        });
+        await renderView("schedule-templates");
+        showNotice("Plantilla creada. Generá las clases para que aparezcan en la agenda.", "success");
+        return;
+      }
+      if (kind === "generate-sessions") {
+        const result = await api.generateClassSessions(v("from_date"), v("to_date"));
+        const turnos = result.recurringBookings;
+        showNotice(`Clases generadas: ${result.created} nuevas y ${result.alreadyExisting} que ya existían. Turnos fijos reservados: ${turnos.confirmed}${turnos.waitlisted ? ` (y ${turnos.waitlisted} en lista de espera)` : ""}.`, "success");
+        return;
+      }
+      if (kind === "create-assignment") {
+        await api.createTemplateAssignment(v("template_id"), { member_id: v("member_id"), starts_on: v("starts_on"), ends_on: optional("ends_on") });
+        showNotice("Turno fijo asignado. Se aplicará a las clases que se generen desde ahora.", "success");
+        await renderTemplateAssignments(v("template_id"));
         return;
       }
       if (kind === "select-member") {
@@ -713,8 +808,8 @@
           status:v("status"), joined_on:optional("joined_on"), exited_on:optional("exited_on"), notes:optional("notes")
         });
         state.selectedMember = result.member.id;
-        showNotice("Miembro creado. El alta no generó un cargo ni una cuenta de acceso.", "success");
         await renderView("members");
+        showNotice("Miembro creado. El alta no generó un cargo ni una cuenta de acceso.", "success");
         return;
       }
       if (kind === "edit-member") {
@@ -724,20 +819,20 @@
           emergency_contact_name:v("emergency_contact_name"),emergency_contact_phone:v("emergency_contact_phone"),
           status:v("status"),joined_on:v("joined_on") || undefined,exited_on:v("exited_on") || undefined,notes:v("notes")
         });
-        showNotice("Perfil actualizado.", "success");
         await renderView("members");
+        showNotice("Perfil actualizado.", "success");
         return;
       }
       if (kind === "create-service") {
         await api.createService({ name:v("name"), description:optional("description"), currentPrice:optional("currentPrice") });
-        showNotice("Servicio creado.", "success"); await renderView("services"); return;
+        await renderView("services"); showNotice("Servicio creado.", "success"); return;
       }
       if (kind === "create-membership") {
         await api.createMembership(memberId(),{
           serviceId:v("serviceId"), startsOn:v("startsOn"), endsOn:optional("endsOn"),
           billingPeriod:v("billingPeriod"), agreedPrice:v("agreedPrice"), status:"active"
         });
-        showNotice("Membresía creada. No se generó ningún cargo automático.", "success"); await renderView("memberships"); return;
+        await renderView("memberships"); showNotice("Membresía creada. No se generó ningún cargo automático.", "success"); return;
       }
       if (kind === "create-ledger") {
         const type = v("type");
@@ -750,11 +845,11 @@
         }
         const key = api.idempotencyKeyFor(formNode,"ledger",payload);
         await api.createLedgerEntry(memberId(),payload,key);
-        showNotice("Movimiento registrado.", "success"); await renderView("accounts"); return;
+        await renderView("accounts"); showNotice("Movimiento registrado.", "success"); return;
       }
       if (kind === "create-coach") {
         await api.createCoach({ full_name:v("full_name"),discipline:v("discipline"),email:optional("email"),phone:optional("phone") });
-        showNotice("Profesor creado.", "success"); await renderView("coaches"); return;
+        await renderView("coaches"); showNotice("Profesor creado.", "success"); return;
       }
       if (kind === "create-obligation") {
         await api.createCoachObligation(state.selectedCoach,{
@@ -794,7 +889,7 @@
     } catch (error) {
       showError(error);
     } finally {
-      if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = "Guardar"; }
+      if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = originalLabel; }
     }
   }
 
@@ -806,16 +901,38 @@
     try {
       if (action.dataset.action === "create-booking") {
         await api.createBooking(action.dataset.id);
-        showNotice("Reserva procesada por el servidor.", "success");
         await renderView("schedule");
+        showNotice("Reserva procesada por el servidor.", "success");
       }
       else if (action.dataset.action === "cancel-booking") {
         await api.cancelBooking(action.dataset.id);
-        showNotice("Reserva cancelada.", "success");
         await renderView("schedule");
+        showNotice("Reserva cancelada.", "success");
       }
       else if (action.dataset.action === "session-attendance") {
         await renderSessionAttendance(action.dataset.id);
+      }
+      else if (action.dataset.action === "toggle-template") {
+        await api.updateClassTemplate(action.dataset.id, { active: action.dataset.active === "true" });
+        await renderView("schedule-templates");
+        showNotice(action.dataset.active === "true" ? "Plantilla activada." : "Plantilla desactivada: ya no genera clases nuevas.", "success");
+      }
+      else if (action.dataset.action === "template-assignments") {
+        await renderTemplateAssignments(action.dataset.id);
+      }
+      else if (action.dataset.action === "end-assignment") {
+        const ended = await api.endRecurringAssignment(action.dataset.id);
+        showNotice(ended.upcomingBookingsKept > 0
+          ? `Turno fijo terminado. Las ${ended.upcomingBookingsKept} reservas ya generadas se mantienen: cancelalas desde la agenda si corresponde.`
+          : "Turno fijo terminado.", "success");
+        await renderTemplateAssignments(action.dataset.template);
+      }
+      else if (action.dataset.action === "cancel-session") {
+        const reason = window.prompt("Motivo de la cancelación (opcional):", "");
+        if (reason === null) return;
+        const cancelled = await api.cancelClassSession(action.dataset.id, reason.trim() || undefined);
+        await renderView("schedule");
+        showNotice(`Clase cancelada. Se liberaron ${cancelled.cancelledBookings} reservas; no se generó ningún cargo ni devolución.`, "success");
       }
       else if (action.dataset.action === "refresh-schedule") {
         await renderView("schedule");
@@ -853,7 +970,7 @@
         const endedOn = window.prompt("Fecha de finalización (AAAA-MM-DD):",today());
         if (!endedOn) return;
         await api.endMembership(action.dataset.id,endedOn);
-        showNotice("Membresía finalizada.", "success"); await renderView("memberships");
+        await renderView("memberships"); showNotice("Membresía finalizada.", "success");
       }
       else if (action.dataset.action === "coach-finance") {
         await renderCoachFinance(action.dataset.id);
@@ -880,8 +997,8 @@
       const button = formNode.querySelector('button[type="submit"]'); if (button) button.disabled = true;
       try {
         await api.updateService(id,body);
-        showNotice("Servicio actualizado. Las membresías históricas mantienen su precio acordado.", "success");
         await renderView("services");
+        showNotice("Servicio actualizado. Las membresías históricas mantienen su precio acordado.", "success");
       } catch (error) { showError(error); if(button)button.disabled=false; }
       return;
     }

@@ -334,3 +334,48 @@ test("session attendance roster uses authenticated no-store GET contract", async
   assert.equal(calls[1].options.method, "GET");
   assert.equal(calls[1].options.cache, "no-store");
 });
+
+test("schedule administration uses authenticated, CSRF-protected and validated contracts", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-schedule-token", user: { id: "admin-user", roles: ["admin"] } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("admin@example.test", "correct horse battery staple");
+  const template = { service_id: "s", coach_id: "c", weekday: 1, local_start_time: "19:30", duration_minutes: 60, capacity: 10 };
+  await api.listClassTemplates({ active: true });
+  await api.createClassTemplate(template);
+  await api.updateClassTemplate("tpl/with space", { capacity: 12 });
+  await api.generateClassSessions("2031-01-01", "2031-01-28");
+  await api.cancelClassSession("ses-1", "Profesor enfermo");
+  await api.listTemplateAssignments("tpl-1");
+  await api.createTemplateAssignment("tpl-1", { member_id: "m", starts_on: "2031-01-06" });
+  await api.endRecurringAssignment("asg-1");
+
+  const byPath = suffix => calls.find(call => call.url.endsWith(suffix));
+  assert.equal(new URL(byPath("/class-templates?active=true").url).search, "?active=true");
+  assert.equal(byPath("/class-templates?active=true").options.method, "GET");
+  const create = calls.find(call => call.url.endsWith("/class-templates") && call.options.method === "POST");
+  assert.deepEqual(JSON.parse(create.options.body), template);
+  assert.equal(create.options.headers["X-CSRF-Token"], "csrf-schedule-token");
+  const patch = calls.find(call => call.options.method === "PATCH");
+  assert.match(patch.url, /\/class-templates\/tpl%2Fwith%20space$/);
+  assert.equal(patch.options.headers["X-CSRF-Token"], "csrf-schedule-token");
+  const generate = byPath("/class-sessions/generate");
+  assert.deepEqual(JSON.parse(generate.options.body), { from_date: "2031-01-01", to_date: "2031-01-28" });
+  assert.equal(generate.options.headers["X-CSRF-Token"], "csrf-schedule-token");
+  assert.deepEqual(JSON.parse(byPath("/class-sessions/ses-1/cancel").options.body), { reason: "Profesor enfermo" });
+  assert.equal(byPath("/class-templates/tpl-1/assignments").options.method, "GET");
+  assert.equal(byPath("/recurring-assignments/asg-1/end").options.headers["X-CSRF-Token"], "csrf-schedule-token");
+  for (const call of calls) assert.equal(call.options.cache, "no-store");
+
+  for (const dates of [["2031-1-1", "2031-01-28"], ["2031-01-28", "2031-01-01"], ["", ""], [null, undefined]]) {
+    assert.throws(() => api.generateClassSessions(...dates), error => error && error.code === "invalid_date_range");
+  }
+  assert.throws(() => api.listClassTemplates({ active: "yes" }), error => error && error.code === "invalid_filter");
+});
