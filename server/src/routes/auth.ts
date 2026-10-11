@@ -10,7 +10,10 @@ const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const dummyPasswordHash = hashPassword("dummy-password-used-for-timing-equalization");
 
 interface LoginBody {
-  email: string;
+  /** Usuario (ikigai-miembro-ana) o correo. */
+  login?: string;
+  /** Nombre anterior del mismo campo: sigue aceptandose. */
+  email?: string;
   password: string;
 }
 
@@ -18,6 +21,8 @@ interface UserRow extends Record<string, unknown> {
   id: string;
   email: string;
   password_hash: string;
+  username?: string | null;
+  must_change_password?: boolean;
   member_id?: string | null;
   coach_id?: string | null;
 }
@@ -26,6 +31,8 @@ interface SessionRow extends Record<string, unknown> {
   session_id: string;
   id: string;
   email: string;
+  username: string | null;
+  must_change_password: boolean;
   roles: string[];
   member_id?: string | null;
   coach_id?: string | null;
@@ -62,7 +69,7 @@ async function currentSession(
   if (!token || token.length > 128) return null;
 
   const result = await db.query<SessionRow>(
-    `SELECT s.id AS session_id, u.id, u.email, mp.id AS member_id, cp.id AS coach_id,
+    `SELECT s.id AS session_id, u.id, u.email, u.username, u.must_change_password, mp.id AS member_id, cp.id AS coach_id,
             array_remove(array_agg(DISTINCT ur.role), NULL) AS roles
        FROM sessions s
        JOIN users u ON u.id = s.user_id
@@ -73,7 +80,7 @@ async function currentSession(
         AND s.revoked_at IS NULL
         AND s.expires_at > now()
         AND u.status = 'active'
-      GROUP BY s.id, u.id, u.email, mp.id, cp.id
+      GROUP BY s.id, u.id, u.email, u.username, u.must_change_password, mp.id, cp.id
       LIMIT 1`,
     [tokenHash(token)]
   );
@@ -96,10 +103,12 @@ export function registerAuthRoutes(
       schema: {
         body: {
           type: "object",
-          required: ["email", "password"],
+          required: ["password"],
           additionalProperties: false,
+          anyOf: [{ required: ["login"] }, { required: ["email"] }],
           properties: {
-            email: { type: "string", minLength: 3, maxLength: 254, format: "email" },
+            login: { type: "string", minLength: 3, maxLength: 254 },
+            email: { type: "string", minLength: 3, maxLength: 254 },
             password: { type: "string", minLength: 1, maxLength: 128 }
           }
         }
@@ -108,24 +117,25 @@ export function registerAuthRoutes(
     async (request, reply) => {
       reply.header("Cache-Control", "no-store");
       if (!requireAllowedOrigin(request, reply, config)) return;
-      const email = request.body.email.trim().toLowerCase();
+      const login = (request.body.login ?? request.body.email ?? "").trim().toLowerCase();
       const password = request.body.password;
 
       const result = await db.query<UserRow>(
-        `SELECT u.id, u.email, u.password_hash, mp.id AS member_id, cp.id AS coach_id
+        `SELECT u.id, u.email, u.username, u.must_change_password, u.password_hash, mp.id AS member_id, cp.id AS coach_id
            FROM users u
            LEFT JOIN member_profiles mp ON mp.user_id = u.id
            LEFT JOIN coach_profiles cp ON cp.user_id = u.id
-          WHERE u.email = $1 AND u.status = 'active' AND u.auth_provider = 'local'
+          WHERE (u.email = $1 OR u.username = $1) AND u.status = 'active' AND u.auth_provider = 'local'
+          ORDER BY (u.username = $1) DESC
           LIMIT 1`,
-        [email]
+        [login]
       );
       const user = result.rows[0];
       if (!user) {
         await verifyPassword(password, await dummyPasswordHash);
         return reply.code(401).send({
           error: "invalid_credentials",
-          message: "Email or password is incorrect."
+          message: "Username/email or password is incorrect."
         });
       }
 
@@ -133,7 +143,7 @@ export function registerAuthRoutes(
       if (!passwordMatches) {
         return reply.code(401).send({
           error: "invalid_credentials",
-          message: "Email or password is incorrect."
+          message: "Username/email or password is incorrect."
         });
       }
 
@@ -173,7 +183,8 @@ export function registerAuthRoutes(
 
       setSessionCookie(reply, token, config);
       return reply.code(200).send({
-        user: { id: user.id, email: user.email, roles, memberId: user.member_id ?? null, coachId: user.coach_id ?? null },
+        user: { id: user.id, email: user.email, username: user.username ?? null, roles, memberId: user.member_id ?? null, coachId: user.coach_id ?? null },
+        mustChangePassword: user.must_change_password === true,
         csrfToken: csrfTokenFor(token, config.sessionSecret),
         expiresAt: expiresAt.toISOString()
       });
@@ -313,7 +324,7 @@ export function registerAuthRoutes(
             [reset.id]
           );
           if ((consumed.rowCount ?? 0) !== 1) return false;
-          await tx.query("UPDATE users SET password_hash=$2, updated_at=now() WHERE id=$1", [reset.user_id, passwordHash]);
+          await tx.query("UPDATE users SET password_hash=$2, must_change_password=false, updated_at=now() WHERE id=$1", [reset.user_id, passwordHash]);
           await tx.query("UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", [reset.user_id]);
           await tx.query(
             "UPDATE password_reset_tokens SET revoked_at=now() WHERE user_id=$1 AND id<>$2 AND used_at IS NULL AND revoked_at IS NULL",
@@ -350,13 +361,63 @@ export function registerAuthRoutes(
       user: {
         id: session.row.id,
         email: session.row.email,
+        username: session.row.username ?? null,
         roles: session.row.roles ?? [],
         memberId: session.row.member_id ?? null,
         coachId: session.row.coach_id ?? null
       },
+      mustChangePassword: session.row.must_change_password === true,
       csrfToken: csrfTokenFor(session.token, config.sessionSecret)
     });
   });
+
+  app.post<{ Body: { currentPassword: string; newPassword: string } }>(
+    "/api/v1/auth/change-password",
+    {
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["currentPassword", "newPassword"],
+          additionalProperties: false,
+          properties: {
+            currentPassword: { type: "string", minLength: 1, maxLength: 128 },
+            newPassword: { type: "string", minLength: 12, maxLength: 128 }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      const session = await currentSession(request, db);
+      if (!session) {
+        clearSessionCookie(reply, config);
+        return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+      }
+      if (!requireCsrf(request, reply, session.token, config)) return;
+      const { currentPassword, newPassword } = request.body;
+      const stored = await db.query<{ password_hash: string } & Record<string, unknown>>(
+        "SELECT password_hash FROM users WHERE id = $1 AND status = 'active' AND auth_provider = 'local'",
+        [session.row.id]
+      );
+      const hash = stored.rows[0]?.password_hash;
+      if (!hash || !(await verifyPassword(currentPassword, hash))) {
+        return reply.code(400).send({ error: "invalid_current_password", message: "The current password is incorrect." });
+      }
+      if (currentPassword === newPassword) {
+        return reply.code(400).send({ error: "password_unchanged", message: "The new password must be different from the current one." });
+      }
+      const newHash = await hashPassword(newPassword);
+      await db.query("UPDATE users SET password_hash = $2, must_change_password = false, updated_at = now() WHERE id = $1", [session.row.id, newHash]);
+      // Las demas sesiones de esta cuenta (por ejemplo, un telefono perdido) dejan de valer; esta sigue.
+      await db.query("UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL", [session.row.id, session.row.session_id]);
+      await db.query(
+        "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1::uuid,'auth.password_changed','user',$1::text,$2,$3::jsonb)",
+        [session.row.id, request.id, JSON.stringify({ otherSessionsRevoked: true })]
+      );
+      return reply.code(204).send();
+    }
+  );
 
   app.post("/api/v1/auth/logout", async (request, reply) => {
     reply.header("Cache-Control", "no-store");

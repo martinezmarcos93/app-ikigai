@@ -13,6 +13,7 @@ import { registerCoachRoutes } from "./routes/coaches.js";
 import { registerAttendanceRoutes } from "./routes/attendance.js";
 import { registerRoutineRoutes } from "./routes/routines.js";
 import { registerMembershipRoutes } from "./routes/memberships.js";
+import { registerAccountRoutes } from "./routes/accounts.js";
 import { registerInvitationRoutes } from "./routes/invitations.js";
 import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
 import { registerInstitutionalSettingsRoutes } from "./routes/institutional-settings.js";
@@ -32,6 +33,13 @@ export const PUBLIC_ROUTES = new Set([
   "POST /api/v1/auth/password-reset/request",
   "POST /api/v1/auth/password-reset/confirm",
   "POST /api/v1/auth/accept-invitation"
+]);
+
+// Con una clave temporal sin cambiar solo se puede ver quien es, cambiarla o salir.
+const ALLOWED_WHILE_PASSWORD_CHANGE_PENDING = new Set([
+  "GET /api/v1/auth/me",
+  "POST /api/v1/auth/logout",
+  "POST /api/v1/auth/change-password"
 ]);
 
 export interface AppDependencies {
@@ -93,6 +101,8 @@ export async function buildApp(
     app.addHook("onRequest", async (request, reply) => {
       const path = request.url.split("?")[0] ?? request.url;
       const policy = path === "/api/v1/auth/login" ? { max: 5, seconds: 60 }
+        : path === "/api/v1/auth/change-password" ? { max: 5, seconds: 60 }
+        : path.startsWith("/api/v1/admin/accounts") && request.method === "POST" ? { max: 20, seconds: 60 }
         : path === "/api/v1/auth/password-reset/request" ? { max: 3, seconds: 3600 }
         : path === "/api/v1/auth/password-reset/confirm" ? { max: 5, seconds: 3600 }
         : path.startsWith("/api/v1/admin/invitations") ? { max: 10, seconds: 60 }
@@ -107,6 +117,7 @@ export async function buildApp(
         await dependencies.db!.query("DELETE FROM rate_limit_buckets WHERE updated_at < now() - interval '24 hours'");
       }
       const routeKey = path
+        .replace(/^\/api\/v1\/admin\/accounts\/[^/]+\/reset-password$/, "/api/v1/admin/accounts/:id/reset-password")
         .replace(/^\/api\/v1\/admin\/invitations\/[^/]+\/(resend|revoke)$/, "/api/v1/admin/invitations/:id/$1")
         .replace(/^\/api\/v1\/admin\/users\/[^/]+\/(reset-access|sessions\/revoke)$/, "/api/v1/admin/users/:id/$1");
       const identity = `${request.method}:${routeKey}:${request.ip}`;
@@ -156,7 +167,16 @@ export async function buildApp(
       if (!url) return;
       const method = request.method === "HEAD" ? "GET" : request.method;
       if (method === "OPTIONS" || PUBLIC_ROUTES.has(`${method} ${url}`)) return;
-      if (await resolveActor(request, appDb)) return;
+      const actor = await resolveActor(request, appDb);
+      if (actor) {
+        if (actor.mustChangePassword && !ALLOWED_WHILE_PASSWORD_CHANGE_PENDING.has(`${method} ${url}`)) {
+          return reply.code(403).header("Cache-Control", "no-store").send({
+            error: "password_change_required",
+            message: "You must replace your temporary password before using the application."
+          });
+        }
+        return;
+      }
       return reply.code(401).header("Cache-Control", "no-store").send({
         error: "unauthenticated",
         message: "A valid session is required."
@@ -177,6 +197,7 @@ export async function buildApp(
     registerRoutineRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerMembershipRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerInvitationRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerAccountRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAdminSecurityRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerInstitutionalSettingsRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAdminRoleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
