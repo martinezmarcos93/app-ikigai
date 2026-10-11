@@ -1,0 +1,38 @@
+# Mismo origen para portal y API: el navegador habla con /api/v1 sin CORS y las cookies de sesion
+# (HttpOnly, SameSite) nunca salen de este origen.
+#
+# SITE_ADDRESS:
+#   - un dominio (ikigai.ejemplo.com)  -> HTTPS automatico con Let's Encrypt (publica 80 y 443)
+#   - http://localhost                  -> prueba local sin certificados
+{$SITE_ADDRESS:http://localhost} {
+	encode zstd gzip
+
+	header {
+		# Sin scripts en linea ni recursos de terceros. Los estilos en linea se admiten porque el
+		# portal renderiza algunos atributos style desde JavaScript.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy same-origin
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy api:3001
+	}
+
+	handle /healthz {
+		reverse_proxy api:3001
+	}
+
+	handle {
+		root * /srv
+		@revalidate path /sw.js /sw-register.js /index.html /portal.html /manifest.webmanifest /api-client.js /portal.js /portal.css
+		header @revalidate Cache-Control "no-cache"
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=86400"
+		file_server
+	}
+}

@@ -1,0 +1,84 @@
+# Entorno reproducible de Ikigai Training: PostgreSQL + migraciones + API + portal con Caddy.
+# Solo `web` publica puertos; la base y el API quedan en la red interna.
+#
+#   cp deploy/.env.example deploy/.env   # completar los valores marcados
+#   docker compose -f deploy/compose.yaml --env-file deploy/.env up -d --build
+#
+# Ver docs/DEPLOYMENT.md (primer administrador, backups, restauracion, rollback, rotacion de secretos).
+name: ikigai
+
+x-api-env: &api-env
+  NODE_ENV: ${NODE_ENV:-production}
+  HOST: 0.0.0.0
+  PORT: "3001"
+  TRUST_PROXY_HOPS: "1"
+  GYM_TIMEZONE: ${GYM_TIMEZONE:-America/Argentina/Buenos_Aires}
+  CORS_ORIGINS: ${PUBLIC_ORIGIN:?Defini PUBLIC_ORIGIN, por ejemplo https://ikigai.ejemplo.com}
+  SESSION_SECRET: ${SESSION_SECRET:?Defini SESSION_SECRET (32+ caracteres, openssl rand -hex 32)}
+  DATABASE_URL: postgres://ikigai:${POSTGRES_PASSWORD:?Defini POSTGRES_PASSWORD (openssl rand -hex 24)}@db:5432/ikigai
+  PASSWORD_RESET_DELIVERY_URL: ${PASSWORD_RESET_DELIVERY_URL:-}
+  PASSWORD_RESET_DELIVERY_TOKEN: ${PASSWORD_RESET_DELIVERY_TOKEN:-}
+  PASSWORD_RESET_PUBLIC_URL: ${PASSWORD_RESET_PUBLIC_URL:-}
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ikigai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defini POSTGRES_PASSWORD}
+      POSTGRES_DB: ikigai
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ikigai -d ikigai"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: ikigai-api:local
+    build:
+      context: ../server
+    command: ["node", "dist/scripts/migrate.js"]
+    environment: *api-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: ikigai-api:local
+    restart: unless-stopped
+    environment: *api-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-http://localhost}
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  dbdata:
+  caddy_data:
+  caddy_config:
