@@ -137,7 +137,8 @@
     $("#accountEmail").textContent = user.username || user.email;
     $("#accountRole").textContent = (user.roles || []).map(r => ({ admin:"Administración", coach:"Profesor", member:"Miembro" }[r] || r)).join(" · ");
     $("#connectionLabel").textContent = "Sesión activa";
-    $("#apiBaseLabel").textContent = api.baseUrl;
+    const apiLabel = $("#apiBaseLabel");   // solo existe en localhost (data-dev-only se elimina en el resto)
+    if (apiLabel) apiLabel.textContent = api.baseUrl;
     applyRoleNavigation();
   }
   function setUnauthenticated() {

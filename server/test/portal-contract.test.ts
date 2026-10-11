@@ -91,3 +91,20 @@ test("agenda API supplies authoritative time for booking cutoff decisions", asyn
   assert.match(portal, /Date\.parse\(session\.server_now\)/);
   assert.match(portal, /en espera/);
 });
+
+test("los elementos solo-desarrollo se eliminan fuera de localhost: el JS nunca los usa sin comprobar", async () => {
+  // portal.js quita todo [data-dev-only] cuando el sitio no es localhost. Un acceso directo a uno de sus ids
+  // ($("#id").algo) revienta con «Cannot set properties of null» justo despues de iniciar sesion en produccion
+  // (en localhost nunca se nota: alli los elementos existen).
+  const html = await readRoot("portal.html");
+  const portal = await readRoot("portal.js");
+  const devIds = new Set<string>();
+  for (const block of html.matchAll(/<(\w+)[^>]*\bdata-dev-only\b[^>]*>([\s\S]*?)<\/\1>/g)) {
+    for (const id of block[0].matchAll(/\bid="([^"]+)"/g)) devIds.add(id[1]!);
+  }
+  assert.ok(devIds.size > 0, "se esperaba al menos un elemento data-dev-only");
+  for (const id of devIds) {
+    const direct = new RegExp(`\\$\\("#${id}"\\)\\.`);
+    assert.equal(direct.test(portal), false, `portal.js usa $("#${id}") sin comprobar que exista`);
+  }
+});

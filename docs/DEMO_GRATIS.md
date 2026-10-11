@@ -63,14 +63,13 @@ Entrá con el administrador (te pide elegir una clave propia) y seguí la guía 
 
 **Opción A, arrastrar y soltar:** *Workers & Pages → Create → Pages → Upload assets* → nombre `ikigai-landing` → arrastrar **el contenido** de la carpeta `landing/` (que `index.html` quede en la raíz) → *Deploy*.
 
-**Opción B, comando (recomendada para repetir):**
+**Opción B, un comando (recomendada; es la que usa el script):**
 
 ```bash
-npx wrangler login                                   # una sola vez, abre el navegador
-npx wrangler pages deploy landing --project-name ikigai-landing
+bash deploy/publicar-landing.sh
 ```
 
-(La primera vez `wrangler` pregunta si crea el proyecto: decir que sí.) La landing queda en `https://ikigai-landing.pages.dev`. La APK viaja con ella aunque Git la ignore.
+La primera vez abre el navegador para autorizar a `wrangler` en tu cuenta de Cloudflare (iniciás sesión o creás la cuenta gratuita y tocás **Allow**); después crea el proyecto `ikigai-landing` y sube `landing/` con la APK. Las veces siguientes publica directo. La landing queda en `https://ikigai-landing.pages.dev`.
 
 ### Paso 6 · Probar como lo va a ver Agustin
 
