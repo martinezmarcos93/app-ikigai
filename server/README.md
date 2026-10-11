@@ -61,8 +61,9 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/class-sessions/generate`: administración genera las clases de las plantillas activas en un rango de hasta 90 días. Es idempotente, convierte la hora local a instante con `GYM_TIMEZONE` y reserva a quienes tienen un turno fijo vigente respetando el cupo (el excedente queda en lista de espera).
 - `POST /api/v1/class-sessions/:id/cancel`: administración cancela una clase que no empezó y libera sus reservas, sin cargos ni devoluciones.
 - `GET`/`POST /api/v1/class-templates/:id/assignments` y `POST /api/v1/recurring-assignments/:id/end`: turnos fijos de miembros; al terminarlos no se tocan las reservas ya generadas.
+- `PUT`/`DELETE /api/v1/bookings/:id/notice`: el miembro dueño de la reserva (o administración) deja, cambia o quita un aviso de ausencia o de llegada tarde, con una nota opcional, mientras la clase no empiece. Es informativo: no cancela la reserva ni genera cargos o sanciones. El profesor de la clase y administración lo ven en la lista de asistencia (`notice_kind`, `notice_note`) y el miembro lo ve en la agenda (`my_notice_kind`, `my_notice_note`).
 - `GET /api/v1/class-sessions/:id/attendance`: administrator or assigned coach reads confirmed attendees and saved attendance.
-- `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally; duplicate bookings are rejected and every change is audited.
+- `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally (each record may carry `arrivedLate`, only valid for an attendee); duplicate bookings are rejected and every change is audited.
 - `GET /api/v1/members/:id/attendance`: administrator or the member reads the member's own attendance history.
 - `GET /api/v1/exercises` and `POST /api/v1/exercises`: coaches/admin browse active exercises; only administration creates them.
 - `GET /api/v1/routines`: administration/coaches browse active routines at their latest immutable version.
