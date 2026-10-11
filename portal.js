@@ -252,6 +252,12 @@
           row(["Teléfono",esc(profile.phone || "—")]),
           row(["Dirección",esc(profile.address || "—")])
         ]) : empty("No se pudo consultar el perfil. Volvé a intentar.")}</section>
+        ${profileOk ? form("Actualizar mis datos de contacto","edit-own-contact",
+          field("Teléfono","phone","tel",{value:profile.phone || "",maxLength:40})+
+          field("Dirección","address","text",{value:profile.address || "",maxLength:240})+
+          field("Contacto de emergencia (nombre)","emergency_contact_name","text",{value:profile.emergency_contact_name || "",maxLength:120})+
+          field("Contacto de emergencia (teléfono)","emergency_contact_phone","tel",{value:profile.emergency_contact_phone || "",maxLength:40}),
+          "Guardar mis datos","Podés corregir tus datos de contacto cuando quieras. Para cambiar tu nombre, tu DNI o tu estado, pedíselo a administración.") : ""}
         <section class="panel"><h2 class="section-title">Mis datos</h2>
           <p class="footer-note">Tenés derecho a conocer qué datos personales guardamos de vos. Podés descargarlos en un archivo (perfil, membresías, movimientos de cuenta, reservas, asistencia y avisos). Para corregirlos o pedir su supresión, hablá con administración.</p>
           <p><button class="button" type="button" data-action="export-my-data" data-id="${esc(state.user.memberId)}">Descargar mis datos</button></p></section>
@@ -371,7 +377,7 @@
   async function renderMemberships() {
     setPage("Membresías");
     await loadServices();
-    if (isAdmin()) await loadMembers();
+    if (isAdmin() || isMember()) await loadMembers();   // el miembro carga solo su propio perfil
     const options = isAdmin() ? memberOptions() : memberOptions();
     state.selectedMember = selected(options, state.selectedMember || state.user.memberId);
     if (!state.selectedMember) {
@@ -379,10 +385,11 @@
       return;
     }
     const result = await api.listMemberships(state.selectedMember);
-    const list = table(["Servicio","Período","Desde","Hasta","Precio acordado","Estado","Acción"],(result.memberships || []).map(m => row([
+    // Solo administracion finaliza membresias: el miembro ve su historial sin acciones.
+    const list = table(["Servicio","Período","Desde","Hasta","Precio acordado","Estado",...(isAdmin() ? ["Acción"] : [])],(result.memberships || []).map(m => row([
       esc(m.service_name),esc(labels[m.billing_period] || m.billing_period),date(m.starts_on),date(m.ends_on),
       money(m.agreed_price),statusBadge(m.status),
-      m.status !== "ended" && m.status !== "cancelled" ? `<button class="button small danger" data-action="end-membership" data-id="${esc(m.id)}" type="button">Finalizar</button>` : "—"
+      ...(isAdmin() ? [m.status !== "ended" && m.status !== "cancelled" ? `<button class="button small danger" data-action="end-membership" data-id="${esc(m.id)}" type="button">Finalizar</button>` : "—"] : [])
     ])));
     const memberPicker = isAdmin() ? `<form class="panel inline-form" data-form="select-member"><div class="field"><label for="memberPick">Miembro</label><select id="memberPick" name="memberId">${options.map(o=>`<option value="${esc(o.value)}"${o.value===state.selectedMember?" selected":""}>${esc(o.label)}</option>`).join("")}</select></div><button class="button" type="submit">Ver historial</button></form><div style="height:14px"></div>` : "";
     const serviceOpts = serviceOptions();
@@ -399,7 +406,7 @@
 
   async function renderAccounts() {
     setPage("Cuenta corriente");
-    if (isAdmin()) await loadMembers();
+    if (isAdmin() || isMember()) await loadMembers();   // el miembro carga solo su propio perfil
     const options = memberOptions();
     state.selectedMember = selected(options, state.selectedMember || state.user.memberId);
     if (!state.selectedMember) { $("#pageContent").innerHTML = empty("No hay un miembro vinculado a esta cuenta."); return; }
@@ -583,7 +590,7 @@
       <input name="sets" aria-label="Series" placeholder="Series (ej. 3)" maxlength="80" required value="${esc(row.sets ?? "")}">
       <input name="reps" aria-label="Repeticiones" placeholder="Repeticiones" maxlength="80" value="${esc(row.reps ?? "")}">
       <input name="restSeconds" aria-label="Descanso en segundos" type="number" min="0" max="3600" placeholder="Descanso (s)" value="${esc(row.restSeconds ?? "")}">
-      <input name="notes" aria-label="Indicaciones" placeholder="Indicaciones" maxlength="500" value="${esc(row.notes ?? "")}">
+      <input name="rowNotes" aria-label="Indicaciones" placeholder="Indicaciones" maxlength="500" value="${esc(row.notes ?? "")}">
       <button class="button ghost small" type="button" data-action="remove-routine-row" aria-label="Quitar ejercicio">Quitar</button>
     </div>`;
   }
@@ -597,7 +604,7 @@
       const item = { exerciseId: get("exerciseId"), sets: get("sets") };
       if (get("reps")) item.reps = get("reps");
       if (get("restSeconds") !== "") item.restSeconds = Number(get("restSeconds"));
-      if (get("notes")) item.notes = get("notes");
+      if (get("rowNotes")) item.notes = get("rowNotes");
       return item;
     });
   }
@@ -1094,6 +1101,14 @@
         showNotice("Contraseña actualizada.", "success");
         return;
       }
+      if (kind === "edit-own-contact") {
+        await api.updateMember(state.user.memberId, {
+          phone:v("phone"), address:v("address"), emergency_contact_name:v("emergency_contact_name"), emergency_contact_phone:v("emergency_contact_phone")
+        });
+        await renderView("dashboard");
+        showNotice("Tus datos de contacto se actualizaron.", "success");
+        return;
+      }
       if (kind === "publish-announcement") {
         await api.publishAnnouncement({ title: v("title"), body: v("body"), audience: v("audience") });
         await renderAnnouncements();
@@ -1393,7 +1408,16 @@
   }
   function maybeStartTour() { if (isAdmin() && !state.mustChange && !state.tourDone) startTour(); }
 
+  function hideBootSplash() {
+    const splash = $("#bootSplash");
+    if (!splash) return;
+    splash.classList.add("is-done");
+    setTimeout(() => splash.remove(), 400);
+  }
   async function boot() {
+    try { await bootSession(); } finally { hideBootSplash(); }
+  }
+  async function bootSession() {
     $("#connectionLabel").textContent = "API";
     if (api.configurationError) {
       showNotice(api.configurationError);

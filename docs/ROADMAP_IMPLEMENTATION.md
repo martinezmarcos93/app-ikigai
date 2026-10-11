@@ -202,6 +202,19 @@ Resultado del barrido: typecheck sin errores; 89 pruebas del servidor pasando; p
 - **Guía de primer uso** (`tour.js`): globos de texto para administración (13 pasos, escritorio y teléfono); se recuerda en el servidor por persona.
 - `scripts/e2e-roles.py` reescrito para el nuevo flujo y `scripts/e2e-tour.py` nuevo. Para los demás scripts de navegador, el administrador de prueba debe tener la guía hecha (`UPDATE users SET tour_completed_at = now()`), si no la guía se abre sola sobre la pantalla.
 
+### Simulaciones de uso por rol, rutinas y avisos (11/10/2026)
+
+Se escribieron tres simulaciones de una persona real con su navegador (`scripts/sim-admin.py`, `sim-profesor.py`, `sim-miembro.py`, piezas comunes en `_sim.py`; la del miembro corre en 390 px, como un teléfono). Cada una hace todo lo que su rol puede hacer **y** comprueba contra la API lo que no puede. Encadenadas sobre una base recién creada: administración (primer ingreso, guía, configuración, servicios, profesores con su cuenta, miembros con edición/exportación/anonimización, accesos, horarios y turnos fijos, clases, membresías, cuenta corriente, asistencia, rutinas con versiones, avisos, consulta de las 13 pantallas) → profesora (avisos, asistencia, su cuenta, rutinas, 13 acciones prohibidas) → miembro (avisos, membresía, cuenta, agenda, rutinas, descarga de datos, 21 acciones prohibidas).
+
+**Lo que encontraron (todo corregido, con prueba):**
+- `GET /routines` respondía 500 (consulta con `GROUP BY` incompleto): la biblioteca de rutinas **nunca había funcionado** porque no existía pantalla ni prueba.
+- Faltaba la pantalla para crear ejercicios y rutinas y para asignarlas: la API existía pero administración solo podía usarla con `curl`. Se agregó «Rutinas» (biblioteca, ejercicios, rutinas con versiones, asignación; el profesor ve la biblioteca y asigna solo a quienes tienen clases con él, `GET /coach/members`).
+- No existían las comunicaciones: se agregaron los **avisos** (migración `0010`): administración publica para todos, solo miembros o solo profesores; cada persona los ve, los marca como leídos (contador en el menú y en el resumen) y administración los archiva.
+- Un miembro que abría «Membresías» o «Cuenta corriente» veía «No hay miembros disponibles» (no se cargaba su perfil) y, al mostrarse su membresía, un botón «Finalizar» que no le corresponde.
+- Editar un miembro **sin correo** fallaba (`email must match format`): el formulario manda los campos vacíos y el esquema no admitía vacío. Ahora vacío = dato ausente (`NULL`, no cadena vacía) y se puede quitar.
+- El miembro no podía rectificar sus datos de contacto desde el portal (derecho de rectificación): se agregó «Actualizar mis datos de contacto» en su resumen.
+- Pantalla de carga con el logo (`#bootSplash`) y guía de uso de íconos: [`APP_ICONS.md`](APP_ICONS.md).
+
 ### Esquemas estrictos y avisos de reserva (11/10/2026)
 
 - **Hallazgo de seguridad:** la matriz documentaba que «la validación de esquema rechaza propiedades desconocidas», pero Fastify, por defecto, las **elimina en silencio** (`removeAdditional: true`): un login con `role: "admin"` de más devolvía `401` de credenciales, no `400`. Era inofensivo (los handlers sólo leen campos conocidos) pero no era lo documentado ni una defensa real contra la asignación masiva. Ahora el servidor usa `removeAdditional: false` y rechaza con `400`; `strict-schemas.test.ts` lo sostiene y además exige que todo objeto de todo esquema de cuerpo declare `additionalProperties: false`.

@@ -227,3 +227,12 @@
 - [x] Tras anonimizar: no queda nombre, correo, teléfono, dirección, DNI, contacto de emergencia ni notas; la cuenta queda deshabilitada y sin sesiones; el saldo, las membresías y la asistencia se conservan; una segunda anonimización no hace nada y el perfil no se puede editar.
 - [x] La exportación posterior a la anonimización no contiene ningún dato personal.
 - [ ] Revisión jurídica del texto de consentimiento y de los plazos, e inscripción de la base ante la AAIP si corresponde.
+
+## Simulaciones por rol (11/10/2026)
+
+Se corren en este orden sobre una base descartable recién migrada, con el administrador creado con `ADMIN_MUST_CHANGE_PASSWORD=1 npm run admin:create` (ver el encabezado de cada script):
+
+- [x] `scripts/sim-admin.py` — Agustín: primer ingreso y guía; configuración, servicios, profesores y su cuenta, miembros (editar, exportar, anonimizar), accesos (usuario y clave temporal, homónimos, restablecer), horarios y turnos fijos, clases, membresías, cuenta corriente, asistencia, ejercicios y rutinas con versiones, avisos, las 13 pantallas, vínculo administración-profesor, cambio de clave.
+- [x] `scripts/sim-profesor.py` — Florencia: ve solo lo de su rol; avisos generales y de profesores (nunca los de miembros); corrige asistencia; ve su cuenta sin modificarla; ve la biblioteca de rutinas y asigna a quienes tienen clases con ella; 13 acciones de administración o de otras personas rechazadas por el servidor.
+- [x] `scripts/sim-miembro.py` — Marcos, en 390 px: ve solo lo suyo; avisos generales y de miembros; membresía, cuenta (saldo 6.500) y asistencia sin poder modificarlas; reserva, avisa tarde y cancela; ve las rutinas de administración y de su profesora; corrige su contacto; descarga sus datos; 21 acciones prohibidas rechazadas.
+- [ ] Repetirlas en un celular Android real conectado al servidor.

@@ -20,7 +20,7 @@ IGNORE_TLS = os.environ.get("E2E_IGNORE_HTTPS_ERRORS") == "1"  # certificado int
 EMAIL = os.environ.get("E2E_ADMIN_EMAIL", "admin.e2e@example.test")
 PASSWORD = os.environ.get("E2E_ADMIN_PASSWORD", "clave-e2e-segura-2026")
 WIDTHS = [320, 360, 390, 412, 480]
-VIEWS = ["dashboard", "members", "services", "memberships", "accounts", "schedule", "schedule-templates", "coaches", "invitations", "institution-settings"]
+VIEWS = ["dashboard", "members", "services", "memberships", "accounts", "schedule", "schedule-templates", "coaches", "invitations", "institution-settings", "routines", "announcements", "my-password"]
 MIN_TARGET = 44
 
 AUDIT = """(min) => {
