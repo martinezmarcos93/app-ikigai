@@ -187,3 +187,14 @@
 - [x] El profesor activado ve su agenda y registra la asistencia de una clase ya dada; el miembro la ve reflejada como «Presente».
 - [x] Los formularios de invitación de miembro y de profesor no comparten `id` (accesibilidad).
 - [x] Recorrido automatizado en navegador real con tres personas: `scripts/e2e-roles.py` (manual; el CI no tiene navegador).
+
+## Flujos de administración y PWA en navegador real
+
+- [x] Configuración institucional: se guarda, se recarga la página y los valores vienen del servidor; nada en `localStorage` (`scripts/e2e-admin.py`).
+- [x] Servicios: alta con precio, edición del precio vigente y rechazo legible de un nombre repetido.
+- [x] Membresía con precio acordado distinto del vigente del servicio: se conserva el acordado; se puede finalizar.
+- [x] Cuenta corriente: cargo, pago parcial y ajuste de crédito dejan el saldo esperado (16.000 − 6.000 − 1.000 = 9.000).
+- [x] Profesores: obligación mensual fija, pago parcial y ajuste negativo; el saldo y el historial se muestran consistentes (30.000 − 2.000 − 12.000 = 16.000).
+- [x] Roles múltiples: vincular una cuenta de administración con un perfil de profesor conserva ambos roles tras recargar.
+- [x] PWA: el service worker precachea el shell y las tipografías; el portal abre sin red; sin red las operaciones fallan con aviso de desconexión y nunca se muestran como hechas; al volver la red se recupera; ninguna respuesta de `/api/` entra en la caché; al actualizar se borran los cachés anteriores (`scripts/e2e-pwa.py`).
+- [ ] Instalación como aplicación y actualización de la PWA en un dispositivo Android real.

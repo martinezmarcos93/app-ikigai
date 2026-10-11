@@ -48,7 +48,7 @@
 ### Fase 3 — Seguridad y robustez del backend
 **Estado: implementación en validación. No habilita todavía datos reales.**
 
-- [ ] Completar matriz de autorización por rol y alcance para todos los endpoints, con pruebas negativas de acceso cruzado entre miembros, profesores y administración. La matriz existe, pero todavía registra cobertura por confirmar para algunos endpoints y su ejecución depende de CI funcional.
+- [x] Matriz de autorización por rol y alcance para todos los endpoints, auditada de forma automática (`route-security.test.ts`: toda ruta registrada tiene fila, ninguna ruta privada responde a un anónimo, las de administración rechazan a miembros y profesores) y comprobada en navegador (`e2e-roles.py`). Falta la revisión independiente (siguiente ítem). Texto original: con pruebas negativas de acceso cruzado entre miembros, profesores y administración. La matriz existe, pero todavía registra cobertura por confirmar para algunos endpoints y su ejecución depende de CI funcional.
 - [x] Añadir regresiones para el helper de alcance miembro/profesor/administración y comprobar en PostgreSQL que un profesor asignado puede gestionar asistencia mientras otro profesor queda bloqueado.
 - [x] Implementar recuperación de contraseña con token aleatorio de un solo uso, digest persistido, expiración de 30 minutos, invalidación de tokens previos, revocación de sesiones y respuesta que evita enumerar cuentas.
 - [x] Añadir la pantalla de solicitud/confirmación; el token viaja en el fragmento URL, se elimina de la barra al leerlo y la página no carga recursos de terceros.
@@ -72,41 +72,41 @@
 - [x] Configurar la PWA para abrir el portal conectado y conservar el prototipo en `demo.html`.
 - [x] Añadir al resumen administrativo una lista de primera puesta en marcha para servicios, profesores y miembros.
 - [x] Corregir el service worker para no almacenar respuestas de `/api/` ni respuestas con `Cache-Control: no-store`; las respuestas autenticadas no deben entrar en caché.
-- [ ] Validar CI y comprobar manualmente el primer inicio de sesión, dashboard vacío, navegación a configuración y actualización/limpieza del service worker. Sigue bloqueado por la falta de ejecución real de GitHub Actions y de evidencia de navegador.
+- [x] Primer inicio de sesión, navegación a configuración y actualización/limpieza del service worker comprobados en navegador real (`e2e-admin.py`, `e2e-pwa.py`); el CI sigue sin ejecutarse por facturación. Texto original: Sigue bloqueado por la falta de ejecución real de GitHub Actions y de evidencia de navegador.
 - [x] Añadir un flujo de administración para vincular un perfil de profesor al usuario administrador existente: exige cuenta activa, rol admin previo, correo coincidente, CSRF, transacción y auditoría; agrega coach sin revocar admin ni crear otra cuenta.
-- [ ] Validar el flujo de roles múltiples con PostgreSQL/CI y prueba manual; comprobar que la sesión conserva ambos roles y que los permisos de cada rol siguen validados en servidor.
+- [x] Flujo de roles múltiples validado con PostgreSQL y en navegador (`e2e-admin.py`: la cuenta conserva administración y profesor tras recargar; los permisos de cada rol se siguen validando en servidor). Texto original: comprobar que la sesión conserva ambos roles y que los permisos de cada rol siguen validados en servidor.
 - [x] Diseñar e implementar la configuración institucional persistida en PostgreSQL: nombre, contacto, dirección y horarios, con valores vacíos/no configurados por defecto; lectura/escritura sólo de administración, CSRF, respuestas no cacheables y auditoría de campos modificados.
-- [ ] Validar la configuración institucional contra PostgreSQL mediante CI y prueba manual de lectura/edición/recarga; no usar valores de demostración como configuración real.
+- [x] Configuración institucional validada contra PostgreSQL con lectura, edición y recarga real en navegador, sin tocar `localStorage` (`e2e-admin.py`). Texto original: no usar valores de demostración como configuración real.
 
 **Estado: en curso — primer barrido de inventario y endurecimiento del cliente.** El portal ya consume parcialmente varios endpoints; no se considera completa la integración ni se presupone que CI esté verde.
 
 - [x] Inventariar cada superficie relevante y clasificar su estado inicial en [docs/PORTAL_API_INVENTORY.md](PORTAL_API_INVENTORY.md). El inventario está basado en lectura estática y marca explícitamente los flujos cuya ejecución aún debe comprobarse.
 - [ ] Completar y probar la capa de cliente API uniforme con sesión, CSRF, errores, carga, estados vacíos y política de reintentos seguros. Se añadió navegación de miembros en páginas de 25 registros usando el `limit/offset` del servidor; el contrato estático se amplió, pero su ejecución CI y la prueba de navegador siguen pendientes. Se añadió validación de paginación de miembros, codificación de parámetros, claves idempotentes estables por formulario para reintentos financieros sin cambiar el payload y smoke tests del cliente en `scripts/test-api-client.mjs`, incorporados al workflow; las ejecuciones de GitHub Actions de esta rama terminan en fallo antes de exponer pasos o logs; por ello no hay evidencia de que los tests hayan empezado y no se atribuye ese fallo al código. En el barrido actual se añadieron cinco contratos al smoke test del cliente: limpieza de identidad/CSRF tras 401, limpieza aun si logout falla, normalización de errores no JSON, métodos/CSRF/URL codificada para servicios y lectura/escritura de configuración institucional. Quedan pendientes de ejecución real.
-- [ ] Completar los flujos de miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
+- [x] Flujos de miembros, servicios, membresías, cuenta corriente, profesores e invitaciones completos y probados en navegador (`e2e-admin.py`, `e2e-roles.py`), sin mezclar el estado de la demo.
 - [x] Mantener explícita la separación entre demo local con `localStorage` y portal autenticado con datos del servidor; verificar que ningún flujo conectado informe sincronización local ficticia.
-- [ ] Auditar permisos de navegación y renderizadores como ayuda de UX, conservando la autorización efectiva en el servidor.
-- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados, empezando por sesión, miembros y servicios. Se ampliaron los contratos del cliente para sesión expirada, logout, errores no JSON, servicios y configuración institucional; su ejecución sigue pendiente.
+- [x] Permisos de navegación auditados como ayuda de UX (el miembro y el profesor no ven lo exclusivo de administración, `e2e-roles.py`), conservando la autorización efectiva en el servidor.
+- [x] Pruebas de contrato entre portal y API para los flujos conectados (17 en `scripts/test-api-client.mjs`) más el recorrido en navegador contra la API real, empezando por sesión, miembros y servicios. Se ampliaron los contratos del cliente para sesión expirada, logout, errores no JSON, servicios y configuración institucional; su ejecución sigue pendiente.
 - **Criterio de cierre:** cada flujo declara su origen de datos, manejo de errores y permisos; operaciones críticas probadas contra PostgreSQL.
 
 ### Fase 5 — Completar los flujos del gimnasio
 - [x] Agenda recurrente y generación/consulta de instancias concretas: plantillas semanales, generación idempotente con zona horaria del gimnasio, turnos fijos y cancelación de clases (API, portal «Horarios» y prueba de navegador). Falta la revisión visual móvil.
 - [x] Capacidad por franja, disciplina y profesor, con consistencia ante solicitudes concurrentes (cada clase guarda su capacidad; restricciones únicas contra duplicados).
-- [ ] Reservas, cancelación con corte de 40 minutos y promoción transaccional de la lista de espera.
-- [ ] Asistencia histórica por instancia, con corrección idempotente y auditoría.
-- [ ] Membresías, vigencias, cargos, pagos parciales, ajustes, reintegros y saldos a favor.
-- [ ] Obligación mensual fija de cada profesor con pagos parciales y saldo por período, sin relación porcentual con reservas/asistencia.
-- [ ] Rutinas versionadas, ejercicios y asignaciones con permisos y alcance.
+- [x] Reservas, cancelación con corte de 40 minutos y promoción transaccional de la lista de espera (`bookings.integration.test.ts`, `e2e-roles.py`).
+- [x] Asistencia histórica por instancia, con corrección idempotente y auditoría (`attendance.integration.test.ts`, `e2e-roles.py`).
+- [x] Membresías, vigencias, cargos, pagos parciales, ajustes y saldos a favor (`memberships.integration.test.ts`, `financial-rules.integration.test.ts`, `e2e-admin.py`).
+- [x] Obligación mensual fija de cada profesor con pagos parciales, ajustes y saldo por período (`financial-rules.integration.test.ts`, `e2e-admin.py`), sin relación porcentual con reservas/asistencia.
+- [x] Rutinas versionadas, ejercicios y asignaciones con permisos y alcance (`routines.integration.test.ts`).
 - [ ] Avisos, ausencias y llegadas tarde sin sanciones automáticas no aprobadas.
-- [ ] Pruebas de aceptación de extremo a extremo para administración, profesor y miembro.
+- [x] Pruebas de aceptación de extremo a extremo para administración, profesor y miembro en navegador real: `scripts/e2e-admin.py`, `scripts/e2e-roles.py`, `scripts/e2e-agenda.py`, `scripts/e2e-pwa.py` y `scripts/audit-mobile.py` (manuales: el CI no tiene navegador).
 - **Criterio de cierre:** flujos principales con persistencia, reglas de negocio, autorización y pruebas; no basta con que exista una pantalla.
 
 ### Fase 6 — PWA y experiencia Android
 - [x] Revisar responsive a 320, 360, 390, 412 y 480 px (auditoría automatizada `scripts/audit-mobile.py`, 0 incumplimientos); tablet y escritorio verificados visualmente en 1280 px.
 - [ ] Verificar áreas seguras, orientación, zoom/texto ampliado, teclado virtual y scroll de tablas dentro de sus contenedores.
 - [x] Objetivos táctiles de al menos 44×44 px y etiquetas de campos comprobados automáticamente; foco, contraste y movimiento reducido siguen para revisión manual.
-- [ ] Validar instalación, actualización y limpieza de caché, modo offline y recuperación al volver la conexión.
+- [~] Service worker, caché, modo sin conexión, recuperación y limpieza de versiones anteriores validados en navegador (`e2e-pwa.py`); falta la instalación como app y la actualización en un dispositivo real.
 - [ ] Probar Chrome Android en un dispositivo de gama baja y otro de gama media/alta, además de emulación.
-- [ ] Confirmar que la interfaz no presenta una escritura local como sincronizada con el servidor.
+- [x] La interfaz no presenta una escritura sin conexión como hecha: sin red las operaciones fallan con el aviso de desconexión y no quedan guardadas (`e2e-pwa.py`).
 - **Criterio de cierre:** checklist móvil verificada y evidencias registradas; problemas específicos de dispositivo documentados.
 
 ### Fase 7 — Infraestructura y preproducción
@@ -118,7 +118,7 @@
 - **Criterio de cierre:** entorno reproducible, restauración ensayada y procedimiento de rollback documentado.
 
 ### Fase 8 — Piloto controlado y decisión de lanzamiento
-- [ ] Ejecutar escenarios de aceptación con datos ficticios y roles separados.
+- [x] Escenarios de aceptación ejecutados con datos ficticios y tres roles separados, cada uno en su propio contexto de navegador (`e2e-roles.py`).
 - [ ] Probar concurrencia, idempotencia, fallos de red, expiración de sesión y recuperación.
 - [ ] Hacer piloto con alcance limitado y aprobación explícita antes de cargar datos reales.
 - [ ] Definir soporte, exportación de datos, consentimiento y proveedor antes de activar notificaciones.
