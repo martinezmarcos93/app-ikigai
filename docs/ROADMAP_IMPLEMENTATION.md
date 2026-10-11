@@ -268,9 +268,9 @@ Un agente de IA sin contexto previo leyó todo `server/src`, el portal, el servi
 
 **Pendiente (decisión de Marcos o infraestructura):**
 
-- **S2 · cuentas que se van.** No hay forma de deshabilitar el acceso de un profesor o miembro sin anonimizarlo: un miembro `exited`/`suspended` conserva su login y la lectura de lo suyo, y un profesor con `active=false` no pierde permisos. Falta definir la regla de negocio.
-- **S3 · reglas de reserva.** La reserva exige perfil `active` pero no membresía vigente; la auto-reserva de turnos fijos incluye a `debtor` y la manual los rechaza; la promoción desde la lista de espera no revalida el estado; los pagos no tienen tope de sobrepago (se admiten saldos a favor, es intencional según el producto).
+- ~~S2 · cuentas que se van~~ **Resuelto (11/10/2026):** «Accesos» tiene «Deshabilitar acceso» / «Habilitar acceso» (estado `suspended`, migración `0011`; sesiones cerradas al instante; sin anonimizar). Un profesor con `active = false` en su perfil sigue siendo independiente del acceso: para sacarle el login se usa este botón.
+- ~~S3 · reglas de reserva~~ **Resuelto (11/10/2026), decisión tomada con el criterio de una sola regla en todos los caminos:** toman lugar `trial` y `active`; `debtor`, `suspended` y `exited` no (reserva propia, turnos fijos y promoción de la lista de espera, que se salta a quien no es elegible sin sacarlo de la lista). No se exige membresía vigente. Los pagos sin tope siguen siendo intencionales (saldos a favor). Ver `DATA_MODEL.md`.
+- ~~Exportación con notas internas~~ **Decidido:** se mantiene tal cual (las notas no contienen opiniones sobre terceros).
 - **B5 · rol de base de datos.** La API corre con el usuario dueño de la base, que puede desactivar los triggers que hacen inmutables el libro de cuentas y la auditoría. Separar un rol de migraciones y otro de ejecución sin `UPDATE/DELETE` sobre esas tablas (Fase 7).
 - **Despliegue (Fase 7):** Caddy como root sin `read_only`/`cap_drop`; `migrate` recibe secretos que no usa; `Cache-Control: no-store` en `/api/*` como red de seguridad; `NODE_ENV` queda en `development` si se ejecuta fuera de Docker; las claves temporales no vencen (limitadas por intentos y por el cambio obligatorio).
-- La exportación de datos de un miembro incluye las notas internas y el DNI del titular: decidir si las notas pueden contener juicios sobre terceros y si debe pedir la clave otra vez.
 - No evaluado: Caddy y compose en ejecución, CVE de dependencias, el adaptador de correo real, XSS en navegador con cargas sembradas.

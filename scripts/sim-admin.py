@@ -126,9 +126,14 @@ with sync_playwright() as p:
     exportado = json.loads(open(descarga.value.path(), encoding="utf-8").read())
     assert exportado["member"]["dni"] == "30999888"
     # derecho de supresion: anonimizar a quien dejo el gimnasio
-    pg.once("dialog", lambda d: (d.accept("Pedido de la persona al darse de baja"), pg.once("dialog", lambda d2: d2.accept("ANONIMIZAR"))))
+    # Un solo handler que contesta segun el texto del dialogo: encadenar dos pg.once() deja una carrera (si el segundo
+    # prompt aparece antes de registrar el handler, Playwright lo descarta y el portal lo toma como «no coincide»).
+    def responder(d):
+        d.accept("ANONIMIZAR" if "ANONIMIZAR" in d.message and "escrib" in d.message else "Pedido de la persona al darse de baja")
+    pg.on("dialog", responder)
     pg.locator("table tbody tr", has_text="Ex Socio Baja").locator('button[data-action="anonymize-member"]').click()
     s.aviso("Persona anonimizada")
+    pg.remove_listener("dialog", responder)
     assert "baja@example.test" not in pg.inner_text("table")
     s.captura("02-miembros")
     s.paso("5 miembros; edicion, exportacion de datos y anonimizacion de una baja")
@@ -165,6 +170,17 @@ with sync_playwright() as p:
     assert nueva != anterior
     estado["profesor2"]["temporal"] = nueva
     guardar_estado(estado)
+    # deshabilitar y volver a habilitar el acceso de Ana: la fila lo refleja y el estado vuelve a «debe cambiar la clave»
+    fila = pg.locator("table tbody tr", has_text="Ana López")
+    pg.once("dialog", lambda d: d.accept())
+    fila.locator('button[data-action="disable-account"]').click()
+    expect(pg.locator("table tbody tr", has_text="Ana López")).to_contain_text("Acceso deshabilitado")
+    assert pg.locator("table tbody tr", has_text="Ana López").locator('button[data-action="reset-account"]').count() == 0
+    assert sql("SELECT status FROM users WHERE username='ikigai-miembro-ana'") == "suspended"
+    pg.locator("table tbody tr", has_text="Ana López").locator('button[data-action="enable-account"]').click()
+    expect(pg.locator("table tbody tr", has_text="Ana López")).to_contain_text("Debe cambiar la clave")
+    assert sql("SELECT status FROM users WHERE username='ikigai-miembro-ana'") == "active"
+    s.paso("acceso de Ana deshabilitado (sin boton de restablecer) y habilitado de nuevo")
     s.paso(f"accesos creados: {u_flor}, {u_diego}, {u_marcos}, {u_marcos2} (homonimo con apellido), {u_ana}; clave de Diego restablecida")
 
     # ------------------------------------------------------------------ horarios, turnos fijos y clases

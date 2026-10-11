@@ -323,7 +323,7 @@ export function registerScheduleRoutes(
                FROM recurring_assignments ra
                JOIN member_profiles mp ON mp.id = ra.member_id
               WHERE ra.template_id = $1 AND ra.active
-                AND mp.status IN ('trial', 'active', 'debtor')
+                AND mp.status IN ('trial', 'active')
               ORDER BY ra.created_at, ra.id`,
             [session.template_id]
           );

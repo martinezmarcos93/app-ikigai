@@ -46,6 +46,8 @@ Este modelo separa el funcionamiento del gimnasio de la interfaz. Es la base con
 
 ### Anonimización del miembro
 - `member_profiles.anonymized_at`: cuándo se suprimieron los datos personales (sólo si `status = 'exited'`, restricción `member_anonymized_only_when_exited`). El nombre pasa a «Persona anonimizada» y se anulan correo, teléfono, dirección, DNI, contacto de emergencia y notas; la cuenta asociada se deshabilita con un correo `anonimizado-…@anonimizado.invalid` y una contraseña inutilizada. Se conservan movimientos de cuenta, membresías, reservas y asistencia. Ver `docs/DATA_PROTECTION.md`.
+- `users.status`: `active`, `disabled` (cuenta sin activar por una invitación pendiente, o anonimizada), `pending` y `suspended` (migración `0011`): acceso deshabilitado por administración con `POST /admin/accounts/:id/disable`; cierra las sesiones, impide volver a entrar y se revierte con `…/enable`. No toca el perfil ni el historial. Es un estado aparte de `disabled` a propósito: una invitación vieja no puede reactivar un acceso suspendido.
+- **Quién puede tomar un lugar en una clase:** `member_profiles.status` en `trial` o `active`, igual en la reserva propia, los turnos fijos y la promoción desde la lista de espera. `debtor`, `suspended` y `exited` no toman lugares nuevos, pero conservan lo ya reservado (sin sanciones automáticas) y quien espera en la lista sigue en ella: sólo se lo salta al promover. No se exige una membresía vigente: el estado del miembro lo gestiona administración.
 
 ### Aviso de una reserva (`booking_notices`)
 - Una reserva, tipo (`absence`: no asistirá; `late`: llegará tarde), nota opcional de hasta 200 caracteres, autor y fechas. A lo sumo un aviso por reserva (cambiarlo lo reemplaza).

@@ -492,11 +492,13 @@
     await loadCoaches();
     const { accounts } = await api.listAccounts();
     const accessState = item => !item.user_id ? '<span class="badge warn">Sin acceso</span>'
-      : item.account_status !== "active" ? '<span class="badge warn">Deshabilitado</span>'
+      : item.account_status === "suspended" ? '<span class="badge warn">Acceso deshabilitado</span>'
+      : item.account_status !== "active" ? '<span class="badge warn">Sin activar</span>'
       : item.must_change_password ? '<span class="badge warn">Debe cambiar la clave</span>' : '<span class="badge success">Activo</span>';
     const accessAction = item => !item.user_id
       ? `<button class="button primary small" type="button" data-action="create-account" data-role-kind="${esc(item.role)}" data-profile="${esc(item.profile_id)}" data-name="${esc(item.full_name)}">Crear acceso</button>`
-      : item.username ? `<button class="button ghost small" type="button" data-action="reset-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Restablecer clave</button>` : "";
+      : item.account_status === "suspended" ? `<button class="button primary small" type="button" data-action="enable-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Habilitar acceso</button>`
+      : item.username ? `<button class="button ghost small" type="button" data-action="reset-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Restablecer clave</button> <button class="button danger small" type="button" data-action="disable-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Deshabilitar acceso</button>` : "";
     const section = (role, title) => {
       const items = accounts.filter(item => item.role === role);
       return `<section class="panel" data-tour="access-${role}"><h2 class="section-title">${title}</h2>${table(["Nombre", "Usuario", "Estado", ""], items.map(item =>
@@ -1297,6 +1299,17 @@
         const result = await api.resetAccountPassword(action.dataset.user);
         await renderAccess();
         showCredentials("Clave restablecida", action.dataset.name, result.username, result.temporaryPassword);
+      }
+      else if (action.dataset.action === "disable-account") {
+        if (!window.confirm(`¿Deshabilitar el acceso de ${action.dataset.name}? Se cierran sus sesiones y no podrá entrar hasta que lo habilites de nuevo. No se borra nada de su historial.`)) return;
+        await api.disableAccount(action.dataset.user);
+        await renderAccess();
+        showNotice(`Acceso de ${action.dataset.name} deshabilitado.`, "success");
+      }
+      else if (action.dataset.action === "enable-account") {
+        await api.enableAccount(action.dataset.user);
+        await renderAccess();
+        showNotice(`Acceso de ${action.dataset.name} habilitado.`, "success");
       }
       else if (action.dataset.action === "read-announcement") {
         await api.markAnnouncementRead(action.dataset.id);
