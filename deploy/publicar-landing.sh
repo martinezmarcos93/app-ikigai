@@ -10,6 +10,8 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PROYECTO="${PAGES_PROYECTO:-ikigai-landing}"
+# Cloudflare le agrega un sufijo al crear el proyecto; esta es la direccion definitiva de esta cuenta.
+URL_PUBLICA="${PAGES_URL:-https://ikigai-landing-e88.pages.dev}"
 TOOLS="${IKIGAI_DEPLOY_TOOLS:-$HOME/src/ikigai-deploy}"
 WRANGLER="$TOOLS/node_modules/.bin/wrangler"
 
@@ -25,12 +27,19 @@ if ! "$WRANGLER" whoami 2>/dev/null | grep -qiE "associated with the email|accou
   "$WRANGLER" login
 fi
 
-# Crea el proyecto la primera vez (si ya existe, el error se ignora).
-"$WRANGLER" pages project create "$PROYECTO" --production-branch main >/dev/null 2>&1 || true
+# wrangler se ejecuta desde su propia carpeta: dentro del repo se «autoconfigura» y escribe un wrangler.jsonc que
+# publicaria el repositorio entero (assets.directory = ".").
+cd "$TOOLS"
+
+# Crea el proyecto la primera vez (--force: crea el proyecto de Pages directo; sin el, wrangler delega en Workers y
+# falla fuera de una carpeta de sitio). Si ya existe se sigue; cualquier otro error se muestra.
+if ! SALIDA="$("$WRANGLER" pages project create "$PROYECTO" --production-branch main --force 2>&1)"; then
+  echo "$SALIDA" | grep -qiE "already exists|ya existe|8000002" || { echo "$SALIDA" >&2; exit 1; }
+fi
 
 "$WRANGLER" pages deploy "$REPO/landing" --project-name "$PROYECTO" --branch main --commit-dirty=true
 echo
-echo "Landing publicada: https://$PROYECTO.pages.dev"
+echo "Landing publicada: $URL_PUBLICA   (puede tardar un minuto en propagarse la primera vez)"
 python3 - "$REPO/landing/app.json" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))

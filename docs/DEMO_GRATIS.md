@@ -6,7 +6,7 @@ Objetivo: mostrarle la app a Agustin con **datos ficticios**, sin gastar nada. C
 
 | Pieza | Servicio gratuito | Dirección |
 | --- | --- | --- |
-| Landing y descarga de la APK | **Cloudflare Pages** | `https://ikigai-landing.pages.dev` |
+| Landing y descarga de la APK | **Cloudflare Pages** | `https://ikigai-landing-e88.pages.dev` |
 | Sistema (portal + API + base) | **Tu computadora** + túnel gratuito de **Cloudflare** (*quick tunnel*, no pide cuenta ni dominio) | `https://<palabras-al-azar>.trycloudflare.com` |
 | APK | Se compila apuntando a la dirección del túnel | se baja desde la landing |
 
@@ -69,11 +69,11 @@ Entrá con el administrador (te pide elegir una clave propia) y seguí la guía 
 bash deploy/publicar-landing.sh
 ```
 
-La primera vez abre el navegador para autorizar a `wrangler` en tu cuenta de Cloudflare (iniciás sesión o creás la cuenta gratuita y tocás **Allow**); después crea el proyecto `ikigai-landing` y sube `landing/` con la APK. Las veces siguientes publica directo. La landing queda en `https://ikigai-landing.pages.dev`.
+La primera vez abre el navegador para autorizar a `wrangler` en tu cuenta de Cloudflare (iniciás sesión o creás la cuenta gratuita y tocás **Allow**); después crea el proyecto `ikigai-landing` y sube `landing/` con la APK. Las veces siguientes publica directo. La landing queda en `https://ikigai-landing-e88.pages.dev` (Cloudflare agrega el sufijo `-e88` al crear el proyecto).
 
 ### Paso 6 · Probar como lo va a ver Agustin
 
-1. En un Android, abrir `https://ikigai-landing.pages.dev` y tocar **Descargar APK**.
+1. En un Android, abrir `https://ikigai-landing-e88.pages.dev` y tocar **Descargar APK**.
 2. Si Chrome avisa «este tipo de archivo puede dañar tu dispositivo»: *Descargar de todos modos*. Abrir el archivo y permitir *«instalar desde esta fuente»* cuando Android lo pida.
 3. Abrir *Ikigai*: debe verse a pantalla completa, **sin barra de direcciones** (eso confirma que `assetlinks.json` funciona). Si aparece la barra, ver «Si algo falla».
 4. Entrar con un acceso de prueba.
