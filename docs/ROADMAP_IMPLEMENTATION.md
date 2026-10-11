@@ -89,8 +89,8 @@
 - **Criterio de cierre:** cada flujo declara su origen de datos, manejo de errores y permisos; operaciones críticas probadas contra PostgreSQL.
 
 ### Fase 5 — Completar los flujos del gimnasio
-- [ ] Agenda recurrente y generación/consulta de instancias concretas.
-- [ ] Capacidad por franja, disciplina y profesor, con consistencia ante solicitudes concurrentes.
+- [x] Agenda recurrente y generación/consulta de instancias concretas: plantillas semanales, generación idempotente con zona horaria del gimnasio, turnos fijos y cancelación de clases (API, portal «Horarios» y prueba de navegador). Falta la revisión visual móvil.
+- [x] Capacidad por franja, disciplina y profesor, con consistencia ante solicitudes concurrentes (cada clase guarda su capacidad; restricciones únicas contra duplicados).
 - [ ] Reservas, cancelación con corte de 40 minutos y promoción transaccional de la lista de espera.
 - [ ] Asistencia histórica por instancia, con corrección idempotente y auditoría.
 - [ ] Membresías, vigencias, cargos, pagos parciales, ajustes, reintegros y saldos a favor.
@@ -174,3 +174,15 @@ En la rama `feat/phase-4-schedule-api-sweep` se añade `GET /api/v1/class-sessio
 **Punto 5 — Android/PWA:** se añadieron protecciones CSS para áreas seguras, evitar desbordamiento horizontal global, conservar el scroll táctil de tablas dentro de sus contenedores, asegurar 44 px de área táctil para botones pequeños en móvil, evitar zoom automático en campos y respetar movimiento reducido. Se incrementó la caché del shell a `ikigai-shell-v8`.
 
 **Validación:** se añadieron aserciones estáticas; no se pudieron ejecutar por el bloqueo actual de GitHub Actions. Quedan pendientes emulación visual en 320/360/390/412/480 px, instalación/actualización/offline, prueba en dos dispositivos Android y pruebas de integración/autorización reales. La PWA y los flujos del gimnasio no se declaran completos ni aprobados para datos reales.
+
+
+## Estado real y barrido del 11/10/2026
+
+**Hallazgo central:** GitHub Actions nunca llegó a ejecutarse para este repositorio privado (los jobs no arrancan: «recent account payments have failed or your spending limit needs to be increased»), de modo que **el código no estaba validado**. Al correr localmente todo lo que define el workflow aparecieron 16 errores de tipos y 7 tests fallando, además de un archivo de pruebas que ni compilaba. Hasta que la facturación se resuelva, la validación vigente es la local: `npm ci`, `npm run check`, `npm run db:migrate` y `npm test` contra un PostgreSQL descartable con `IKIGAI_INTEGRATION_TESTS=1`, más los pasos del primer job del workflow.
+
+Resultado del barrido: typecheck sin errores; 86 pruebas del servidor pasando; pasos del primer job del workflow verificados.
+
+- **Autenticación antes de validación:** un hook global exige sesión en toda ruta privada, así que un anónimo recibe `401` y no sondea esquemas (antes `400`).
+- **Auditoría automática de la matriz de autorización** (`route-security.test.ts`): toda ruta registrada debe figurar en la matriz, ninguna ruta privada responde a un anónimo y las rutas «Administración» rechazan a miembros y profesores.
+- **Agenda recurrente completa** (ver Fase 5): era el hueco funcional mayor, porque existían las tablas pero ninguna ruta para crear horarios ni generar clases.
+- **Portal:** los avisos de éxito se ocultaban enseguida y los botones de los formularios volvían a decir «Guardar»; corregido.

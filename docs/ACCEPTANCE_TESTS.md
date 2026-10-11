@@ -165,3 +165,16 @@
 - [ ] El profesor asignado a una sesión puede consultar y corregir asistencia; otro profesor no puede leer ni escribir esa sesión.
 - [ ] Los endpoints de rutinas permiten alcance propio del miembro y alcance del profesor sólo cuando existe una asignación vigente o reserva dentro de la ventana definida.
 - [ ] Los intentos de escritura de miembros en endpoints exclusivos de administración/profesores son rechazados en el servidor, aunque el cliente invoque la API directamente.
+
+## Agenda recurrente (plantillas, generación y turnos fijos)
+
+- [x] Sólo administración crea y modifica plantillas; miembros y profesores reciben `403` (`schedule.integration.test.ts`, `route-security.test.ts`).
+- [x] Un profesor no puede tener dos plantillas activas el mismo día y hora (`409 template_slot_taken`).
+- [x] Generar clases convierte la hora local a instante en la zona del gimnasio: 19:30 en Buenos Aires queda en 22:30 UTC.
+- [x] Generar el mismo rango dos veces no duplica clases ni reservas; un rango de más de 90 días o invertido se rechaza.
+- [x] Cambiar la capacidad de una plantilla no modifica las clases ya generadas.
+- [x] Un turno fijo reserva al miembro en cada clase generada; con cupo lleno queda en lista de espera.
+- [x] Cancelar una clase libera las reservas y no genera movimientos en la cuenta corriente.
+- [x] Terminar un turno fijo no cancela reservas ya generadas e informa cuántas quedan.
+- [x] Recorrido completo en un navegador real contra la API y PostgreSQL: `scripts/e2e-agenda.py` (manual; el CI no tiene navegador).
+- [ ] Revisión visual del flujo de «Horarios» en 320–480 px y en un dispositivo Android real.

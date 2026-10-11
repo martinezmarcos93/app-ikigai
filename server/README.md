@@ -57,6 +57,10 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/coach-obligations/:id/payments`: record partial or excess payments with idempotency keys and an internal-receipt label.
 - `POST /api/v1/coach-obligations/:id/adjustments`: append a signed correction with reason and idempotency key.
 - `GET /api/v1/class-sessions`: authenticated administrator/member lists scheduled and recent completed sessions in a maximum 90-day window; a coach without member/admin access sees only their own sessions. Supports `from`, `to`, `limit` and `offset`; response includes the server clock, capacity, confirmed/waitlist counts and the current member booking status.
+- `GET /api/v1/class-templates` / `POST /api/v1/class-templates` / `PATCH /api/v1/class-templates/:id`: plantillas semanales de clase (servicio, profesor, día `0` = domingo … `6` = sábado, hora local `HH:MM`, duración y cupo). El profesor sólo ve las suyas. Cambiar una plantilla no reescribe las clases ya generadas.
+- `POST /api/v1/class-sessions/generate`: administración genera las clases de las plantillas activas en un rango de hasta 90 días. Es idempotente, convierte la hora local a instante con `GYM_TIMEZONE` y reserva a quienes tienen un turno fijo vigente respetando el cupo (el excedente queda en lista de espera).
+- `POST /api/v1/class-sessions/:id/cancel`: administración cancela una clase que no empezó y libera sus reservas, sin cargos ni devoluciones.
+- `GET`/`POST /api/v1/class-templates/:id/assignments` y `POST /api/v1/recurring-assignments/:id/end`: turnos fijos de miembros; al terminarlos no se tocan las reservas ya generadas.
 - `GET /api/v1/class-sessions/:id/attendance`: administrator or assigned coach reads confirmed attendees and saved attendance.
 - `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally; duplicate bookings are rejected and every change is audited.
 - `GET /api/v1/members/:id/attendance`: administrator or the member reads the member's own attendance history.
@@ -68,6 +72,10 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/bookings/:id/cancel`: member-owner or administrator cancellation before the 40-minute cutoff, with transactional waitlist promotion.
 
 Set `CORS_ORIGINS` to exact comma-separated origins. Production startup fails closed if it is missing, if `SESSION_SECRET` is absent or shorter than 32 characters, or if `DATABASE_URL` is missing. Use a high-entropy secret from the hosting secret manager. Never use `*` for origins when credentials are enabled. Keep the server bound to localhost for local development unless a deliberate network deployment requires otherwise. The frontend and API should be deployed under the same site so the strict same-site session cookie is sent as expected.
+
+## Time zone
+
+`GYM_TIMEZONE` (zona IANA, por defecto `America/Argentina/Buenos_Aires`) define en qué hora local están las plantillas de clase. Un valor inválido hace fallar el arranque. Cambiarla no mueve las clases ya generadas.
 
 ## Database migration
 
