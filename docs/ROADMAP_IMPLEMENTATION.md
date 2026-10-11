@@ -102,10 +102,10 @@
 
 ### Fase 6 — PWA y experiencia Android
 - [x] Revisar responsive a 320, 360, 390, 412 y 480 px (auditoría automatizada `scripts/audit-mobile.py`, 0 incumplimientos); tablet y escritorio verificados visualmente en 1280 px.
-- [ ] Verificar áreas seguras, orientación, zoom/texto ampliado, teclado virtual y scroll de tablas dentro de sus contenedores.
+- [x] Texto ampliado del sistema (1,3× y 1,6×), teclado virtual y scroll de tablas verificados en Chrome Android del emulador con `scripts/audit-android.py` (0 incumplimientos en 12 pantallas por escala). Áreas seguras: `viewport-fit=cover` y protecciones CSS presentes; la prueba con muesca/barra de gestos reales queda para el dispositivo físico.
 - [x] Objetivos táctiles de al menos 44×44 px y etiquetas de campos comprobados automáticamente; foco, contraste y movimiento reducido siguen para revisión manual.
-- [~] Service worker, caché, modo sin conexión, recuperación y limpieza de versiones anteriores validados en navegador (`e2e-pwa.py`); falta la instalación como app y la actualización en un dispositivo real.
-- [ ] Probar Chrome Android en un dispositivo de gama baja y otro de gama media/alta, además de emulación.
+- [~] Service worker, caché, modo sin conexión, recuperación y limpieza de versiones anteriores validados en Chromium (`e2e-pwa.py`) y en Chrome Android del emulador (`audit-android.py`: manifiesto, íconos, service worker activo, shell sin red, actualización v15→v16 con una sola caché). Falta la instalación como app («Agregar a pantalla de inicio»/TWA) en un dispositivo real.
+- [~] Emulación hecha: AVD Android 14, 1,5 GB de RAM y 2 núcleos (gama baja), Chrome 113 (versión antigua, mínimo conservador). **Pendiente (requiere tus teléfonos):** un dispositivo físico de gama baja y otro de media/alta; se corre `scripts/audit-android.py` por depuración USB y se anotan las diferencias.
 - [x] La interfaz no presenta una escritura sin conexión como hecha: sin red las operaciones fallan con el aviso de desconexión y no quedan guardadas (`e2e-pwa.py`).
 - **Criterio de cierre:** checklist móvil verificada y evidencias registradas; problemas específicos de dispositivo documentados.
 
@@ -139,7 +139,7 @@
 | Backend | Auth, sesiones, reservas, ledger, asistencia, rutinas y obligaciones iniciales documentadas | Pruebas de autorización, recuperación y seguridad |
 | CI | Workflow de sintaxis, reglas de producto, TypeScript, tests, build y migraciones | Lockfile, instalación reproducible y ejecución verde |
 | Marca | Logo JPG existente; paleta oscura/roja con diferencias entre CSS | Inspección visual del original y tokens medidos |
-| Android real | No hay evidencia de prueba en dispositivo físico en este registro | Validación en dos dispositivos |
+| Android real | Emulador (Android 14, gama baja, Chrome 113) aprobado con `audit-android.py`; sin prueba en dispositivo físico | Validación en dos dispositivos |
 | Producción | No aprobada para datos reales | Seguridad, infraestructura y restauración verificadas |
 
 ## Protocolo de cada barrido
@@ -237,3 +237,11 @@ Revisión propia —**no sustituye a la auditoría independiente** de la Fase 3�
 - **Hallazgo corregido:** el costo de scrypt era N=2¹⁴, p=1, por debajo del mínimo recomendado por OWASP. Ahora es N=2¹⁶, p=2, con los parámetros dentro del hash (una contraseña vieja sigue valiendo y se actualiza al iniciar sesión), una lista cerrada de parámetros aceptables (un hash hostil no puede agotar la memoria) y `mem_limit` en el contenedor.
 - **Hallazgo corregido:** los esquemas descartaban en silencio los campos desconocidos en vez de rechazarlos (ver arriba).
 - **Dependencias:** `npm audit` sin vulnerabilidades.
+
+
+### Fase 6 en Chrome Android y limpieza del portal (11/10/2026)
+
+- **Entorno de prueba:** emulador de `~/Android` (AVD `ikigai_phone`) con `adb reverse` de los puertos 8000 y 3001 y Playwright conectado por CDP al Chrome del dispositivo. Nota: el disco del proyecto es NTFS (`fuseblk`) y no deja ejecutar binarios de `node_modules`, así que la API de desarrollo corre desde una copia en `~/src/ikigai-run/server` (rsync del código, `npm ci` allí).
+- **Hallazgos corregidos:** el texto de desarrollo «configurá la URL local en `?apiBase=…`» y «PORTAL EN DESARROLLO · URL de la API» eran visibles para cualquier usuario; ahora solo se muestran en `localhost`. `portal.html` pasó a `lang="es-AR"` con `notranslate` (Chrome ofrecía traducir la página). Caché del shell `ikigai-shell-v16`.
+- **Resultado en Chrome Android:** 0 fallos (instalación/manifiesto, service worker, texto ampliado, teclado virtual, sin conexión, actualización de caché). `audit-mobile.py` sigue en 0 incumplimientos y `e2e-pwa.py` pasa.
+- **Sigue pendiente:** los dos dispositivos físicos y la instalación real como app. El límite de intentos de login (429) protege también las corridas de prueba: tras ~5 logins seguidos hay que vaciar `rate_limit_buckets` de la base de desarrollo.

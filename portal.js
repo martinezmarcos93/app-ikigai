@@ -1415,6 +1415,8 @@
     setTimeout(() => splash.remove(), 400);
   }
   async function boot() {
+    // Textos de desarrollo (URL de la API local): solo se muestran en localhost, nunca a quien usa la app instalada.
+    if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) document.querySelectorAll("[data-dev-only]").forEach(el => el.remove());
     try { await bootSession(); } finally { hideBootSplash(); }
   }
   async function bootSession() {
