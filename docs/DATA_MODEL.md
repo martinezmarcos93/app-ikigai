@@ -44,6 +44,9 @@ Este modelo separa el funcionamiento del gimnasio de la interfaz. Es la base con
 - Debe ser histórica y corregible con trazabilidad; no depender de un contador manual aislado.
 - `arrived_late`: marca informativa de que la persona asistió pero llegó tarde. Sólo puede ser verdadera si asistió (restricción `attendance_late_requires_presence`). Al corregir a «ausente» se limpia; si una corrección no la menciona, se conserva.
 
+### Anonimización del miembro
+- `member_profiles.anonymized_at`: cuándo se suprimieron los datos personales (sólo si `status = 'exited'`, restricción `member_anonymized_only_when_exited`). El nombre pasa a «Persona anonimizada» y se anulan correo, teléfono, dirección, DNI, contacto de emergencia y notas; la cuenta asociada se deshabilita con un correo `anonimizado-…@anonimizado.invalid` y una contraseña inutilizada. Se conservan movimientos de cuenta, membresías, reservas y asistencia. Ver `docs/DATA_PROTECTION.md`.
+
 ### Aviso de una reserva (`booking_notices`)
 - Una reserva, tipo (`absence`: no asistirá; `late`: llegará tarde), nota opcional de hasta 200 caracteres, autor y fechas. A lo sumo un aviso por reserva (cambiarlo lo reemplaza).
 - Lo crea el miembro dueño de la reserva (o administración) mientras la reserva no esté cancelada y la clase no haya empezado; el profesor de la clase y administración lo ven en la lista de asistencia.

@@ -100,10 +100,40 @@ with sync_playwright() as p:
     aviso(page, "Miembro creado")
     expect(page.locator("table tbody tr", has_text="Marta Gómez")).to_have_count(1)
 
+    # ------------------------------------------------------------ proteccion de datos: exportar y anonimizar
+    enviar(page, "create-member", full_name="Ex Socio Baja", email="baja@example.test", phone="1155550000", dni="30999888",
+           status="exited", joined_on="2026-01-01", exited_on=date.today().isoformat())
+    aviso(page, "Miembro creado")
+    fila_baja = page.locator("table tbody tr", has_text="Ex Socio Baja")
+    with page.expect_download() as descarga:
+        fila_baja.locator('button[data-action="export-member"]').click()
+    import json
+    datos = json.loads(open(descarga.value.path(), encoding="utf-8").read())
+    assert datos["member"]["dni"] == "30999888" and datos["member"]["full_name"] == "Ex Socio Baja"
+    assert page.locator("table tbody tr", has_text="Marta Gómez").locator('button[data-action="anonymize-member"]').count() == 0, "solo quien dejo el gimnasio se puede anonimizar"
+    def segundo(dialogo):
+        dialogo.accept("ANONIMIZAR")
+
+    def primero(dialogo):
+        dialogo.accept("Pedido de la persona al darse de baja")
+        page.once("dialog", segundo)          # la confirmacion escrita llega como un segundo cuadro
+
+    page.once("dialog", primero)
+    fila_baja.locator('button[data-action="anonymize-member"]').click()
+    aviso(page, "Persona anonimizada")
+    expect(page.locator("table tbody tr", has_text="Ex Socio Baja")).to_have_count(0)
+    anonimo = page.locator("table tbody tr", has_text="Persona anonimizada")
+    expect(anonimo).to_have_count(1)
+    assert "baja@example.test" not in page.locator("table").inner_text()
+    assert "anonymize-member" not in anonimo.inner_html(), "ya anonimizada: no debe ofrecer anonimizar de nuevo"
+
     # ------------------------------------------------------------ membresias
     navegar(page, "memberships")
     page.wait_for_selector('form[data-form="create-membership"]')
-    assert "Marta" in page.locator('form[data-form="select-member"] select option:checked').inner_text()   # el unico miembro
+    valor = page.locator('form[data-form="select-member"] select option', has_text="Marta").get_attribute("value")
+    page.select_option('form[data-form="select-member"] select', value=valor)
+    page.click('form[data-form="select-member"] button[type=submit]')
+    page.wait_for_selector('form[data-form="create-membership"]')
     enviar(page, "create-membership", startsOn=date.today().isoformat(), agreedPrice="16000")
     aviso(page, "Membresía creada")
     fila = page.locator("table tbody tr", has_text="Boxeo")

@@ -121,7 +121,7 @@
 - [x] Escenarios de aceptación ejecutados con datos ficticios y tres roles separados, cada uno en su propio contexto de navegador (`e2e-roles.py`).
 - [x] Concurrencia (reservas con cupo y lista de espera, `bookings.integration.test.ts`), idempotencia (cuenta corriente, pagos, rate limit compartido), fallos de red y recuperación (`e2e-pwa.py`) y expiración, cierre y revocación de sesión con recuperación (`e2e-session.py`) probados.
 - [ ] Hacer piloto con alcance limitado y aprobación explícita antes de cargar datos reales.
-- [ ] Definir soporte, exportación de datos, consentimiento y proveedor antes de activar notificaciones.
+- [~] Exportación de datos (`GET /members/:id/export`, descarga desde el portal), supresión por anonimización (`POST /members/:id/anonymize`) y texto de consentimiento definidos en `docs/DATA_PROTECTION.md`. Faltan la revisión jurídica, el soporte y el proveedor de notificaciones (no hay notificaciones: el API no envía correos salvo el adaptador de recuperación).
 - [ ] Evaluar app nativa/Play Store sólo si hay una necesidad concreta no cubierta por PWA.
 - **Criterio de cierre:** riesgos críticos cerrados, checklist de aceptación aprobada y plan de operación/soporte disponible.
 
@@ -200,3 +200,9 @@ Resultado del barrido: typecheck sin errores; 89 pruebas del servidor pasando; p
 - **Avisos de ausencia y llegada tarde** (migración `0007`): ver el modelo de datos. Son informativos y no tienen ningún efecto económico.
 
 - **Dependencias:** `npm audit` (con y sin dependencias de desarrollo) da 0 vulnerabilidades en el servidor al 11/10/2026.
+
+### Protección de datos personales (11/10/2026)
+
+- **Exportación** de los datos de un miembro (acceso y portabilidad): el propio miembro desde «Resumen → Descargar mis datos», o administración desde «Miembros → Exportar datos»; sólo lo del titular, sin hashes de contraseñas, auditada sin su contenido.
+- **Supresión por anonimización** (migración `0008`): borra la identidad (nombre, contacto, DNI, notas, correo y contraseña de la cuenta) de quien dejó el gimnasio y conserva movimientos de cuenta, membresías, reservas y asistencia sin identidad. Irreversible, transaccional, idempotente y auditada con su motivo; el perfil anonimizado no se puede volver a editar.
+- `docs/DATA_PROTECTION.md`: inventario de datos, finalidades, consentimiento (texto sugerido), derechos y plazos (Ley 25.326), conservación y respaldos, encargados e incidentes, con la lista de lo que todavía requiere revisión legal.

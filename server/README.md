@@ -49,6 +49,8 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/members/:id/memberships`: administrator-only membership creation, validates service/date/price, records audit, and replays matching duplicate requests safely.
 - `POST /api/v1/memberships/:id/end`: administrator-only, audited membership termination; does not automatically create charges, refunds or penalties.
 - `PATCH /api/v1/members/:id`: audited transactional profile update; members may edit only their own contact details, while administrators may edit the full operational profile.
+- `GET /api/v1/members/:id/export`: exportación de los datos personales de un miembro (acceso y portabilidad) para el propio titular o administración; JSON descargable, sin hashes de contraseñas, auditada sin su contenido.
+- `POST /api/v1/members/:id/anonymize`: administración suprime los datos personales de quien dejó el gimnasio (estado `exited`, sin reservas futuras ni membresías abiertas, con `reason` y `confirm: "ANONIMIZAR"`). Conserva movimientos de cuenta, membresías, reservas y asistencia sin identidad, cierra la cuenta y es idempotente. Ver `docs/DATA_PROTECTION.md`.
 - `GET /api/v1/members/:id/ledger-entries`: account history and exact debit/credit balance for administrators or the member themselves.
 - `POST /api/v1/members/:id/ledger-entries`: administrator-only charge, payment, adjustment or refund with idempotency key, audit record and exact decimal amounts. Payment responses identify receipts as internal, not fiscal invoices.
 - `GET/POST /api/v1/coaches`: administrator coach directory and audited coach creation.

@@ -59,11 +59,15 @@ def login(page, email, password):
 
 def invite(page, kind, email):
     page.click('button[data-view="invitations"]')
+    # la vista se vuelve a dibujar al navegar: esperar a que desaparezca el resultado anterior evita escribir en un formulario viejo
+    page.wait_for_function("() => document.querySelector('#invitationResult') && !document.querySelector('.token-box')")
     form = page.locator(f'form[data-form="invite-{kind}"]')
     form.wait_for()
     form.locator('input[name="email"]').fill(email)
     form.locator('button[type=submit]').click()
-    page.wait_for_selector(".token-box code")
+    page.wait_for_selector(".token-box code, #globalNotice:not([hidden])", timeout=30000)
+    if page.locator(".token-box code").count() == 0:
+        raise AssertionError(f"la invitacion de {email} fallo: {page.locator('#globalNotice').inner_text()}")
     link = page.locator(".token-box code").inner_text().strip()
     assert "/accept-invitation.html#token=" in link, link
     return link
@@ -160,6 +164,17 @@ with sync_playwright() as p:
     assert denied == 403, f"el miembro pudo listar profesores: {denied}"
     denied = member.evaluate("""async () => { try { await IkigaiApi.generateClassSessions('2031-01-01', '2031-01-10'); return 'permitido'; } catch (e) { return e.status; } }""")
     assert denied == 403, f"el miembro pudo generar clases: {denied}"
+    # derecho de acceso: la propia socia descarga todos sus datos
+    member.click('button[data-view="dashboard"]')
+    member.wait_for_selector('button[data-action="export-my-data"]')
+    with member.expect_download() as descarga:
+        member.click('button[data-action="export-my-data"]')
+    ruta = descarga.value.path()
+    import json
+    exportado = json.loads(open(ruta, encoding="utf-8").read())
+    assert exportado["format"] == "ikigai-member-export" and exportado["member"]["email"] == MEMBER_EMAIL
+    assert "password" not in json.dumps(exportado), "la descarga incluye datos de acceso"
+    member.wait_for_selector("text=Descargaste los datos personales")
     member.screenshot(path=f"{OUT}/roles-miembro.png")
 
     # ------------------------------------------------------------------ profesor

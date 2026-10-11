@@ -214,3 +214,12 @@
 - [x] Cuando la sesión vence en el servidor la interfaz lo dice («venció»), vuelve al inicio de sesión y no deja datos de la sesión a la vista; volver a iniciar sesión recupera el uso normal (`scripts/e2e-session.py`).
 - [x] Al cerrar sesión, una cookie que el navegador conserve ya no sirve (`401`).
 - [x] Administración revoca las sesiones de otra persona y esa persona queda afuera en su siguiente acción.
+
+## Protección de datos personales
+
+- [x] El miembro exporta sólo sus datos; otra persona, un profesor o un anónimo no pueden (`404`/`401`); la exportación no incluye datos ajenos ni hashes de contraseñas y queda auditada sin su contenido (`data-protection.integration.test.ts`).
+- [x] El miembro descarga su archivo desde el portal; administración exporta los datos de cualquier miembro (`e2e-roles.py`, `e2e-admin.py`).
+- [x] Anonimizar exige administración, estado «baja», sin reservas futuras ni membresías abiertas, un motivo y la confirmación literal; la propia persona no puede ejecutarlo.
+- [x] Tras anonimizar: no queda nombre, correo, teléfono, dirección, DNI, contacto de emergencia ni notas; la cuenta queda deshabilitada y sin sesiones; el saldo, las membresías y la asistencia se conservan; una segunda anonimización no hace nada y el perfil no se puede editar.
+- [x] La exportación posterior a la anonimización no contiene ningún dato personal.
+- [ ] Revisión jurídica del texto de consentimiento y de los plazos, e inscripción de la base ante la AAIP si corresponde.
