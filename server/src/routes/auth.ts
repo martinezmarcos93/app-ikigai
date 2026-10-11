@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
-import { hashPassword, verifyPassword } from "../security/password.js";
+import { hashPassword, needsRehash, verifyPassword } from "../security/password.js";
 import { csrfTokenFor, requireAllowedOrigin, requireCsrf } from "../security/csrf.js";
 
 const SESSION_COOKIE = "ikigai_session";
@@ -135,6 +135,20 @@ export function registerAuthRoutes(
           error: "invalid_credentials",
           message: "Email or password is incorrect."
         });
+      }
+
+      // La contrasena es correcta: si se guardo con un costo menor al actual, se vuelve a guardar con el actual.
+      // Mejora de seguridad, no condicion del login: si falla no se interrumpe la entrada. La condicion
+      // `password_hash = anterior` evita pisar un cambio de contrasena que ocurra a la vez.
+      if (needsRehash(user.password_hash)) {
+        try {
+          await db.query(
+            "UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1 AND password_hash = $3",
+            [user.id, await hashPassword(password), user.password_hash]
+          );
+        } catch (error) {
+          request.log.warn({ err: error }, "No se pudo actualizar el costo del hash de contrasena");
+        }
       }
 
       const roleResult = await db.query<{ role: string } & Record<string, unknown>>(
