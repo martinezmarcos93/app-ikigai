@@ -61,7 +61,7 @@
 - [x] Validar configuración por entorno y documentar secretos del proveedor de recuperación; no se agregan secretos reales al repositorio.
 - [x] Añadir un ensayo automatizado de backup/restore PostgreSQL que comprueba esquema, historial de migraciones y datos restaurados en una base descartable.
 - [~] Ensayo de backup/restore ejecutado localmente sobre PostgreSQL 16 en contenedores (`deploy/restore-check.sh`: migraciones, tablas, usuarios y auditoría restaurados); falta CI verde y el procedimiento sobre el proveedor de producción. Se agregó un guard que rechaza `DATABASE_URL` remotas antes de invocar herramientas PostgreSQL y un test negativo en el workflow; el PR #16 se fusionó, pero CI falló antes de asignar runners (`runner_id: 0`, `steps: []`), por lo que el guard aún no tiene ejecución automatizada demostrada.
-- [ ] Completar revisión de autorización y seguridad independiente antes de datos reales. No se considera realizada por esta revisión de código; requiere auditoría independiente y resolución de hallazgos.
+- [~] Revisión adversarial de seguridad (11/10/2026) hecha por un agente de IA que partió de cero, sin el contexto de las revisiones anteriores: ver «Revisión adversarial» al final. **No es una auditoría independiente humana**: sigue pendiente una revisión externa antes de datos reales, pero ya no parte de un código sin revisar.
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
@@ -245,3 +245,32 @@ Revisión propia —**no sustituye a la auditoría independiente** de la Fase 3�
 - **Hallazgos corregidos:** el texto de desarrollo «configurá la URL local en `?apiBase=…`» y «PORTAL EN DESARROLLO · URL de la API» eran visibles para cualquier usuario; ahora solo se muestran en `localhost`. `portal.html` pasó a `lang="es-AR"` con `notranslate` (Chrome ofrecía traducir la página). Caché del shell `ikigai-shell-v16`.
 - **Resultado en Chrome Android:** 0 fallos (instalación/manifiesto, service worker, texto ampliado, teclado virtual, sin conexión, actualización de caché). `audit-mobile.py` sigue en 0 incumplimientos y `e2e-pwa.py` pasa.
 - **Sigue pendiente:** los dos dispositivos físicos y la instalación real como app. El límite de intentos de login (429) protege también las corridas de prueba: tras ~5 logins seguidos hay que vaciar `rate_limit_buckets` de la base de desarrollo.
+
+
+### Revisión adversarial de seguridad (11/10/2026)
+
+Un agente de IA sin contexto previo leyó todo `server/src`, el portal, el service worker y `deploy/`, y atacó la API local con cuentas de administración, dos miembros y dos profesores. **Sin hallazgos críticos ni altos**: ningún acceso cruzado entre miembros, profesores y administración, sin escalada de privilegios (los esquemas rechazan campos de más), sin inyección SQL, sin XSS (las ~230 interpolaciones del portal escapan) y el service worker no cachea datos de usuario. Idempotencia del libro de cuentas y reservas concurrentes comprobadas con solicitudes simultáneas.
+
+**Corregido, con prueba (`test/hardening.integration.test.ts`, 107/107 tests del servidor en verde):**
+
+| Hallazgo | Corrección |
+| --- | --- |
+| M1 · el límite de intentos era solo por IP y contaba los logins exitosos (la WiFi del gimnasio, con una sola IP pública, se bloquearía sola; y quien probaba claves desde muchas IPs no tenía tope) | Tope **por cuenta** (10 fallos en 15 min, con HMAC del usuario, también para cuentas inexistentes para no revelar cuáles existen; se limpia al ingresar bien); límite por IP subido a 20/min; IPv6 agrupadas por /64 |
+| M2 · el `scrypt` (64 MiB, 0,3 s) se ejecutaba antes de validar el token de reseteo/invitación: un anónimo podía agotar CPU y memoria | Se valida el token antes de hashear la clave |
+| B1 · `/auth/%6cogin` llegaba al login sin pasar por el limitador compartido | La ruta se decodifica antes de elegir la política |
+| B2 · el nombre de usuario quedaba en la auditoría de un miembro anonimizado | Ya no se guarda (queda el `userId`); el texto libre del motivo y de las descripciones del libro sigue siendo riesgo aceptado y documentado en `DATA_PROTECTION.md` |
+| B3 · cualquier clave de 12 caracteres valía («aaaaaaaaaaaa») | Rechazo de claves obvias (pocos caracteres distintos, secuencias, lista corta común, igual a la cuenta) sin dependencias |
+| B4 · `demo.html` y `app.js` (HTML armado con datos locales) se publicaban en el mismo origen de la sesión | Ya no entran a la imagen web |
+| B6 · al cerrar sesión el DOM conservaba la clave temporal recién creada y las tablas | Se vacían la pantalla y el estado en memoria |
+| S1 · el evento «noop» del reseteo llevaba el correo escrito por un anónimo hacia el adaptador (posible relevo de correo) | El evento ya no lleva destinatario |
+| Informativos | `OPTIONS` de un origen ajeno daba 500 (ahora responde sin cabeceras CORS); `class-sessions` con año 0000 daba 500 (ahora 400, años 2000–2100) |
+| Producción | `tour.js` faltaba en la imagen web: el service worker no se instalaba. `scripts/check-deploy-files.py` lo detecta |
+
+**Pendiente (decisión de Marcos o infraestructura):**
+
+- **S2 · cuentas que se van.** No hay forma de deshabilitar el acceso de un profesor o miembro sin anonimizarlo: un miembro `exited`/`suspended` conserva su login y la lectura de lo suyo, y un profesor con `active=false` no pierde permisos. Falta definir la regla de negocio.
+- **S3 · reglas de reserva.** La reserva exige perfil `active` pero no membresía vigente; la auto-reserva de turnos fijos incluye a `debtor` y la manual los rechaza; la promoción desde la lista de espera no revalida el estado; los pagos no tienen tope de sobrepago (se admiten saldos a favor, es intencional según el producto).
+- **B5 · rol de base de datos.** La API corre con el usuario dueño de la base, que puede desactivar los triggers que hacen inmutables el libro de cuentas y la auditoría. Separar un rol de migraciones y otro de ejecución sin `UPDATE/DELETE` sobre esas tablas (Fase 7).
+- **Despliegue (Fase 7):** Caddy como root sin `read_only`/`cap_drop`; `migrate` recibe secretos que no usa; `Cache-Control: no-store` en `/api/*` como red de seguridad; `NODE_ENV` queda en `development` si se ejecuta fuera de Docker; las claves temporales no vencen (limitadas por intentos y por el cambio obligatorio).
+- La exportación de datos de un miembro incluye las notas internas y el DNI del titular: decidir si las notas pueden contener juicios sobre terceros y si debe pedir la clave otra vez.
+- No evaluado: Caddy y compose en ejecución, CVE de dependencias, el adaptador de correo real, XSS en navegador con cargas sembradas.

@@ -111,6 +111,12 @@ export function registerBookingRoutes(
           message: "The end of the date range must be later than its start."
         });
       }
+      if (from.getUTCFullYear() < 2000 || to.getUTCFullYear() > 2100) {
+        return reply.code(400).send({
+          error: "invalid_date_range",
+          message: "Dates must fall between the years 2000 and 2100."
+        });
+      }
       if (to.getTime() - from.getTime() > 90 * 24 * 60 * 60 * 1000) {
         return reply.code(400).send({
           error: "date_range_too_large",

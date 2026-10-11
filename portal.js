@@ -144,6 +144,10 @@
     state.user = null;
     state.mustChange = false;
     state.lastCredentials = "";
+    // Al cerrar sesion no queda nada de la persona anterior: ni en memoria ni en el DOM (clave temporal recien creada,
+    // tablas de miembros, cuenta corriente) para quien use el mismo aparato despues.
+    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0 });
+    $("#pageContent").replaceChildren();
     if (window.IkigaiTour) window.IkigaiTour.stop();
     $("#portalPanel").classList.remove("password-pending");
     $("#loginPanel").hidden = false;

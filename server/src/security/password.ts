@@ -42,6 +42,25 @@ function parse(encoded: string): { parameters: ScryptParameters; salt: Buffer; e
   return { parameters, salt, expected };
 }
 
+const COMMON_PASSWORDS = new Set([
+  "123456789012", "1234567890123", "password1234", "passwordpassword", "contrasena1234", "contrasenacontrasena",
+  "qwertyuiop12", "qwertyuiopas", "abcdefghijkl", "abcdef123456", "ikigaitraining", "ikigaiikigai", "ikigai123456",
+  "iloveyou1234", "administrador", "administrator", "changemechangeme", "welcome12345", "letmein12345"
+]);
+
+/**
+ * Politica minima de claves (el largo ya lo exige el esquema): sin pocos caracteres distintos ("aaaaaaaaaaaa",
+ * "abababababab") ni claves de lista comun, ni igual a la cuenta. Sin dependencias ni listas enormes a proposito:
+ * la defensa principal es el limite de intentos, esto solo evita lo obvio.
+ */
+export function isWeakPassword(password: string, ...accountNames: Array<string | null | undefined>): boolean {
+  const normalized = password.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
+  if (new Set(password).size < 6) return true;
+  if (COMMON_PASSWORDS.has(normalized)) return true;
+  if (/^(\d)\1+$/.test(normalized) || "01234567890123456789".includes(normalized) || "abcdefghijklmnopqrstuvwxyz".includes(normalized)) return true;
+  return accountNames.some((name) => Boolean(name) && normalized === String(name).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, ""));
+}
+
 export async function hashPassword(password: string, parameters: ScryptParameters = CURRENT_PARAMETERS): Promise<string> {
   if (password.length < 12 || password.length > 128) {
     throw new Error("Passwords must contain between 12 and 128 characters.");

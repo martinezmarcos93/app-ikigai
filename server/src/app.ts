@@ -1,3 +1,4 @@
+import { networkIdentity } from "./security/throttle.js";
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
@@ -89,7 +90,8 @@ export async function buildApp(
         callback(null, true);
         return;
       }
-      callback(new Error("Origin not allowed"), false);
+      // Origen ajeno: la respuesta sale sin cabeceras CORS y el navegador la bloquea (antes era un 500).
+      callback(null, false);
     }
   });
   await app.register(cookie);
@@ -100,9 +102,11 @@ export async function buildApp(
   if (dependencies.db) {
     let rateLimitCleanupCounter = 0;
     app.addHook("onRequest", async (request, reply) => {
-      const path = request.url.split("?")[0] ?? request.url;
-      const policy = path === "/api/v1/auth/login" ? { max: 5, seconds: 60 }
-        : path === "/api/v1/auth/change-password" ? { max: 5, seconds: 60 }
+      let path = request.url.split("?")[0] ?? request.url;
+      // El router decodifica %xx (/auth/%6cogin llega al login): se decodifica igual para que la politica coincida.
+      try { path = decodeURIComponent(path); } catch { return reply.code(400).send({ error: "bad_request", message: "Malformed URL." }); }
+      const policy = path === "/api/v1/auth/login" ? { max: 20, seconds: 60 }
+        : path === "/api/v1/auth/change-password" ? { max: 20, seconds: 60 }
         : (path.startsWith("/api/v1/admin/accounts") || path.startsWith("/api/v1/admin/announcements")) && request.method === "POST" ? { max: 20, seconds: 60 }
         : path === "/api/v1/auth/password-reset/request" ? { max: 3, seconds: 3600 }
         : path === "/api/v1/auth/password-reset/confirm" ? { max: 5, seconds: 3600 }
@@ -122,7 +126,7 @@ export async function buildApp(
         .replace(/^\/api\/v1\/admin\/announcements\/[^/]+\/archive$/, "/api/v1/admin/announcements/:id/archive")
         .replace(/^\/api\/v1\/admin\/invitations\/[^/]+\/(resend|revoke)$/, "/api/v1/admin/invitations/:id/$1")
         .replace(/^\/api\/v1\/admin\/users\/[^/]+\/(reset-access|sessions\/revoke)$/, "/api/v1/admin/users/:id/$1");
-      const identity = `${request.method}:${routeKey}:${request.ip}`;
+      const identity = `${request.method}:${routeKey}:${networkIdentity(request.ip)}`;
       const key = createHmac("sha256", config.sessionSecret).update(identity).digest("hex");
       const result = await dependencies.db!.query<{ request_count: number } & Record<string, unknown>>(
         `INSERT INTO rate_limit_buckets (bucket_key, window_started_at, request_count, updated_at)

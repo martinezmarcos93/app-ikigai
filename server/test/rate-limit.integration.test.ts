@@ -46,17 +46,19 @@ test("shared PostgreSQL rate limit is enforced across two API instances", {
     await Promise.all([firstPool.end(), secondPool.end()]);
   });
 
+  // Un login distinto en cada intento: el tope por cuenta (10 fallos) no debe adelantarse al de IP que se prueba aca.
+  let n = 0;
   const attempt = () => ({
     method: "POST" as const,
     url: "/api/v1/auth/login",
     headers: { origin, "x-forwarded-for": clientIp },
-    payload: { email: "no-account-rate-limit@example.test", password: "wrong-password-for-rate-limit-2026" }
+    payload: { email: `no-account-rate-limit-${n++}@example.test`, password: "wrong-password-for-rate-limit-2026" }
   });
-  for (let i = 0; i < 3; i += 1) {
+  for (let i = 0; i < 10; i += 1) {
     const response = await firstApp.inject(attempt());
     assert.equal(response.statusCode, 401);
   }
-  for (let i = 0; i < 2; i += 1) {
+  for (let i = 0; i < 10; i += 1) {
     const response = await secondApp.inject(attempt());
     assert.equal(response.statusCode, 401);
   }

@@ -119,7 +119,7 @@ export function registerAccountRoutes(
         await tx.query("INSERT INTO user_roles (user_id, role, granted_by) VALUES ($1,$2,$3)", [userId, role, actor.userId]);
         await tx.query(
           "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,'user.account_created','user',$2,$3,$4::jsonb)",
-          [actor.userId, userId, request.id, JSON.stringify({ role, username, profileId })]
+          [actor.userId, userId, request.id, JSON.stringify({ role, profileId })]
         );
         return { userId, username, role, fullName: row.full_name, temporaryPassword };
       });
