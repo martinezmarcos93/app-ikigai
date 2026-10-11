@@ -30,7 +30,11 @@ export async function buildApp(
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: config.nodeEnv !== "test",
-    trustProxy: config.trustProxyHops || false,
+    // Confiar en los primeros N saltos de proxy (equivale al entero que acepta
+    // el runtime de Fastify, que sus tipos no admiten): hop 0 es el mas cercano.
+    trustProxy: config.trustProxyHops
+      ? (_address: string, hop: number) => hop < config.trustProxyHops
+      : false,
     bodyLimit: 1_048_576,
     requestTimeout: 15_000
   });
