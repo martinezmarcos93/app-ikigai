@@ -116,6 +116,14 @@ test("PostgreSQL routines preserve versions, assignment history, and member boun
   });
   assert.equal(memberRoutineList.statusCode, 403);
 
+  // La biblioteca de rutinas la ven administracion y profesores: con la ultima version y sus ejercicios.
+  const library = await app.inject({ method: "GET", url: "/api/v1/routines", headers: headers(admin) });
+  assert.equal(library.statusCode, 200, library.body);
+  const listed = (library.json().routines as Array<{ id: string; version_number: number; exercises: unknown[] }>).find((r) => r.id === routineId);
+  assert.ok(listed, "la rutina creada aparece en la biblioteca");
+  assert.equal(listed.version_number, 1);
+  assert.equal(listed.exercises.length, 1);
+
   const startsOn = new Date().toISOString().slice(0, 10);
   const assignmentPayload = {
     routineVersionId: versionOneId,

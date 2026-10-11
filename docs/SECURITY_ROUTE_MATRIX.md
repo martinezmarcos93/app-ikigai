@@ -66,6 +66,11 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/auth/accept-invitation` | Público con token válido | Token de un uso, expiración y cuenta deshabilitada | Origin + transacción + auditoría | `invitations.integration.test.ts` |
 | `POST /api/v1/admin/users/:id/reset-access` | Administración | Sólo cuentas de miembro/profesor; requiere motivo; no permite reset de admins | CSRF + transacción + rate limit + auditoría | `admin-security.integration.test.ts` |
 | `POST /api/v1/admin/users/:id/sessions/revoke` | Administración | Revocación idempotente de sesiones del usuario objetivo | CSRF + transacción + rate limit + auditoría | `admin-security.integration.test.ts` |
+| `GET /api/v1/announcements` | Cualquier usuario autenticado | Cada persona ve lo general y lo de su rol (administración ve todo); sin archivados | No | `announcements.integration.test.ts` |
+| `POST /api/v1/admin/announcements` | Administración | Título, texto y destinatarios (todos, miembros o profesores) | CSRF + rate limit + auditoría (sólo destinatarios, no el texto) | `announcements.integration.test.ts` |
+| `POST /api/v1/announcements/:id/read` | Cualquier usuario autenticado | Sólo avisos que le corresponden; idempotente | CSRF | `announcements.integration.test.ts` |
+| `POST /api/v1/admin/announcements/:id/archive` | Administración | Deja de mostrarse; no se borra | CSRF + rate limit + auditoría | `announcements.integration.test.ts` |
+| `GET /api/v1/coach/members` | Profesor | Sólo miembros con quienes tiene clases (mismo alcance que asistencia y rutinas); nombre y estado | No | `announcements.integration.test.ts` |
 | `GET /api/v1/admin/accounts` | Administración | Miembros y profesores con su usuario y estado de acceso (nunca claves) | No | `accounts.integration.test.ts` |
 | `POST /api/v1/admin/accounts` | Administración | Crea el usuario y una clave temporal aleatoria de un solo uso visible; exige cambio en el primer ingreso; un perfil, una cuenta | CSRF + transacción + rate limit + auditoría (sin la clave) | `accounts.integration.test.ts` |
 | `POST /api/v1/admin/accounts/:id/reset-password` | Administración | Sólo cuentas de miembro/profesor, nunca administradores; cierra sus sesiones y exige nuevo cambio | CSRF + transacción + rate limit + auditoría | `accounts.integration.test.ts` |

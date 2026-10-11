@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0 };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0 };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", "schedule-templates":"Horarios y clases" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -118,6 +118,7 @@
   function applyRoleNavigation() {
     document.querySelectorAll("[data-role='admin']").forEach(node => { node.hidden = !isAdmin(); });
     document.querySelectorAll("[data-role='member']").forEach(node => { node.hidden = !isMember(); });
+    document.querySelectorAll("[data-role='staff']").forEach(node => { node.hidden = !(isAdmin() || isCoach()); });
     const coachesNav = document.querySelector('[data-view="coaches"]');
     if (coachesNav) coachesNav.hidden = !(isAdmin() || isCoach());
     document.querySelectorAll('[data-view="memberships"], [data-view="accounts"]').forEach(node => { node.hidden = !(isAdmin() || isMember()); });
@@ -529,6 +530,137 @@
       </div><div class="form-actions"><button class="button primary" type="submit">Guardar contraseña</button></div>
       <p class="footer-note">Al cambiarla se cierran las demás sesiones abiertas con esta cuenta.</p></form></section>`;
   }
+  // ---------------- Avisos ----------------
+  const AUDIENCE = { all: "Todos", members: "Miembros", coaches: "Profesores" };
+  const textareaField = (label, name, opts = {}) =>
+    `<div class="field full-span"><label for="f-${esc(name)}">${esc(label)}</label><textarea id="f-${esc(name)}" name="${esc(name)}" rows="${opts.rows || 4}"${opts.required ? " required" : ""}${opts.maxLength ? ` maxlength="${esc(opts.maxLength)}"` : ""}></textarea></div>`;
+  function setUnread(count) {
+    state.unreadAnnouncements = count;
+    const badge = $("#announcementBadge");
+    badge.textContent = count > 99 ? "99+" : String(count);
+    badge.hidden = count === 0;
+    badge.setAttribute("aria-label", `${count} avisos sin leer`);
+  }
+  async function refreshUnread() {
+    try { setUnread((await api.listAnnouncements()).unread || 0); }
+    catch { /* el contador es una ayuda: si falla no se interrumpe nada */ }
+  }
+  async function showUnreadBanner() {
+    await refreshUnread();
+    if (!state.unreadAnnouncements || state.currentView !== "dashboard") return;
+    const n = state.unreadAnnouncements;
+    $("#pageContent").insertAdjacentHTML("afterbegin", `<section class="panel unread-banner" role="status"><p><strong>Tenés ${n} ${n === 1 ? "aviso sin leer" : "avisos sin leer"}.</strong></p><button class="button primary small" type="button" data-view="announcements">Ver avisos</button></section>`);
+  }
+  async function renderAnnouncements() {
+    setPage("Avisos");
+    setLoading("Consultando los avisos…");
+    const { announcements, unread } = await api.listAnnouncements();
+    setUnread(unread || 0);
+    const cards = announcements.length ? announcements.map(item => `
+      <article class="panel notice-card${item.read ? "" : " is-unread"}" data-announcement="${esc(item.id)}">
+        <div class="section-title"><span>${esc(item.title)}</span>${item.read ? "" : '<span class="badge warn">Nuevo</span>'}</div>
+        <p class="muted">${esc(new Date(item.created_at).toLocaleString("es-AR"))}${isAdmin() ? ` · Para: ${esc(AUDIENCE[item.audience] || item.audience)}` : ""}</p>
+        <p class="notice-body">${esc(item.body)}</p>
+        <div class="form-actions">
+          ${item.read ? "" : `<button class="button small" type="button" data-action="read-announcement" data-id="${esc(item.id)}">Marcar como leído</button>`}
+          ${isAdmin() ? `<button class="button ghost small" type="button" data-action="archive-announcement" data-id="${esc(item.id)}">Archivar</button>` : ""}
+        </div>
+      </article>`).join("") : empty("No hay avisos por ahora.");
+    const publish = isAdmin() ? form("Publicar un aviso", "publish-announcement",
+      field("Título", "title", "text", { required: true, maxLength: 120, wide: true }) +
+      textareaField("Mensaje", "body", { required: true, maxLength: 2000 }) +
+      selectField("Para", "audience", [{ value: "all", label: "Todos" }, { value: "members", label: "Solo miembros" }, { value: "coaches", label: "Solo profesores" }], "all"),
+      "Publicar aviso",
+      "Es un aviso general, no un mensaje privado: no escribas nombres, deudas ni datos de salud de nadie.") : "";
+    $("#pageContent").innerHTML = `${publish}${unread ? `<div class="form-actions" style="margin:16px 0"><button class="button ghost small" type="button" data-action="read-all-announcements">Marcar todos como leídos</button></div>` : ""}<div class="notice-list" style="margin-top:16px">${cards}</div>`;
+  }
+
+  // ---------------- Rutinas ----------------
+  function exerciseRow(row = {}) {
+    const options = state.exercises.map(e => `<option value="${esc(e.id)}"${e.id === row.exerciseId ? " selected" : ""}>${esc(e.name)}</option>`).join("");
+    return `<div class="routine-row">
+      <select name="exerciseId" aria-label="Ejercicio" required>${options}</select>
+      <input name="sets" aria-label="Series" placeholder="Series (ej. 3)" maxlength="80" required value="${esc(row.sets ?? "")}">
+      <input name="reps" aria-label="Repeticiones" placeholder="Repeticiones" maxlength="80" value="${esc(row.reps ?? "")}">
+      <input name="restSeconds" aria-label="Descanso en segundos" type="number" min="0" max="3600" placeholder="Descanso (s)" value="${esc(row.restSeconds ?? "")}">
+      <input name="notes" aria-label="Indicaciones" placeholder="Indicaciones" maxlength="500" value="${esc(row.notes ?? "")}">
+      <button class="button ghost small" type="button" data-action="remove-routine-row" aria-label="Quitar ejercicio">Quitar</button>
+    </div>`;
+  }
+  function routineBuilder(rows) {
+    return `<div class="routine-rows" data-routine-rows>${(rows.length ? rows : [{}]).map(exerciseRow).join("")}</div>
+      <div class="form-actions"><button class="button ghost small" type="button" data-action="add-routine-row">Agregar ejercicio</button></div>`;
+  }
+  function readRoutineRows(formNode) {
+    return [...formNode.querySelectorAll(".routine-row")].map(rowNode => {
+      const get = name => rowNode.querySelector(`[name="${name}"]`).value.trim();
+      const item = { exerciseId: get("exerciseId"), sets: get("sets") };
+      if (get("reps")) item.reps = get("reps");
+      if (get("restSeconds") !== "") item.restSeconds = Number(get("restSeconds"));
+      if (get("notes")) item.notes = get("notes");
+      return item;
+    });
+  }
+  const routineTable = exercises => table(["#", "Ejercicio", "Series", "Repeticiones", "Descanso", "Indicaciones"], exercises.map(e =>
+    row([esc(e.position), esc(e.name), esc(e.sets || "—"), esc(e.reps || "—"), e.restSeconds != null ? `${esc(e.restSeconds)} s` : "—", esc(e.notes || "")])));
+  async function renderRoutines() {
+    if (!(isAdmin() || isCoach())) throw new Error("Esta sección es exclusiva de administración y profesores.");
+    setPage("Rutinas");
+    setLoading("Consultando rutinas y ejercicios…");
+    const [exercises, routines] = await Promise.all([api.listExercises(), api.listRoutines()]);
+    state.exercises = exercises.exercises || [];
+    state.routines = routines.routines || [];
+    if (isAdmin()) { await loadMembers(); state.assignable = state.members.filter(m => m.status !== "exited"); }
+    else state.assignable = (await api.listCoachMembers()).members || [];
+    if (!state.assignable.some(m => m.id === state.routineMember)) state.routineMember = state.assignable[0]?.id || "";
+    const library = state.routines.length ? state.routines.map(routine => `
+      <article class="panel" data-routine="${esc(routine.id)}">
+        <div class="section-title"><span>${esc(routine.name)}</span><span class="badge">Versión ${esc(routine.version_number)}</span></div>
+        <p class="muted">${esc(routine.discipline)} · ${esc(routine.level)}</p>
+        ${routine.version_notes ? `<p>${esc(routine.version_notes)}</p>` : ""}
+        ${routineTable(routine.exercises || [])}
+        <div class="form-actions">
+          <button class="button primary small" type="button" data-action="pick-routine" data-version="${esc(routine.version_id)}">Asignar a un miembro</button>
+          ${isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-routine" data-id="${esc(routine.id)}">Nueva versión</button>` : ""}
+        </div></article>`).join("") : empty(isAdmin() ? "Todavía no hay rutinas. Creá ejercicios y armá la primera." : "Todavía no hay rutinas creadas por administración.");
+    const routineOpts = state.routines.map(r => ({ value: r.version_id, label: `${r.name} · versión ${r.version_number}` }));
+    const memberOpts = state.assignable.map(m => ({ value: m.id, label: m.full_name }));
+    const assign = routineOpts.length && memberOpts.length
+      ? form("Asignar una rutina", "assign-routine",
+          selectField("Rutina", "routineVersionId", routineOpts, routineOpts[0].value) +
+          selectField("Miembro", "memberId", memberOpts, state.routineMember) +
+          field("Desde", "startsOn", "date", { required: true, value: today() }) +
+          field("Hasta (opcional)", "endsOn", "date") +
+          field("Indicaciones para esta persona", "notes", "text", { maxLength: 1000, wide: true }),
+          "Asignar rutina", "El miembro la ve en «Mi rutina» desde la fecha indicada.")
+      : `<section class="panel" data-tour="routine-assign"><h2 class="section-title">Asignar una rutina</h2>${empty(!routineOpts.length ? "Primero tiene que existir al menos una rutina." : isAdmin() ? "Primero creá un miembro." : "Todavía no tenés miembros con clases a quienes asignar.")}</section>`;
+    const viewer = memberOpts.length ? `<section class="panel"><h2 class="section-title">Rutinas de un miembro</h2>
+        <form data-form="select-routine-member"><div class="form-grid">${selectField("Miembro", "memberId", memberOpts, state.routineMember)}</div><div class="form-actions"><button class="button" type="submit">Ver rutinas asignadas</button></div></form>
+        <div id="routineAssignments" style="margin-top:12px"></div></section>` : "";
+    const adminForms = isAdmin() ? `
+      <div class="two-col" style="margin-top:16px">
+        ${form("Nuevo ejercicio", "create-exercise",
+          field("Nombre", "name", "text", { required: true, maxLength: 120, wide: true }) +
+          field("Equipamiento", "equipment", "text", { maxLength: 240 }) +
+          field("Precauciones", "precautions", "text", { maxLength: 1000 }) +
+          textareaField("Descripción", "description", { rows: 3, maxLength: 2000 }), "Crear ejercicio")}
+        <section class="panel"><h2 class="section-title">Ejercicios (${state.exercises.length})</h2>${table(["Ejercicio", "Equipamiento"], state.exercises.map(e => row([esc(e.name), esc(e.equipment || "—")])))}</section>
+      </div>
+      <section class="panel" style="margin-top:16px" data-tour="routine-new"><h2 class="section-title">Nueva rutina</h2>
+        ${state.exercises.length ? `<form data-form="create-routine"><div class="form-grid">
+          ${field("Nombre", "name", "text", { required: true, maxLength: 120 })}${field("Disciplina", "discipline", "text", { required: true, maxLength: 120 })}${field("Nivel", "level", "text", { required: true, maxLength: 80, placeholder: "Ej. Inicial" })}${field("Notas de la rutina", "notes", "text", { maxLength: 2000 })}
+        </div>${routineBuilder([])}<div class="form-actions"><button class="button primary" type="submit">Crear rutina</button></div></form>` : empty("Primero creá al menos un ejercicio.")}
+      </section>
+      <div id="routineEditor"></div>` : "";
+    $("#pageContent").innerHTML = `<div data-tour="routine-library">${library}</div><div class="two-col" style="margin-top:16px">${assign}${viewer}</div>${adminForms}`;
+  }
+  function renderAssignmentList(assignments) {
+    if (!assignments.length) return empty("Este miembro todavía no tiene rutinas asignadas.");
+    return assignments.map(a => `<article class="panel"><div class="section-title"><span>${esc(a.name)}</span><span class="badge">Versión ${esc(a.version_number)}</span></div>
+      <p class="muted">${esc(a.discipline)} · ${esc(a.level)} · Desde ${esc(date(a.starts_on))}${a.ends_on ? " · Hasta " + esc(date(a.ends_on)) : ""}</p>
+      ${a.assignment_notes ? `<p>${esc(a.assignment_notes)}</p>` : ""}${routineTable(a.exercises || [])}</article>`).join("");
+  }
+
   async function renderInstitutionSettings() {
     if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
     setPage("Configuración institucional");
@@ -783,7 +915,7 @@
     hideNotice();
     document.querySelectorAll(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.view === view));
     try {
-      if (view === "dashboard") await renderDashboard();
+      if (view === "dashboard") { await renderDashboard(); await showUnreadBanner(); }
       else if (view === "members") await renderMembers();
       else if (view === "services") await renderServices();
       else if (view === "memberships") await renderMemberships();
@@ -795,6 +927,8 @@
       else if (view === "coaches") await renderCoaches();
       else if (view === "invitations") await renderAccess();
       else if (view === "my-password") renderPasswordChange();
+      else if (view === "routines") await renderRoutines();
+      else if (view === "announcements") await renderAnnouncements();
       else if (view === "institution-settings") await renderInstitutionSettings();
       else renderDenied("No disponible","Esta sección todavía no está conectada.");
     } catch (error) {
@@ -960,6 +1094,53 @@
         showNotice("Contraseña actualizada.", "success");
         return;
       }
+      if (kind === "publish-announcement") {
+        await api.publishAnnouncement({ title: v("title"), body: v("body"), audience: v("audience") });
+        await renderAnnouncements();
+        showNotice("Aviso publicado.", "success");
+        return;
+      }
+      if (kind === "create-exercise") {
+        const payload = { name: v("name") };
+        for (const key of ["description", "equipment", "precautions"]) if (v(key)) payload[key] = v(key);
+        await api.createExercise(payload);
+        await renderRoutines();
+        showNotice("Ejercicio creado.", "success");
+        return;
+      }
+      if (kind === "create-routine") {
+        const payload = { name: v("name"), discipline: v("discipline"), level: v("level"), exercises: readRoutineRows(formNode) };
+        if (v("notes")) payload.notes = v("notes");
+        await api.createRoutine(payload);
+        await renderRoutines();
+        showNotice("Rutina creada.", "success");
+        return;
+      }
+      if (kind === "create-routine-version") {
+        const payload = { exercises: readRoutineRows(formNode) };
+        if (v("notes")) payload.notes = v("notes");
+        await api.createRoutineVersion(v("routineId"), payload);
+        await renderRoutines();
+        showNotice("Nueva versión creada. Las asignaciones anteriores conservan la versión que recibieron.", "success");
+        return;
+      }
+      if (kind === "assign-routine") {
+        const payload = { routineVersionId: v("routineVersionId"), startsOn: v("startsOn") };
+        if (v("endsOn")) payload.endsOn = v("endsOn");
+        if (v("notes")) payload.notes = v("notes");
+        const memberChoice = v("memberId");
+        const result = await api.assignRoutine(memberChoice, payload);
+        state.routineMember = memberChoice;
+        await renderRoutines();
+        showNotice(result.replayed ? "Esa asignación ya existía." : "Rutina asignada.", "success");
+        return;
+      }
+      if (kind === "select-routine-member") {
+        state.routineMember = v("memberId");
+        const result = await api.listRoutineAssignments(state.routineMember);
+        $("#routineAssignments").innerHTML = renderAssignmentList(result.assignments || []);
+        return;
+      }
       throw new Error("Formulario no reconocido.");
     } catch (error) {
       showError(error);
@@ -1098,6 +1279,44 @@
         await renderAccess();
         showCredentials("Clave restablecida", action.dataset.name, result.username, result.temporaryPassword);
       }
+      else if (action.dataset.action === "read-announcement") {
+        await api.markAnnouncementRead(action.dataset.id);
+        await renderAnnouncements();
+      }
+      else if (action.dataset.action === "read-all-announcements") {
+        const pending = [...document.querySelectorAll(".notice-card.is-unread")].map(node => node.dataset.announcement);
+        for (const announcementId of pending) await api.markAnnouncementRead(announcementId);
+        await renderAnnouncements();
+      }
+      else if (action.dataset.action === "archive-announcement") {
+        if (!window.confirm("¿Archivar este aviso? Deja de mostrarse para todos.")) return;
+        await api.archiveAnnouncement(action.dataset.id);
+        await renderAnnouncements();
+        showNotice("Aviso archivado.", "success");
+      }
+      else if (action.dataset.action === "add-routine-row") {
+        action.closest("form").querySelector("[data-routine-rows]").insertAdjacentHTML("beforeend", exerciseRow());
+      }
+      else if (action.dataset.action === "remove-routine-row") {
+        const rows = action.closest("[data-routine-rows]");
+        if (rows.children.length > 1) action.closest(".routine-row").remove();
+      }
+      else if (action.dataset.action === "pick-routine") {
+        const select = document.querySelector('form[data-form="assign-routine"] [name="routineVersionId"]');
+        if (select) { select.value = action.dataset.version; select.scrollIntoView({ behavior: "smooth", block: "center" }); select.focus(); }
+      }
+      else if (action.dataset.action === "edit-routine") {
+        const routine = state.routines.find(r => r.id === action.dataset.id);
+        if (!routine) return;
+        const editor = $("#routineEditor");
+        editor.innerHTML = `<section class="panel" style="margin-top:16px"><h2 class="section-title">Nueva versión de «${esc(routine.name)}»</h2>
+          <form data-form="create-routine-version"><input type="hidden" name="routineId" value="${esc(routine.id)}">
+          <div class="form-grid">${field("Qué cambia en esta versión", "notes", "text", { maxLength: 2000, wide: true })}</div>
+          ${routineBuilder(routine.exercises || [])}
+          <div class="form-actions"><button class="button primary" type="submit">Crear versión ${esc(Number(routine.version_number) + 1)}</button></div>
+          <p class="footer-note">Las rutinas ya asignadas conservan la versión que recibieron; la nueva se asigna aparte.</p></form></section>`;
+        editor.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       else if (action.dataset.action === "start-tour") { startTour(); }
     } catch (error) { showError(error); }
   });
@@ -1133,6 +1352,7 @@
       state.tourDone = result.tourCompleted === true;
       setAuthenticated(result.user);
       await renderView("dashboard");
+      refreshUnread();
       maybeStartTour();
     } catch (error) { showError(error); }
     finally { button.disabled=false; button.innerHTML='Ingresar <span aria-hidden="true">↗</span>'; }
@@ -1156,9 +1376,11 @@
     { view: "members", target: "form[data-form='create-member']", title: "4. Miembros", text: "Cargá a cada persona con sus datos. Solo el nombre es obligatorio; el DNI, el teléfono y el contacto de emergencia son opcionales. Crear un miembro no genera cobros ni accesos." },
     { view: "invitations", target: "[data-tour='access-intro']", title: "5. Accesos: usuario y clave", text: "Solo vos podés crear usuarios. Tocá «Crear acceso» junto a un profesor o miembro: se genera un usuario con su nombre y una clave temporal que se muestra una sola vez. Quien entra tiene que cambiarla." },
     { view: "schedule-templates", target: "#pageContent > :first-child", title: "6. Horarios semanales", text: "Definí qué clases hay, qué día y a qué hora, con qué profesor y cuántos lugares. De ahí se generan las clases reales de cada semana." },
-    { view: "memberships", target: "#pageContent > :first-child", title: "7. Membresías", text: "Elegí un miembro y asignale un servicio con el precio acordado. La membresía no cobra sola: los cargos los registrás vos en la cuenta corriente." },
-    { view: "accounts", target: "#pageContent > :first-child", title: "8. Cuenta corriente", text: "Acá anotás cargos, pagos (completos o parciales) y ajustes. Los movimientos no se editan ni se borran: si algo se cargó mal, se corrige con un ajuste." },
-    { view: "schedule", target: "#pageContent > :first-child", title: "9. Agenda y asistencia", text: "La agenda muestra las clases y sus reservas. Los profesores toman asistencia desde su cuenta; vos también podés hacerlo y corregirla." },
+    { view: "routines", target: "[data-tour='routine-library']", title: "7. Rutinas", text: "Creá los ejercicios, armá rutinas con series y repeticiones, y asignalas a cada miembro con fecha de inicio. Si cambiás una rutina se crea una versión nueva: las ya asignadas no se modifican." },
+    { view: "memberships", target: "#pageContent > :first-child", title: "8. Membresías", text: "Elegí un miembro y asignale un servicio con el precio acordado. La membresía no cobra sola: los cargos los registrás vos en la cuenta corriente." },
+    { view: "accounts", target: "#pageContent > :first-child", title: "9. Cuenta corriente", text: "Acá anotás cargos, pagos (completos o parciales) y ajustes. Los movimientos no se editan ni se borran: si algo se cargó mal, se corrige con un ajuste." },
+    { view: "schedule", target: "#pageContent > :first-child", title: "10. Agenda y asistencia", text: "La agenda muestra las clases y sus reservas. Los profesores toman asistencia desde su cuenta; vos también podés hacerlo y corregirla." },
+    { view: "announcements", target: "#pageContent > :first-child", title: "11. Avisos", text: "Publicá un aviso para todos, solo para miembros o solo para profesores. Cada persona lo ve en «Avisos», con un contador de los que todavía no leyó. Es un aviso general: no escribas datos personales." },
     { view: "dashboard", target: ".nav-link[data-action='start-tour']", title: "Listo", text: "Eso es todo para empezar. Si necesitás repasar algo, tocá «Guía de primer uso» y la guía vuelve a empezar." }
   ];
   function markTourDone() {
@@ -1183,6 +1405,7 @@
       state.tourDone = result.tourCompleted === true;
       setAuthenticated(result.user);
       await renderView("dashboard");
+      refreshUnread();
       maybeStartTour();
     } catch (error) {
       setUnauthenticated();

@@ -188,7 +188,7 @@
 - [x] El miembro inicia sesión con su usuario, ve sólo sus secciones, reserva y cancela una clase y consulta su asistencia; las rutas de administración le responden `403` aunque el cliente las invoque.
 - [x] El profesor activado ve su agenda y registra la asistencia de una clase ya dada; el miembro la ve reflejada como «Presente».
 - [x] La pantalla «Accesos» no repite `id` (accesibilidad).
-- [x] **Primer uso de administración** (`scripts/e2e-tour.py`): clave temporal → elegir clave propia → guía de globos que recorre 11 pantallas en orden, también en un teléfono; se puede saltar con Escape, se recuerda en el servidor (no reaparece al recargar ni en otro dispositivo) y se repite desde «Guía de primer uso».
+- [x] **Primer uso de administración** (`scripts/e2e-tour.py`): clave temporal → elegir clave propia → guía de globos que recorre 13 pantallas en orden, también en un teléfono; se puede saltar con Escape, se recuerda en el servidor (no reaparece al recargar ni en otro dispositivo) y se repite desde «Guía de primer uso».
 - [ ] Probado a mano por Agustín en su propio celular.
 - [x] Recorrido automatizado en navegador real con tres personas: `scripts/e2e-roles.py` (manual; el CI no tiene navegador).
 

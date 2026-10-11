@@ -216,3 +216,13 @@ button, .button, .nav-link, input[type="checkbox"], input[type="radio"] { touch-
 .panel.narrow { max-width: 520px; }
 .credentials-panel { border-color: var(--red); margin-top: 16px; }
 .tour-bubble.tour-centered { top: 50%; left: 50%; transform: translate(-50%, -50%); bottom: auto; right: auto; }
+
+/* ---- Avisos y rutinas ---- */
+.nav-badge { margin-left: auto; min-width: 22px; padding: 2px 7px; border-radius: 999px; background: var(--red); color: #fff; font-size: 12px; font-weight: 700; text-align: center; }
+.notice-card.is-unread { border-color: var(--red); }
+.notice-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.unread-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-color: var(--red); margin-bottom: 16px; }
+.unread-banner p { margin: 0; }
+.routine-rows { display: grid; gap: 10px; margin-bottom: 10px; }
+.routine-row { display: grid; grid-template-columns: minmax(160px, 2fr) 1fr 1fr 1fr 2fr auto; gap: 8px; align-items: center; }
+@media (max-width: 720px) { .routine-row { grid-template-columns: 1fr 1fr; padding: 10px; border: 1px solid var(--line, #2a2a2a); border-radius: 10px; } .routine-row select, .routine-row input[name="notes"] { grid-column: 1 / -1; } }
