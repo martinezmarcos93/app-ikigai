@@ -122,6 +122,10 @@ with sync_playwright() as p:
         f"VALUES ('{template_id}', now() - interval '3 hours', now() - interval '2 hours', 5)")
     past_session = sql(f"SELECT id FROM class_sessions WHERE template_id='{template_id}' ORDER BY starts_at LIMIT 1")
     sql(f"INSERT INTO bookings (session_id, member_id, status) VALUES ('{past_session}', '{ids['member']}', 'confirmed')")
+    # el aviso de llegada tarde que la socia dejo antes de que empezara esa clase
+    sql(f"INSERT INTO booking_notices (booking_id, kind, note, created_by) "
+        f"SELECT b.id, 'late', 'Llego 10:15', mp.user_id FROM bookings b JOIN member_profiles mp ON mp.id = b.member_id "
+        f"WHERE b.session_id = '{past_session}'")
 
     # ------------------------------------------------------------------ activacion de cuentas
     accept(browser, member_link, MEMBER_PASSWORD)
@@ -138,6 +142,17 @@ with sync_playwright() as p:
     member.wait_for_selector("text=Reserva procesada")
     member.wait_for_selector('button[data-action="cancel-booking"]')
     assert "Reservada" in member.locator("table tbody tr", has=member.locator('button[data-action="cancel-booking"]')).first.inner_text()
+    # avisos: informativos, no cancelan ni liberan el cupo; se pueden quitar
+    fila = member.locator("table tbody tr", has=member.locator('button[data-action="cancel-booking"]')).first
+    member.once("dialog", lambda d: d.accept("10:15"))
+    fila.locator('button[data-action="notice"][data-kind="late"]').click()
+    member.wait_for_selector("text=Avisaste que llegás tarde")
+    fila = member.locator("table tbody tr", has=member.locator('button[data-action="remove-notice"]')).first
+    assert "avisaste que llegás tarde" in fila.inner_text()
+    assert "Reservada" in fila.inner_text(), "un aviso no debe cancelar la reserva"
+    fila.locator('button[data-action="remove-notice"]').click()
+    member.wait_for_selector("text=Aviso quitado")
+    assert member.locator('button[data-action="remove-notice"]').count() == 0
     member.locator('button[data-action="cancel-booking"]').first.click()
     member.wait_for_selector("text=Reserva cancelada")
     # lo exclusivo de administracion se rechaza tambien por la API, aunque el cliente lo intente
@@ -155,7 +170,8 @@ with sync_playwright() as p:
     coach.wait_for_selector("table tbody tr")
     coach.locator('button[data-action="session-attendance"]').first.click()
     coach.wait_for_selector('select[data-booking-id]')
-    coach.select_option('select[data-booking-id]', "true")
+    assert "llegará tarde — «Llego 10:15»" in coach.locator(".attendance-entry").first.inner_text(), "el profesor no ve el aviso"
+    coach.select_option('select[data-booking-id]', "late")
     coach.click('form[data-form="record-attendance"] button[type=submit]')
     coach.wait_for_selector("text=Asistencia guardada: 1 nuevos")
     coach.screenshot(path=f"{OUT}/roles-profesor.png")
@@ -163,6 +179,8 @@ with sync_playwright() as p:
     # ------------------------------------------------------------------ la socia ve su asistencia
     member.click('button[data-view="attendance"]')
     member.wait_for_selector("text=Presente")
+    assert "Llegó tarde" in member.locator("table tbody").inner_text(), "el historial no muestra la llegada tarde"
+    assert member.locator(".stat-card", has_text="Llegadas tarde").inner_text().split()[-1] == "1"
     member.screenshot(path=f"{OUT}/roles-asistencia.png")
     browser.close()
 

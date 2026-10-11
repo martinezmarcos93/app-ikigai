@@ -96,7 +96,7 @@
 - [x] Membresías, vigencias, cargos, pagos parciales, ajustes y saldos a favor (`memberships.integration.test.ts`, `financial-rules.integration.test.ts`, `e2e-admin.py`).
 - [x] Obligación mensual fija de cada profesor con pagos parciales, ajustes y saldo por período (`financial-rules.integration.test.ts`, `e2e-admin.py`), sin relación porcentual con reservas/asistencia.
 - [x] Rutinas versionadas, ejercicios y asignaciones con permisos y alcance (`routines.integration.test.ts`).
-- [ ] Avisos, ausencias y llegadas tarde sin sanciones automáticas no aprobadas.
+- [x] Avisos, ausencias y llegadas tarde sin sanciones automáticas: el miembro avisa que no irá o que llegará tarde (informativo: no cancela ni genera cargos), el profesor lo ve en su lista y registra «llegó tarde» al tomar asistencia, y el historial lo muestra (`notices.integration.test.ts`, `e2e-roles.py`).
 - [x] Pruebas de aceptación de extremo a extremo para administración, profesor y miembro en navegador real: `scripts/e2e-admin.py`, `scripts/e2e-roles.py`, `scripts/e2e-agenda.py`, `scripts/e2e-pwa.py` y `scripts/audit-mobile.py` (manuales: el CI no tiene navegador).
 - **Criterio de cierre:** flujos principales con persistencia, reglas de negocio, autorización y pruebas; no basta con que exista una pantalla.
 
@@ -180,7 +180,7 @@ En la rama `feat/phase-4-schedule-api-sweep` se añade `GET /api/v1/class-sessio
 
 **Hallazgo central:** GitHub Actions nunca llegó a ejecutarse para este repositorio privado (los jobs no arrancan: «recent account payments have failed or your spending limit needs to be increased»), de modo que **el código no estaba validado**. Al correr localmente todo lo que define el workflow aparecieron 16 errores de tipos y 7 tests fallando, además de un archivo de pruebas que ni compilaba. Hasta que la facturación se resuelva, la validación vigente es la local: `npm ci`, `npm run check`, `npm run db:migrate` y `npm test` contra un PostgreSQL descartable con `IKIGAI_INTEGRATION_TESTS=1`, más los pasos del primer job del workflow.
 
-Resultado del barrido: typecheck sin errores; 86 pruebas del servidor pasando; pasos del primer job del workflow verificados.
+Resultado del barrido: typecheck sin errores; 89 pruebas del servidor pasando; pasos del primer job del workflow verificados.
 
 - **Autenticación antes de validación:** un hook global exige sesión en toda ruta privada, así que un anónimo recibe `401` y no sondea esquemas (antes `400`).
 - **Auditoría automática de la matriz de autorización** (`route-security.test.ts`): toda ruta registrada debe figurar en la matriz, ninguna ruta privada responde a un anónimo y las rutas «Administración» rechazan a miembros y profesores.
@@ -193,3 +193,8 @@ Resultado del barrido: typecheck sin errores; 86 pruebas del servidor pasando; p
 - **Fase 6, comprobaciones automatizadas** con `scripts/audit-mobile.py` (Chromium táctil, 320/360/390/412/480 px, 13 pantallas): sin desbordamiento horizontal, objetivos táctiles de al menos 44 px, campos con etiqueta, imágenes con `alt` y sin `id` duplicados. Resultado: 0 incumplimientos tras ampliar los enlaces de texto bajo los formularios (medían 16–18 px).
 - **Accesibilidad:** ids duplicados entre formularios de una misma pantalla (por ejemplo `email` al invitar a un miembro y a un profesor) se desambiguan automáticamente.
 - **Sigue pendiente (no automatizable aquí):** dispositivo Android real de gama baja y de gama media/alta, instalación y actualización de la PWA en el dispositivo, zoom/texto ampliado y teclado virtual.
+
+### Esquemas estrictos y avisos de reserva (11/10/2026)
+
+- **Hallazgo de seguridad:** la matriz documentaba que «la validación de esquema rechaza propiedades desconocidas», pero Fastify, por defecto, las **elimina en silencio** (`removeAdditional: true`): un login con `role: "admin"` de más devolvía `401` de credenciales, no `400`. Era inofensivo (los handlers sólo leen campos conocidos) pero no era lo documentado ni una defensa real contra la asignación masiva. Ahora el servidor usa `removeAdditional: false` y rechaza con `400`; `strict-schemas.test.ts` lo sostiene y además exige que todo objeto de todo esquema de cuerpo declare `additionalProperties: false`.
+- **Avisos de ausencia y llegada tarde** (migración `0007`): ver el modelo de datos. Son informativos y no tienen ningún efecto económico.

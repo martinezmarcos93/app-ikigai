@@ -198,3 +198,13 @@
 - [x] Roles múltiples: vincular una cuenta de administración con un perfil de profesor conserva ambos roles tras recargar.
 - [x] PWA: el service worker precachea el shell y las tipografías; el portal abre sin red; sin red las operaciones fallan con aviso de desconexión y nunca se muestran como hechas; al volver la red se recupera; ninguna respuesta de `/api/` entra en la caché; al actualizar se borran los cachés anteriores (`scripts/e2e-pwa.py`).
 - [ ] Instalación como aplicación y actualización de la PWA en un dispositivo Android real.
+
+## Avisos, ausencias y llegadas tarde
+
+- [x] El miembro dueño de la reserva (o administración) deja, cambia y quita un aviso de ausencia o de llegada tarde; otra persona, otro profesor o un anónimo no pueden (`404`/`401`) (`notices.integration.test.ts`).
+- [x] Un aviso es informativo: la reserva sigue confirmada, el cupo ocupado y la cuenta corriente intacta.
+- [x] No se puede avisar sobre una reserva cancelada ni una vez empezada la clase (`409`).
+- [x] El profesor de la clase ve el aviso y su nota en la lista de asistencia; la nota no se copia a la auditoría.
+- [x] El profesor registra «llegó tarde» sólo para quien asistió; corregir a ausente lo limpia; repetir o corregir sin mencionarlo conserva el valor.
+- [x] El historial del miembro muestra «Llegó tarde» y cuenta las llegadas tarde (`e2e-roles.py`).
+- [x] Los esquemas rechazan con `400` los campos desconocidos en vez de descartarlos (`strict-schemas.test.ts`).
