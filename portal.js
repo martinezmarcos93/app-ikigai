@@ -552,6 +552,7 @@
       const dateLabel = startsAt.toLocaleDateString("es-AR", { dateStyle: "medium" });
       const timeLabel = `${startsAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}–${endsAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`;
       const booked = ["confirmed", "waitlist"].includes(session.my_booking_status);
+      const noticeText = session.my_notice_kind === "late" ? " · avisaste que llegás tarde" : session.my_notice_kind === "absence" ? " · avisaste que no vas" : "";
       const status = session.status === "completed" ? "Finalizada"
         : session.my_booking_status === "confirmed" ? (future && !bookingOpen ? "Reservada · cancelación cerrada" : "Reservada")
         : session.my_booking_status === "waitlist" ? (future && !bookingOpen ? "En espera · cancelación cerrada" : "Lista de espera")
@@ -562,6 +563,12 @@
         action = `<button class="button ghost small" type="button" data-action="cancel-booking" data-id="${esc(session.my_booking_id)}">Cancelar reserva</button>`;
       } else if (isMemberUser && future && bookingOpen && session.status === "scheduled") {
         action = `<button class="button primary small" type="button" data-action="create-booking" data-id="${esc(session.id)}">${session.confirmed_count >= session.capacity ? "Anotarme en espera" : "Reservar clase"}</button>`;
+      }
+      if (isMemberUser && future && booked && session.my_booking_id && session.status === "scheduled") {
+        const id = esc(session.my_booking_id);
+        action += ` <button class="button ghost small" type="button" data-action="notice" data-kind="late" data-id="${id}">Llego tarde</button>`
+          + ` <button class="button ghost small" type="button" data-action="notice" data-kind="absence" data-id="${id}">No voy</button>`;
+        if (session.my_notice_kind) action += ` <button class="button ghost small" type="button" data-action="remove-notice" data-id="${id}">Quitar aviso</button>`;
       }
       if (isAdmin() && future && session.status === "scheduled") {
         action += ` <button class="button ghost small" type="button" data-action="cancel-session" data-id="${esc(session.id)}">Cancelar clase</button>`;
@@ -574,7 +581,7 @@
         esc(session.service_name || "Clase"),
         esc(session.coach_name || "Sin profesor"),
         esc(`${session.confirmed_count}/${session.capacity}${session.waitlist_count > 0 ? ` · ${session.waitlist_count} en espera` : ""}`),
-        esc(status),
+        esc(status + noticeText),
         action || '<span class="muted">—</span>'
       ]);
     });
@@ -664,10 +671,11 @@
     const records = result.records || [];
     const fields = records.map(record => `
       <label class="attendance-entry">
-        <span><strong>${esc(record.member_name || "Miembro")}</strong><small>${record.attended === true ? "Último registro: presente" : record.attended === false ? "Último registro: ausente" : "Todavía sin registrar"}</small></span>
+        <span><strong>${esc(record.member_name || "Miembro")}</strong><small>${record.attended === true ? (record.arrived_late ? "Último registro: presente, llegó tarde" : "Último registro: presente") : record.attended === false ? "Último registro: ausente" : "Todavía sin registrar"}</small>${record.notice_kind ? `<small class="notice-hint">Aviso de la persona: ${record.notice_kind === "late" ? "llegará tarde" : "no asistirá"}${record.notice_note ? ` — «${esc(record.notice_note)}»` : ""}</small>` : ""}</span>
         <select data-booking-id="${esc(record.booking_id)}" aria-label="Asistencia de ${esc(record.member_name || "Miembro")}">
           <option value="" ${record.attended == null ? "selected" : ""}>Sin registrar</option>
-          <option value="true" ${record.attended === true ? "selected" : ""}>Presente</option>
+          <option value="true" ${record.attended === true && !record.arrived_late ? "selected" : ""}>Presente</option>
+          <option value="late" ${record.attended === true && record.arrived_late ? "selected" : ""}>Presente (llegó tarde)</option>
           <option value="false" ${record.attended === false ? "selected" : ""}>Ausente</option>
         </select>
       </label>`).join("");
@@ -690,19 +698,23 @@
     const records = result.records || [];
     const attendedCount = records.filter(record => record.attended === true).length;
     const missedCount = records.filter(record => record.attended === false).length;
+    const lateCount = records.filter(record => record.attended === true && record.arrived_late === true).length;
     $("#pageContent").innerHTML = `
       <div class="stats-grid">
         <div class="stat-card"><small>Clases registradas</small><strong>${records.length}</strong></div>
         <div class="stat-card"><small>Asistencias</small><strong>${attendedCount}</strong></div>
         <div class="stat-card"><small>Ausencias</small><strong>${missedCount}</strong></div>
+        <div class="stat-card"><small>Llegadas tarde</small><strong>${lateCount}</strong></div>
       </div>
       <section class="panel"><h2 class="section-title">Historial por clase</h2>
       ${table(["Fecha y hora","Clase / servicio","Registro"],records.map(record=>row([
         esc(record.starts_at ? new Date(record.starts_at).toLocaleString("es-AR",{dateStyle:"medium",timeStyle:"short"}) : date(record.recorded_at)),
         esc(record.service_name || "Clase"),
-        record.attended ? '<span class="badge success">Presente</span>' : '<span class="badge warn">Ausente</span>'
+        record.attended
+          ? `<span class="badge success">Presente</span>${record.arrived_late ? ' <span class="badge warn">Llegó tarde</span>' : ""}`
+          : '<span class="badge warn">Ausente</span>'
       ])))}</section>
-      <p class="footer-note">La asistencia queda asociada a cada clase histórica. Una corrección del registro no crea una segunda asistencia.</p>`;
+      <p class="footer-note">La asistencia queda asociada a cada clase histórica. Una corrección del registro no crea una segunda asistencia. Ausencias y llegadas tarde se registran sólo como información: no generan sanciones ni cargos.</p>`;
   }
 
   function renderDenied(title, message) {
@@ -767,9 +779,14 @@
       if (kind === "record-attendance") {
         if (!(isAdmin() || isCoach())) throw new Error("Sólo administración o el profesor asignado pueden registrar asistencia.");
         const records = Array.from(formNode.querySelectorAll("[data-booking-id]"))
-          .filter(input => input.value === "true" || input.value === "false")
-          .map(input => ({ bookingId: input.dataset.bookingId, attended: input.value === "true" }));
-        if (!records.length) throw new Error("Elegí Presente o Ausente para al menos una persona antes de guardar.");
+          .filter(input => ["true", "late", "false"].includes(input.value))
+          .map(input => ({
+            bookingId: input.dataset.bookingId,
+            attended: input.value !== "false",
+            // «Presente» pisa una llegada tarde anterior; «Ausente» no puede llevarla (la API lo rechaza).
+            ...(input.value === "false" ? {} : { arrivedLate: input.value === "late" })
+          }));
+        if (!records.length) throw new Error("Elegí Presente, Presente (llegó tarde) o Ausente para al menos una persona antes de guardar.");
         const result = await api.updateAttendance(v("sessionId"), records);
         await renderView("schedule");
         showNotice(`Asistencia guardada: ${result.created} nuevos, ${result.updated} corregidos y ${result.unchanged} sin cambios.`, "success");
@@ -936,6 +953,21 @@
         const cancelled = await api.cancelClassSession(action.dataset.id, reason.trim() || undefined);
         await renderView("schedule");
         showNotice(`Clase cancelada. Se liberaron ${cancelled.cancelledBookings} reservas; no se generó ningún cargo ni devolución.`, "success");
+      }
+      else if (action.dataset.action === "notice") {
+        const kind = action.dataset.kind;
+        const note = window.prompt(kind === "late" ? "¿A qué hora llegás? (opcional)" : "¿Querés dejar una nota? (opcional)", "");
+        if (note === null) return;
+        await api.setBookingNotice(action.dataset.id, kind, note.trim() || undefined);
+        await renderView("schedule");
+        showNotice(kind === "late"
+          ? "Avisaste que llegás tarde: el profesor lo ve en su lista. Tu lugar sigue reservado."
+          : "Avisaste que no vas: el profesor lo ve en su lista, pero tu lugar sigue reservado. Para liberarlo, cancelá la reserva (hasta 40 minutos antes).", "success");
+      }
+      else if (action.dataset.action === "remove-notice") {
+        await api.removeBookingNotice(action.dataset.id);
+        await renderView("schedule");
+        showNotice("Aviso quitado.", "success");
       }
       else if (action.dataset.action === "refresh-schedule") {
         await renderView("schedule");

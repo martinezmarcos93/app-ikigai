@@ -241,6 +241,16 @@
       request(`/class-templates/${id(templateId)}/assignments`, { method: "POST", body }),
     endRecurringAssignment: assignmentId =>
       request(`/recurring-assignments/${id(assignmentId)}/end`, { method: "POST", body: {} }),
+    setBookingNotice: (bookingId, kind, note) => {
+      if (!["absence", "late"].includes(kind)) {
+        throw new ApiError(0, "invalid_notice", "El aviso debe ser de ausencia o de llegada tarde.");
+      }
+      if (note !== undefined && note !== null && (typeof note !== "string" || note.length > 200)) {
+        throw new ApiError(0, "invalid_notice", "La nota del aviso admite hasta 200 caracteres.");
+      }
+      return request(`/bookings/${id(bookingId)}/notice`, { method: "PUT", body: note ? { kind, note } : { kind } });
+    },
+    removeBookingNotice: bookingId => request(`/bookings/${id(bookingId)}/notice`, { method: "DELETE" }),
     getSessionAttendance: sessionId => request(`/class-sessions/${id(sessionId)}/attendance`),
     listAttendance: memberId => request(`/members/${id(memberId)}/attendance`),
     updateAttendance: (sessionId, records) => request(`/class-sessions/${id(sessionId)}/attendance`, { method: "PUT", body: { records } })

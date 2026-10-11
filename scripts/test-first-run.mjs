@@ -43,7 +43,8 @@ assert.match(portal, /data-action="create-booking"/);
 assert.match(portal, /data-action="session-attendance"/);
 assert.match(portal, /option value="true"/);
 assert.match(portal, /option value="false"/);
-assert.ok(portal.includes('filter(input => input.value === "true" || input.value === "false")'));
+// «Sin registrar» (valor vacío) nunca se envia: sólo presente, presente con llegada tarde y ausente.
+assert.ok(portal.includes('filter(input => ["true", "late", "false"].includes(input.value))'));
 assert.ok(portal.includes('selectField("Dirección (solo para ajustes)"'));
 assert.match(portal, /payload.direction = direction/);
 
@@ -60,7 +61,7 @@ assert.match(mobileStyles, /env\(safe-area-inset-bottom\)/);
 assert.match(mobileStyles, /prefers-reduced-motion/);
 assert.match(mobileStyles, /\.button\.small \{ min-height: 44px; \}/);
 
-assert.match(sw, /ikigai-shell-v11/);
+assert.match(sw, /ikigai-shell-v12/);
 assert.match(sw, /url\.pathname\.endsWith\('\/demo\.html'\)/);
 assert.match(setupGuide, /npm run admin:create/);
 assert.match(setupGuide, /no hay registro público de administradores/i);

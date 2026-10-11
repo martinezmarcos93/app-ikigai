@@ -162,6 +162,7 @@ td strong { display:block; }
 .attendance-entry { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--ikigai-surface, #080808); cursor: pointer; }
 .attendance-entry input { width: 20px; height: 20px; accent-color: var(--ikigai-red, #d51f2a); flex: 0 0 auto; }
 .attendance-entry span { display: grid; gap: 3px; min-width: 0; flex: 1 1 180px; }
+.attendance-entry small.notice-hint { color: var(--ikigai-warning, #e6b755); }
 .attendance-entry select { width: min(100%, 190px); flex: 0 1 190px; margin-left: auto; }
 .attendance-entry small { color: var(--muted); font-size: 12px; }
 .form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }

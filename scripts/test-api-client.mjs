@@ -423,3 +423,33 @@ test("the API base is same-origin everywhere except the documented development s
   assert.equal(seen["http://localhost:3001/portal.html"], "http://localhost:3001/api/v1/services");
   assert.equal(seen["https://ikigai.example.com/portal.html"], "https://ikigai.example.com/api/v1/services");
 });
+
+test("booking notices use CSRF-protected PUT/DELETE contracts and validate locally", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-notice-token", user: { id: "u", roles: ["member"] } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("socia@example.test", "correct horse battery staple");
+  await api.setBookingNotice("booking/with space", "late", "Llego 10:15");
+  await api.setBookingNotice("b2", "absence");
+  await api.removeBookingNotice("b2");
+  const [, put, putNoNote, del] = calls;
+  assert.match(put.url, /\/bookings\/booking%2Fwith%20space\/notice$/);
+  assert.equal(put.options.method, "PUT");
+  assert.deepEqual(JSON.parse(put.options.body), { kind: "late", note: "Llego 10:15" });
+  assert.equal(put.options.headers["X-CSRF-Token"], "csrf-notice-token");
+  assert.deepEqual(JSON.parse(putNoNote.options.body), { kind: "absence" });
+  assert.equal(del.options.method, "DELETE");
+  assert.equal(del.options.headers["X-CSRF-Token"], "csrf-notice-token");
+  for (const call of calls) assert.equal(call.options.cache, "no-store");
+  for (const [kind, note] of [["vacaciones", undefined], ["", undefined], [undefined, undefined], ["late", "x".repeat(201)], ["late", 5]]) {
+    assert.throws(() => api.setBookingNotice("b", kind, note), error => error && error.code === "invalid_notice");
+  }
+  assert.equal(calls.length, 4, "nada se envia si la validacion local falla");
+});
