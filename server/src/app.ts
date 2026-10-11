@@ -17,6 +17,7 @@ import { registerInvitationRoutes } from "./routes/invitations.js";
 import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
 import { registerInstitutionalSettingsRoutes } from "./routes/institutional-settings.js";
 import { registerAdminRoleRoutes } from "./routes/admin-roles.js";
+import { registerScheduleRoutes } from "./routes/schedule.js";
 import { createHmac } from "node:crypto";
 import { resolveActor } from "./security/actor.js";
 
@@ -161,6 +162,7 @@ export async function buildApp(
   }
   if (dependencies.transactionalDb) {
     registerBookingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerScheduleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerLedgerRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerCoachRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAttendanceRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
