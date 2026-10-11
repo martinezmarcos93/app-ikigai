@@ -6,3 +6,9 @@ server/dist/
 *.log
 __pycache__/
 *.db
+
+# APK compilada y llaves de firma: nunca al repositorio
+*.apk
+*.aab
+*.keystore
+*.jks
