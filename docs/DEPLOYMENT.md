@@ -42,11 +42,14 @@ recursos de terceros (las tipografías van empaquetadas), `nosniff`, `Referrer-P
    ```bash
    docker compose -f deploy/compose.yaml --env-file deploy/.env run --rm \
      -e ADMIN_EMAIL=admin@ejemplo.com -e ADMIN_PASSWORD='una-clave-larga-de-12-a-128' \
+     -e ADMIN_MUST_CHANGE_PASSWORD=1 \
      api node dist/scripts/create-admin.js
    ```
+   Con `ADMIN_MUST_CHANGE_PASSWORD=1` la clave entregada es temporal: al entrar por primera vez el portal le pide a
+   quien administra que elija una propia, y a continuación arranca la guía de primer uso.
    Después seguir [`INITIAL_SETUP.md`](INITIAL_SETUP.md): servicios → profesores → miembros → **Horarios** →
-   **Generar clases** → invitaciones desde «Accesos» (el enlace de activación se entrega en persona o por un
-   canal seguro).
+   **Generar clases** → crear los accesos desde «Accesos» (usuario y clave temporal que se entregan en persona o
+   por un canal seguro).
 5. **Verificar:** `curl -I https://TU-DOMINIO/portal.html` (cabeceras de seguridad), `curl https://TU-DOMINIO/healthz`
    (`{"status":"ok"}`), iniciar sesión en el portal.
 

@@ -71,6 +71,8 @@ test("PostgreSQL data protection: export is scoped and audited; anonymization er
     phone: "+54 11 5555-1111", address: "Calle Falsa 123", dni: "30111222",
     emergencyName: "Pedro Datos", emergencyPhone: "+54 11 5555-2222", notes: "Alergica a la penicilina"
   });
+  // El usuario generado por administracion lleva el nombre de la persona: tambien se borra al anonimizar.
+  await pool.query("UPDATE users SET username = $2 WHERE id = $1", [ana.userId, `ikigai-miembro-ana-${randomUUID().slice(0, 8)}`.replace(/[0-9]/g, "x")]);
   const beto = await createActor(pool, `Beto Otro ${suffix}`, "member", { phone: "+54 11 5555-3333" });
 
   const serviceId = String((await pool.query("INSERT INTO services (name, active) VALUES ($1, true) RETURNING id", [`Servicio DP ${suffix}`])).rows[0]?.id);
@@ -171,7 +173,8 @@ test("PostgreSQL data protection: export is scoped and audited; anonymization er
   for (const campo of ["email", "phone", "address", "dni", "emergency_contact_name", "emergency_contact_phone", "notes"]) assert.equal(profile[campo], null, campo);
   assert.ok(profile.anonymized_at);
   assert.equal(profile.status, "exited");
-  const account = (await pool.query("SELECT email, status, password_hash FROM users WHERE id = $1", [ana.userId])).rows[0];
+  const account = (await pool.query("SELECT email, username, status, password_hash FROM users WHERE id = $1", [ana.userId])).rows[0];
+  assert.equal(account.username, null, "el usuario con su nombre se borra");
   assert.notEqual(account.email, ana.email);
   assert.match(account.email, /@anonimizado\.invalid$/);
   assert.equal(account.status, "disabled");

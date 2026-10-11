@@ -163,7 +163,7 @@ export function registerDataProtectionRoutes(
           let accountClosed = false;
           if (member.user_id) {
             await tx.query(
-              `UPDATE users SET email = $2, password_hash = $3, status = 'disabled', updated_at = clock_timestamp() WHERE id = $1`,
+              `UPDATE users SET email = $2, username = NULL, must_change_password = false, password_hash = $3, status = 'disabled', updated_at = clock_timestamp() WHERE id = $1`,
               [member.user_id, `anonimizado-${member.user_id}@anonimizado.invalid`, unusable]
             );
             await tx.query("UPDATE sessions SET revoked_at = clock_timestamp() WHERE user_id = $1 AND revoked_at IS NULL", [member.user_id]);

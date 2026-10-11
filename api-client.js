@@ -89,10 +89,11 @@
     return payload;
   }
 
-  async function login(email, password) {
+  // `identifier` es el usuario (ikigai-miembro-ana) o el correo de la cuenta.
+  async function login(identifier, password) {
     const result = await request("/auth/login", {
       method: "POST",
-      body: { email: String(email).trim(), password },
+      body: { login: String(identifier).trim(), password },
       skipCsrf: true
     });
     csrfToken = result.csrfToken || null;
@@ -173,6 +174,11 @@
     getInstitutionSettings: () => request("/admin/institution-settings"),
     updateInstitutionSettings: body => request("/admin/institution-settings", { method: "PATCH", body }),
     linkCoachToAdmin: body => request("/admin/users/link-coach", { method: "POST", body }),
+    markTourCompleted: () => request("/auth/tour-completed", { method: "POST", body: {} }),
+    changePassword: (currentPassword, newPassword) => request("/auth/change-password", { method: "POST", body: { currentPassword, newPassword } }),
+    listAccounts: () => request("/admin/accounts"),
+    createAccount: body => request("/admin/accounts", { method: "POST", body }),
+    resetAccountPassword: userId => request(`/admin/accounts/${id(userId)}/reset-password`, { method: "POST", body: {} }),
     createInvitation: body => request("/admin/invitations", { method: "POST", body }),
     resendInvitation: invitationId => request(`/admin/invitations/${id(invitationId)}/resend`, { method: "POST", body: {} }),
     revokeInvitation: invitationId => request(`/admin/invitations/${id(invitationId)}/revoke`, { method: "POST", body: {} }),

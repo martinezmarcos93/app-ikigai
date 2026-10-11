@@ -194,6 +194,14 @@ Resultado del barrido: typecheck sin errores; 89 pruebas del servidor pasando; p
 - **Accesibilidad:** ids duplicados entre formularios de una misma pantalla (por ejemplo `email` al invitar a un miembro y a un profesor) se desambiguan automáticamente.
 - **Sigue pendiente (no automatizable aquí):** dispositivo Android real de gama baja y de gama media/alta, instalación y actualización de la PWA en el dispositivo, zoom/texto ampliado y teclado virtual.
 
+### Accesos creados por administración y guía de primer uso (11/10/2026)
+
+- **Decisión:** el alta de miembros y profesores deja de ser por invitación con enlace y pasa a ser **solo de administración**, con usuario y clave temporal (migración `0009`). El usuario sale del nombre (`ikigai-miembro-marcos`, `ikigai-profesor-florencia`; ante un homónimo se agrega el apellido o un número) y la clave es aleatoria con formato (`MM-Ikigai-K7Q4-9XMP`). Se descartó el formato `MM-Ikigai-2026` propuesto porque es adivinable por cualquiera que conozca el nombre; las iniciales y la marca se conservan y los 8 caracteres finales salen de un generador criptográfico (~39 bits, con límite de intentos de acceso y cambio obligatorio en el primer ingreso).
+- Quien no tiene correo propio recibe uno interno (`…@cuentas.ikigai.invalid`) y entra por usuario; la recuperación por correo no le aplica, la reemplaza «Restablecer clave».
+- Nuevo: `POST /auth/change-password` (la clave actual, mínimo 12 caracteres, cierra las demás sesiones), bloqueo de la API mientras la clave sea temporal, `POST /admin/accounts`, `GET /admin/accounts`, `POST /admin/accounts/:id/reset-password`, `POST /auth/tour-completed`. Las rutas de invitación siguen existiendo en el servidor pero ya no tienen pantalla.
+- **Guía de primer uso** (`tour.js`): globos de texto para administración (11 pasos, escritorio y teléfono); se recuerda en el servidor por persona.
+- `scripts/e2e-roles.py` reescrito para el nuevo flujo y `scripts/e2e-tour.py` nuevo. Para los demás scripts de navegador, el administrador de prueba debe tener la guía hecha (`UPDATE users SET tour_completed_at = now()`), si no la guía se abre sola sobre la pantalla.
+
 ### Esquemas estrictos y avisos de reserva (11/10/2026)
 
 - **Hallazgo de seguridad:** la matriz documentaba que «la validación de esquema rechaza propiedades desconocidas», pero Fastify, por defecto, las **elimina en silencio** (`removeAdditional: true`): un login con `role: "admin"` de más devolvía `401` de credenciales, no `400`. Era inofensivo (los handlers sólo leen campos conocidos) pero no era lo documentado ni una defensa real contra la asignación masiva. Ahora el servidor usa `removeAdditional: false` y rechaza con `400`; `strict-schemas.test.ts` lo sostiene y además exige que todo objeto de todo esquema de cuerpo declare `additionalProperties: false`.

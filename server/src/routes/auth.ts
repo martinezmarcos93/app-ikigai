@@ -23,6 +23,7 @@ interface UserRow extends Record<string, unknown> {
   password_hash: string;
   username?: string | null;
   must_change_password?: boolean;
+  tour_completed_at?: string | Date | null;
   member_id?: string | null;
   coach_id?: string | null;
 }
@@ -33,6 +34,7 @@ interface SessionRow extends Record<string, unknown> {
   email: string;
   username: string | null;
   must_change_password: boolean;
+  tour_completed_at: string | Date | null;
   roles: string[];
   member_id?: string | null;
   coach_id?: string | null;
@@ -69,7 +71,7 @@ async function currentSession(
   if (!token || token.length > 128) return null;
 
   const result = await db.query<SessionRow>(
-    `SELECT s.id AS session_id, u.id, u.email, u.username, u.must_change_password, mp.id AS member_id, cp.id AS coach_id,
+    `SELECT s.id AS session_id, u.id, u.email, u.username, u.must_change_password, u.tour_completed_at, mp.id AS member_id, cp.id AS coach_id,
             array_remove(array_agg(DISTINCT ur.role), NULL) AS roles
        FROM sessions s
        JOIN users u ON u.id = s.user_id
@@ -80,7 +82,7 @@ async function currentSession(
         AND s.revoked_at IS NULL
         AND s.expires_at > now()
         AND u.status = 'active'
-      GROUP BY s.id, u.id, u.email, u.username, u.must_change_password, mp.id, cp.id
+      GROUP BY s.id, u.id, u.email, u.username, u.must_change_password, u.tour_completed_at, mp.id, cp.id
       LIMIT 1`,
     [tokenHash(token)]
   );
@@ -121,7 +123,7 @@ export function registerAuthRoutes(
       const password = request.body.password;
 
       const result = await db.query<UserRow>(
-        `SELECT u.id, u.email, u.username, u.must_change_password, u.password_hash, mp.id AS member_id, cp.id AS coach_id
+        `SELECT u.id, u.email, u.username, u.must_change_password, u.tour_completed_at, u.password_hash, mp.id AS member_id, cp.id AS coach_id
            FROM users u
            LEFT JOIN member_profiles mp ON mp.user_id = u.id
            LEFT JOIN coach_profiles cp ON cp.user_id = u.id
@@ -185,6 +187,7 @@ export function registerAuthRoutes(
       return reply.code(200).send({
         user: { id: user.id, email: user.email, username: user.username ?? null, roles, memberId: user.member_id ?? null, coachId: user.coach_id ?? null },
         mustChangePassword: user.must_change_password === true,
+        tourCompleted: Boolean(user.tour_completed_at),
         csrfToken: csrfTokenFor(token, config.sessionSecret),
         expiresAt: expiresAt.toISOString()
       });
@@ -367,6 +370,7 @@ export function registerAuthRoutes(
         coachId: session.row.coach_id ?? null
       },
       mustChangePassword: session.row.must_change_password === true,
+      tourCompleted: Boolean(session.row.tour_completed_at),
       csrfToken: csrfTokenFor(session.token, config.sessionSecret)
     });
   });
@@ -418,6 +422,19 @@ export function registerAuthRoutes(
       return reply.code(204).send();
     }
   );
+
+  // La guia de primer uso se muestra una vez por persona (no por dispositivo): el aviso queda en el servidor.
+  app.post("/api/v1/auth/tour-completed", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const session = await currentSession(request, db);
+    if (!session) {
+      clearSessionCookie(reply, config);
+      return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    }
+    if (!requireCsrf(request, reply, session.token, config)) return;
+    await db.query("UPDATE users SET tour_completed_at = COALESCE(tour_completed_at, now()) WHERE id = $1", [session.row.id]);
+    return reply.code(204).send();
+  });
 
   app.post("/api/v1/auth/logout", async (request, reply) => {
     reply.header("Cache-Control", "no-store");

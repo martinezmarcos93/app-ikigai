@@ -1,11 +1,11 @@
 """Prueba de aceptacion por rol en un navegador real (Playwright + Chromium).
 
 Recorre el ciclo completo con tres personas distintas, cada una en su propio contexto:
-  administracion -> crea servicio, profesor, miembro, plantilla semanal y clases, e INVITA
-                    al miembro y al profesor desde la pantalla «Accesos»;
-  miembro        -> activa su cuenta desde el enlace, reserva y cancela una clase, ve su
+  administracion -> crea servicio, profesor, miembro, plantilla semanal y clases, y CREA el
+                    acceso del miembro y del profesor desde la pantalla «Accesos»;
+  miembro        -> entra con el usuario y la clave temporal que le crea administracion, elige su clave, reserva y cancela una clase, ve su
                     asistencia, y NO ve ni puede usar lo exclusivo de administracion;
-  profesor       -> activa su cuenta, ve su agenda y toma asistencia de una clase pasada.
+  profesor       -> igual que el miembro: entra, elige su clave, ve su agenda y toma asistencia de una clase pasada.
 
 Requisitos: API en marcha sobre una base DESCARTABLE y vacia (migrada y con un
 administrador creado con `npm run admin:create`), portal servido en E2E_BASE, el
@@ -57,39 +57,38 @@ def login(page, email, password):
     page.wait_for_selector("#logoutButton:visible", timeout=15000)
 
 
-def invite(page, kind, email):
+def crear_acceso(page, nombre):
+    """Administracion crea el acceso de una persona desde «Accesos»; devuelve (usuario, clave temporal)."""
     page.click('button[data-view="invitations"]')
-    # la vista se vuelve a dibujar al navegar: esperar a que desaparezca el resultado anterior evita escribir en un formulario viejo
-    page.wait_for_function("() => document.querySelector('#invitationResult') && !document.querySelector('.token-box')")
-    form = page.locator(f'form[data-form="invite-{kind}"]')
-    form.wait_for()
-    form.locator('input[name="email"]').fill(email)
-    form.locator('button[type=submit]').click()
-    page.wait_for_selector(".token-box code, #globalNotice:not([hidden])", timeout=30000)
-    if page.locator(".token-box code").count() == 0:
-        raise AssertionError(f"la invitacion de {email} fallo: {page.locator('#globalNotice').inner_text()}")
-    link = page.locator(".token-box code").inner_text().strip()
-    assert "/accept-invitation.html#token=" in link, link
-    return link
+    fila = page.locator("table tbody tr", has_text=nombre)
+    fila.wait_for()
+    fila.locator('button[data-action="create-account"]').click()
+    page.wait_for_selector('[data-testid="new-password"]', timeout=30000)
+    usuario = page.locator('[data-testid="new-username"]').inner_text().strip()
+    clave = page.locator('[data-testid="new-password"]').inner_text().strip()
+    assert re.fullmatch(r"ikigai-(miembro|profesor)-[a-z0-9-]+", usuario), usuario
+    assert re.fullmatch(r"[A-Z]{2}-Ikigai-[A-Z2-9]{4}-[A-Z2-9]{4}", clave), clave
+    return usuario, clave
 
 
-def accept(browser, link, password):
+def entrar_y_elegir_clave(browser, usuario, temporal, definitiva):
+    """Primer ingreso: la clave temporal solo sirve para elegir una propia."""
     page = new_page(browser)
-    page.goto(link)
-    # el token sale de la barra de direcciones apenas se lee
-    page.wait_for_selector("#acceptForm:visible")
-    assert "token" not in page.url, page.url
-    page.fill("#newPassword", password)
-    page.fill("#confirmPassword", password)
-    page.click("#acceptForm button[type=submit]")
-    page.wait_for_selector("text=Tu cuenta quedó activada")
-    # el enlace es de un solo uso: volver a usarlo se rechaza con un mensaje claro
-    page.goto("about:blank")  # un cambio solo de fragmento no recarga la pagina
-    page.goto(link)
-    page.fill("#newPassword", password)
-    page.fill("#confirmPassword", password)
-    page.click("#acceptForm button[type=submit]")
-    page.wait_for_selector("text=no es válida, venció o ya se usó")
+    login(page, usuario, temporal)
+    page.wait_for_selector('form[data-form="change-password"]')
+    assert "Elegí tu contraseña" in page.locator("#pageContent").inner_text()
+    # mientras la clave sea temporal el servidor rechaza todo lo demas, aunque el cliente lo intente
+    bloqueo = page.evaluate("""async () => { try { await IkigaiApi.listServices(); return 'permitido'; } catch (e) { return e.code; } }""")
+    assert bloqueo == "password_change_required", bloqueo
+    page.fill("#cp-current", temporal)
+    page.fill("#cp-new", definitiva)
+    page.fill("#cp-repeat", definitiva + "x")
+    page.click('form[data-form="change-password"] button[type=submit]')
+    page.wait_for_selector("text=no coinciden")
+    page.fill("#cp-repeat", definitiva)
+    page.click('form[data-form="change-password"] button[type=submit]')
+    page.wait_for_selector("text=Contraseña actualizada")
+    page.wait_for_selector('button[data-view="dashboard"].active')
     page.context.close()
 
 
@@ -113,12 +112,13 @@ with sync_playwright() as p:
       const to = new Date(Date.now() + 13 * 86400000).toISOString().slice(0, 10);
       await IkigaiApi.generateClassSessions(today, to);
     }""", {"ids": ids, "weekday": weekday})
-    member_link = invite(admin, "member", MEMBER_EMAIL)
-    coach_link = invite(admin, "coach", COACH_EMAIL)
-    # los dos formularios de invitacion no deben compartir ids (accesibilidad)
+    member_user, member_temp = crear_acceso(admin, "Socia rol E2E")
+    coach_user, coach_temp = crear_acceso(admin, "Profe rol E2E")
+    assert member_user == "ikigai-miembro-socia" and coach_user == "ikigai-profesor-profe", (member_user, coach_user)
+    # la pantalla no debe repetir ids (accesibilidad)
     duplicated = admin.evaluate("""() => { const ids = [...document.querySelectorAll('[id]')].map(n => n.id); return ids.filter((id, i) => ids.indexOf(id) !== i); }""")
     assert duplicated == [], f"ids duplicados: {duplicated}"
-    admin.screenshot(path=f"{OUT}/roles-invitaciones.png")
+    admin.screenshot(path=f"{OUT}/roles-accesos.png")
 
     # una clase ya dada, con la socia reservada, para tomar asistencia
     template_id = sql(f"SELECT id FROM class_templates WHERE coach_id='{ids['coach']}' LIMIT 1")
@@ -132,12 +132,12 @@ with sync_playwright() as p:
         f"WHERE b.session_id = '{past_session}'")
 
     # ------------------------------------------------------------------ activacion de cuentas
-    accept(browser, member_link, MEMBER_PASSWORD)
-    accept(browser, coach_link, COACH_PASSWORD)
+    entrar_y_elegir_clave(browser, member_user, member_temp, MEMBER_PASSWORD)
+    entrar_y_elegir_clave(browser, coach_user, coach_temp, COACH_PASSWORD)
 
     # ------------------------------------------------------------------ miembro
     member = new_page(browser)
-    login(member, MEMBER_EMAIL, MEMBER_PASSWORD)
+    login(member, member_user, MEMBER_PASSWORD)
     for hidden in ("members", "services", "schedule-templates", "invitations", "institution-settings"):
         assert not member.locator(f'button[data-view="{hidden}"]').is_visible(), f"el miembro ve «{hidden}»"
     member.click('button[data-view="schedule"]')
@@ -179,7 +179,7 @@ with sync_playwright() as p:
 
     # ------------------------------------------------------------------ profesor
     coach = new_page(browser)
-    login(coach, COACH_EMAIL, COACH_PASSWORD)
+    login(coach, coach_user, COACH_PASSWORD)
     assert not coach.locator('button[data-view="invitations"]').is_visible()
     coach.click('button[data-view="schedule"]')
     coach.wait_for_selector("table tbody tr")

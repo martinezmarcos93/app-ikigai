@@ -5,6 +5,8 @@ import { hashPassword } from "../src/security/password.js";
 const connectionString = process.env.DATABASE_URL;
 const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD;
+// ADMIN_MUST_CHANGE_PASSWORD=1: la clave entregada es temporal y quien administra la cambia al entrar por primera vez.
+const mustChange = process.env.ADMIN_MUST_CHANGE_PASSWORD === "1";
 
 if (!connectionString) throw new Error("DATABASE_URL is required.");
 if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -25,10 +27,10 @@ try {
       throw new Error("An account with ADMIN_EMAIL already exists; refusing to overwrite it.");
     }
     const inserted = await client.query(
-      `INSERT INTO users (email, password_hash, auth_provider, status)
-       VALUES ($1, $2, 'local', 'active')
+      `INSERT INTO users (email, password_hash, auth_provider, status, must_change_password)
+       VALUES ($1, $2, 'local', 'active', $3)
        RETURNING id`,
-      [email, passwordHash]
+      [email, passwordHash, mustChange]
     );
     const userId = inserted.rows[0]?.id as string | undefined;
     if (!userId) throw new Error("Could not create the administrator account.");
@@ -37,7 +39,7 @@ try {
       [userId]
     );
     await client.query("COMMIT");
-    console.log(`Created administrator account for ${email}. The password was not printed.`);
+    console.log(`Created administrator account for ${email}. The password was not printed.${mustChange ? " It must be changed at first sign-in." : ""}`);
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

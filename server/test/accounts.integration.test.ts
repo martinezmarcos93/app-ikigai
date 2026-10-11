@@ -83,6 +83,7 @@ test("la administracion crea cuentas con usuario y clave temporal que se debe ca
   assert.equal(login.statusCode, 200);
   assert.equal(login.json().mustChangePassword, true);
   assert.equal(login.json().user.username, username);
+  assert.equal(login.json().tourCompleted, false);
   const cookie = String(login.headers["set-cookie"]).split(";")[0]!;
   const csrf = String(login.json().csrfToken);
   const sesion = { origin, cookie, "x-csrf-token": csrf };
@@ -101,6 +102,11 @@ test("la administracion crea cuentas con usuario y clave temporal que se debe ca
   assert.equal((await app.inject({ method: "GET", url: "/api/v1/auth/me", headers: sesion })).json().mustChangePassword, false);
   assert.equal((await app.inject({ method: "POST", url: "/api/v1/auth/login", headers: { origin }, payload: { login: username, password: clave } })).statusCode, 401);
   assert.equal((await app.inject({ method: "POST", url: "/api/v1/auth/login", headers: { origin }, payload: { login: username, password: "mi-clave-propia-2026" } })).statusCode, 200);
+
+  // La guia de primer uso se recuerda en el servidor (por persona), con CSRF.
+  assert.equal((await app.inject({ method: "POST", url: "/api/v1/auth/tour-completed", headers: { ...sesion, "x-csrf-token": "x" } })).statusCode, 403);
+  assert.equal((await app.inject({ method: "POST", url: "/api/v1/auth/tour-completed", headers: sesion })).statusCode, 204);
+  assert.equal((await app.inject({ method: "GET", url: "/api/v1/auth/me", headers: sesion })).json().tourCompleted, true);
 
   // Restablecer: nueva clave temporal, sesiones cerradas, vuelve a exigir el cambio. Nunca a un administrador.
   const reset = await app.inject({ method: "POST", url: `/api/v1/admin/accounts/${a.json().account.userId}/reset-password`, headers: admin.headers });

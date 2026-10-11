@@ -27,6 +27,7 @@ En `server/`, establecer temporalmente:
 
 - `ADMIN_EMAIL`: el correo real que Agustín utilizará para iniciar sesión.
 - `ADMIN_PASSWORD`: una contraseña inicial fuerte de 12 a 128 caracteres.
+- `ADMIN_MUST_CHANGE_PASSWORD=1` (recomendado): la clave es temporal y Agustín debe cambiarla en su primer ingreso.
 
 Luego ejecutar:
 
@@ -59,7 +60,7 @@ Abrir `http://localhost:8000/`; la entrada principal dirige al portal conectado.
 2. **Servicios:** registrar cada disciplina/servicio y sólo los precios que Agustín haya confirmado. El precio vigente no reescribe acuerdos históricos.
 3. **Profesores:** crear perfiles de profesores con sus datos correctos. Si Agustín debe operar como administrador y profesor, el email del perfil de profesor debe coincidir con el email de su cuenta administradora; luego, desde **Accesos**, usar “Vincular profesor a una cuenta existente”. Ese flujo agrega el rol `coach` a la cuenta activa sin crear otro usuario ni quitar `admin`. Configurar la obligación mensual fija sólo cuando se haya acordado el importe y el período; no se calcula como porcentaje de reservas ni asistencia.
 4. **Miembros:** dar de alta los perfiles necesarios con información verificada. El alta de un perfil no genera cargos ni credenciales.
-5. **Accesos:** crear una invitación individual para el perfil ya creado. El token se muestra una sola vez; entregarlo por un canal seguro. El sistema no envía correos todavía.
+5. **Accesos:** sólo administración crea usuarios. Junto a cada profesor o miembro, «Crear acceso» genera el usuario (`ikigai-miembro-ana`, `ikigai-profesor-lucia`; si el nombre ya existe se agrega el apellido o un número) y una clave temporal aleatoria con formato (`AM-Ikigai-K7Q4-9XMP`: iniciales y 8 caracteres al azar). La clave se muestra **una sola vez**, con un botón que copia el mensaje listo para enviar; la persona debe cambiarla al entrar por primera vez y, hasta entonces, el servidor no le permite usar nada más. Si la olvida, «Restablecer clave» genera otra y cierra sus sesiones. El sistema no envía correos: la entrega es en persona o por mensaje directo.
 6. **Membresías y cuenta corriente:** asignar la membresía acordada y registrar movimientos explícitos. No se crean cargos automáticamente y los comprobantes de la aplicación no son facturas fiscales.
 7. **Agenda, reservas, asistencia y rutinas:** habilitar estos flujos sólo después de comprobar su interfaz, permisos y pruebas de aceptación. La presencia de una pantalla en el prototipo no acredita integración operativa.
 
@@ -69,7 +70,7 @@ La lista de primera puesta en marcha del portal orienta sobre servicios, profeso
 
 ## 6. Roles y límites actuales
 
-- **Administración:** alta y gestión operativa, servicios, cuentas, profesores e invitaciones, según los permisos de servidor.
+- **Administración:** alta y gestión operativa, servicios, cuentas, profesores y accesos, según los permisos de servidor.
 - **Profesor:** acceso restringido a su alcance; no debe ver cuentas corrientes ajenas.
 - **Miembro:** acceso a su propio perfil, membresías, cuenta, asistencia y rutinas habilitadas.
 - Ocultar una opción en el navegador no concede ni revoca permisos. La API debe seguir validando cada operación.
