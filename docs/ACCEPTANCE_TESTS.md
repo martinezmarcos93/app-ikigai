@@ -178,3 +178,12 @@
 - [x] Terminar un turno fijo no cancela reservas ya generadas e informa cuántas quedan.
 - [x] Recorrido completo en un navegador real contra la API y PostgreSQL: `scripts/e2e-agenda.py` (manual; el CI no tiene navegador).
 - [ ] Revisión visual del flujo de «Horarios» en 320–480 px y en un dispositivo Android real.
+
+## Alta por invitación y recorrido por rol
+
+- [x] Administración invita a un miembro y a un profesor desde «Accesos» y obtiene un enlace de un solo uso con el token en el fragmento de la URL (nunca en la query).
+- [x] La pantalla `accept-invitation.html` activa la cuenta, quita el token de la barra de direcciones y rechaza con un mensaje claro un enlace ya usado, vencido o inválido.
+- [x] El miembro activado inicia sesión, ve sólo sus secciones, reserva y cancela una clase y consulta su asistencia; las rutas de administración le responden `403` aunque el cliente las invoque.
+- [x] El profesor activado ve su agenda y registra la asistencia de una clase ya dada; el miembro la ve reflejada como «Presente».
+- [x] Los formularios de invitación de miembro y de profesor no comparten `id` (accesibilidad).
+- [x] Recorrido automatizado en navegador real con tres personas: `scripts/e2e-roles.py` (manual; el CI no tiene navegador).

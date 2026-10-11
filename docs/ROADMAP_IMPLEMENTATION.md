@@ -101,9 +101,9 @@
 - **Criterio de cierre:** flujos principales con persistencia, reglas de negocio, autorización y pruebas; no basta con que exista una pantalla.
 
 ### Fase 6 — PWA y experiencia Android
-- [ ] Revisar responsive a 320, 360, 390, 412 y 480 px, tablet y escritorio.
+- [x] Revisar responsive a 320, 360, 390, 412 y 480 px (auditoría automatizada `scripts/audit-mobile.py`, 0 incumplimientos); tablet y escritorio verificados visualmente en 1280 px.
 - [ ] Verificar áreas seguras, orientación, zoom/texto ampliado, teclado virtual y scroll de tablas dentro de sus contenedores.
-- [ ] Comprobar objetivos táctiles de al menos 44×44 px, foco, etiquetas, contraste y movimiento reducido.
+- [x] Objetivos táctiles de al menos 44×44 px y etiquetas de campos comprobados automáticamente; foco, contraste y movimiento reducido siguen para revisión manual.
 - [ ] Validar instalación, actualización y limpieza de caché, modo offline y recuperación al volver la conexión.
 - [ ] Probar Chrome Android en un dispositivo de gama baja y otro de gama media/alta, además de emulación.
 - [ ] Confirmar que la interfaz no presenta una escritura local como sincronizada con el servidor.
@@ -186,3 +186,10 @@ Resultado del barrido: typecheck sin errores; 86 pruebas del servidor pasando; p
 - **Auditoría automática de la matriz de autorización** (`route-security.test.ts`): toda ruta registrada debe figurar en la matriz, ninguna ruta privada responde a un anónimo y las rutas «Administración» rechazan a miembros y profesores.
 - **Agenda recurrente completa** (ver Fase 5): era el hueco funcional mayor, porque existían las tablas pero ninguna ruta para crear horarios ni generar clases.
 - **Portal:** los avisos de éxito se ocultaban enseguida y los botones de los formularios volvían a decir «Guardar»; corregido.
+
+### Alta por invitación y auditoría móvil (11/10/2026)
+
+- **Hueco cerrado en el alta:** el endpoint `POST /auth/accept-invitation` existía pero no había ninguna pantalla para usarlo; un miembro o profesor invitado no podía crear su contraseña sin `curl`. Se agregó `accept-invitation.html` (token en el fragmento, borrado de la barra, contraseña con confirmación), el método `acceptInvitation` del cliente con validación previa y su contrato en CI. «Accesos» entrega ahora un enlace listo para compartir en lugar de un token crudo.
+- **Fase 6, comprobaciones automatizadas** con `scripts/audit-mobile.py` (Chromium táctil, 320/360/390/412/480 px, 13 pantallas): sin desbordamiento horizontal, objetivos táctiles de al menos 44 px, campos con etiqueta, imágenes con `alt` y sin `id` duplicados. Resultado: 0 incumplimientos tras ampliar los enlaces de texto bajo los formularios (medían 16–18 px).
+- **Accesibilidad:** ids duplicados entre formularios de una misma pantalla (por ejemplo `email` al invitar a un miembro y a un profesor) se desambiguan automáticamente.
+- **Sigue pendiente (no automatizable aquí):** dispositivo Android real de gama baja y de gama media/alta, instalación y actualización de la PWA en el dispositivo, zoom/texto ampliado y teclado virtual.
