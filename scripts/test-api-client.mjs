@@ -453,3 +453,31 @@ test("booking notices use CSRF-protected PUT/DELETE contracts and validate local
   }
   assert.equal(calls.length, 4, "nada se envia si la validacion local falla");
 });
+
+test("member data export and anonymization use their contracts and validate locally", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-data-token", user: { id: "u", roles: ["admin"] } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("admin@example.test", "correct horse battery staple");
+  await api.exportMemberData("m/1");
+  await api.anonymizeMember("m-2", "  Pedido de la persona al darse de baja  ");
+  const [, exportCall, anonymizeCall] = calls;
+  assert.match(exportCall.url, /\/members\/m%2F1\/export$/);
+  assert.equal(exportCall.options.method, "GET");
+  assert.equal(exportCall.options.cache, "no-store");
+  assert.match(anonymizeCall.url, /\/members\/m-2\/anonymize$/);
+  assert.equal(anonymizeCall.options.method, "POST");
+  assert.equal(anonymizeCall.options.headers["X-CSRF-Token"], "csrf-data-token");
+  assert.deepEqual(JSON.parse(anonymizeCall.options.body), { reason: "Pedido de la persona al darse de baja", confirm: "ANONIMIZAR" });
+  for (const reason of ["", "ok", "    ", undefined, "x".repeat(201)]) {
+    assert.throws(() => api.anonymizeMember("m", reason), error => error && error.code === "invalid_reason");
+  }
+  assert.equal(calls.length, 3, "nada se envia si la validacion local falla");
+});

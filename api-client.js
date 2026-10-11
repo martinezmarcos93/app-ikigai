@@ -241,6 +241,13 @@
       request(`/class-templates/${id(templateId)}/assignments`, { method: "POST", body }),
     endRecurringAssignment: assignmentId =>
       request(`/recurring-assignments/${id(assignmentId)}/end`, { method: "POST", body: {} }),
+    exportMemberData: memberId => request(`/members/${id(memberId)}/export`),
+    anonymizeMember: (memberId, reason) => {
+      if (typeof reason !== "string" || reason.trim().length < 5 || reason.length > 200) {
+        throw new ApiError(0, "invalid_reason", "Indicá el motivo de la anonimización (entre 5 y 200 caracteres).");
+      }
+      return request(`/members/${id(memberId)}/anonymize`, { method: "POST", body: { reason: reason.trim(), confirm: "ANONIMIZAR" } });
+    },
     setBookingNotice: (bookingId, kind, note) => {
       if (!["absence", "late"].includes(kind)) {
         throw new ApiError(0, "invalid_notice", "El aviso debe ser de ausencia o de llegada tarde.");
