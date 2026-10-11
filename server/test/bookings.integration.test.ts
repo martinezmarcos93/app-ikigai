@@ -722,7 +722,7 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
   assert.equal(payment.json().balance, "35000.00");
   assert.equal(payment.json().receiptType, "internal");
 
-  const adjustmentKey = `ledger-adjustment-${suffix}`;
+  const ledgerAdjustmentKey = `ledger-adjustment-${suffix}`;
   const adjustmentPayload = {
     type: "adjustment",
     direction: "debit",
@@ -738,7 +738,7 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
       origin,
       cookie: `ikigai_session=${admin.token}`,
       "x-csrf-token": admin.csrfToken,
-      "idempotency-key": adjustmentKey
+      "idempotency-key": ledgerAdjustmentKey
     },
     payload: adjustmentPayload
   });
@@ -753,7 +753,7 @@ test("PostgreSQL booking transactions serialize capacity and promote the waitlis
       origin,
       cookie: `ikigai_session=${admin.token}`,
       "x-csrf-token": admin.csrfToken,
-      "idempotency-key": adjustmentKey
+      "idempotency-key": ledgerAdjustmentKey
     },
     payload: adjustmentPayload
   });
