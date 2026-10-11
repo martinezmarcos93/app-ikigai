@@ -247,6 +247,9 @@
           row(["Teléfono",esc(profile.phone || "—")]),
           row(["Dirección",esc(profile.address || "—")])
         ]) : empty("No se pudo consultar el perfil. Volvé a intentar.")}</section>
+        <section class="panel"><h2 class="section-title">Mis datos</h2>
+          <p class="footer-note">Tenés derecho a conocer qué datos personales guardamos de vos. Podés descargarlos en un archivo (perfil, membresías, movimientos de cuenta, reservas, asistencia y avisos). Para corregirlos o pedir su supresión, hablá con administración.</p>
+          <p><button class="button" type="button" data-action="export-my-data" data-id="${esc(state.user.memberId)}">Descargar mis datos</button></p></section>
         ${results.some(result => result.status === "rejected") ? '<p class="footer-note" role="status">Algunas secciones no están disponibles. Los datos visibles corresponden sólo a las consultas que respondieron correctamente.</p>' : ""}
         <p class="footer-note">Tu cuenta muestra exclusivamente información asociada a tu perfil.</p>`; 
     } else if (isCoach() && state.user.coachId) {
@@ -281,6 +284,9 @@
           `<strong>${esc(m.full_name)}</strong><small class="muted">${esc(m.email || m.phone || "Sin contacto")}</small>`,
           statusBadge(m.status),date(m.joined_on),
           `<button class="button small" type="button" data-action="edit-member" data-id="${esc(m.id)}">Ver / editar</button>`
+            + ` <button class="button ghost small" type="button" data-action="export-member" data-id="${esc(m.id)}">Exportar datos</button>`
+            + (m.status === "exited" && m.full_name !== "Persona anonimizada"
+              ? ` <button class="button ghost small danger" type="button" data-action="anonymize-member" data-id="${esc(m.id)}">Anonimizar</button>` : "")
         ])))
       : empty("Todavía no hay miembros registrados.", "empty-members.svg");
     const first = state.memberTotal === 0 ? 0 : state.memberOffset + 1;
@@ -592,6 +598,19 @@
         ${sessions.length ? table(["Fecha y hora","Servicio","Profesor","Cupo","Estado","Acción"], rows)
           : empty("No hay clases dentro del período consultado.")}</section>
       <p class="footer-note">Datos consultados en la API. Las reservas y cancelaciones se validan en el servidor; la lista de espera depende del cupo real al momento de la operación.</p>`;
+  }
+
+  // Descarga un JSON como archivo sin pasar por el servidor: la CSP no admite scripts en linea, pero un enlace
+  // `download` hacia un blob propio es una navegacion permitida.
+  function downloadJson(filename, data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   }
 
   const weekdayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -968,6 +987,20 @@
         await api.removeBookingNotice(action.dataset.id);
         await renderView("schedule");
         showNotice("Aviso quitado.", "success");
+      }
+      else if (action.dataset.action === "export-my-data" || action.dataset.action === "export-member") {
+        const data = await api.exportMemberData(action.dataset.id);
+        downloadJson(`ikigai-datos-${action.dataset.id}.json`, data);
+        showNotice("Descargaste los datos personales en un archivo: guardalo en un lugar seguro.", "success");
+      }
+      else if (action.dataset.action === "anonymize-member") {
+        const reason = window.prompt("Anonimizar a esta persona BORRA su nombre, contacto, DNI y notas y cierra su cuenta. Se conservan los movimientos de cuenta, membresías, reservas y asistencia sin identidad. NO se puede deshacer.\n\nEscribí el motivo (por ejemplo, «pedido de la persona al darse de baja»):", "");
+        if (reason === null) return;
+        const sure = window.prompt("Para confirmar, escribí ANONIMIZAR:", "");
+        if (sure !== "ANONIMIZAR") { showNotice("No se anonimizó nada: la confirmación no coincide."); return; }
+        const result = await api.anonymizeMember(action.dataset.id, reason);
+        await renderView("members");
+        showNotice(result.alreadyAnonymized ? "Esa persona ya estaba anonimizada." : "Persona anonimizada. Se conservó su historial de cuenta y asistencia sin identidad.", "success");
       }
       else if (action.dataset.action === "refresh-schedule") {
         await renderView("schedule");

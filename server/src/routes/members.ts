@@ -395,7 +395,7 @@ export function registerMemberRoutes(
           const currentResult = await tx.query<MemberRow>(
             `SELECT id, full_name, email, phone, address, dni,
                     emergency_contact_name, emergency_contact_phone,
-                    status, joined_on, exited_on, notes
+                    status, joined_on, exited_on, notes, anonymized_at
                FROM member_profiles
               WHERE id = $1
               FOR UPDATE`,
@@ -403,6 +403,10 @@ export function registerMemberRoutes(
           );
           const current = currentResult.rows[0];
           if (!current) return null;
+          // Un perfil anonimizado (derecho de supresion) no se vuelve a llenar de datos personales.
+          if (current.anonymized_at) {
+            throw new MemberUpdateError(409, "member_anonymized", "An anonymized member profile can no longer be edited.");
+          }
 
           const joinedOn = normalized.joined_on ?? current.joined_on;
           const exitedOn = normalized.exited_on ?? current.exited_on;

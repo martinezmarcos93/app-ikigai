@@ -19,6 +19,7 @@ import { registerInstitutionalSettingsRoutes } from "./routes/institutional-sett
 import { registerAdminRoleRoutes } from "./routes/admin-roles.js";
 import { registerScheduleRoutes } from "./routes/schedule.js";
 import { registerNoticeRoutes } from "./routes/notices.js";
+import { registerDataProtectionRoutes } from "./routes/data-protection.js";
 import { createHmac } from "node:crypto";
 import { resolveActor } from "./security/actor.js";
 
@@ -169,6 +170,7 @@ export async function buildApp(
     registerBookingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerScheduleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerNoticeRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerDataProtectionRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerLedgerRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerCoachRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAttendanceRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);

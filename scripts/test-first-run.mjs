@@ -61,7 +61,7 @@ assert.match(mobileStyles, /env\(safe-area-inset-bottom\)/);
 assert.match(mobileStyles, /prefers-reduced-motion/);
 assert.match(mobileStyles, /\.button\.small \{ min-height: 44px; \}/);
 
-assert.match(sw, /ikigai-shell-v12/);
+assert.match(sw, /ikigai-shell-v13/);
 assert.match(sw, /url\.pathname\.endsWith\('\/demo\.html'\)/);
 assert.match(setupGuide, /npm run admin:create/);
 assert.match(setupGuide, /no hay registro público de administradores/i);
