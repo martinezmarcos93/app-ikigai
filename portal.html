@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="portal.css">
 </head>
 <body>
+<div id="bootSplash" class="boot-splash" role="status" aria-label="Cargando Ikigai"><img src="./assets/pwa/icon-192.png" width="144" height="144" alt=""></div>
 <header class="portal-topbar">
   <a class="portal-brand" href="./portal.html" aria-label="Inicio del portal conectado"><img class="portal-brand-logo" src="./assets/ikigai-logo.jpg" alt=""><span><strong>IKIGAI</strong><small>TRAINING · PORTAL</small></span></a>
   <div class="topbar-status"><span class="status-dot"></span><span id="connectionLabel">API</span></div>
@@ -66,6 +67,8 @@
         <button class="nav-link" type="button" data-view="schedule-templates" data-role="admin"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#booking"></use></svg></span>Horarios</button>
         <button class="nav-link" type="button" data-view="my-routine" data-role="member"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#routine"></use></svg></span>Mi rutina</button>
         <button class="nav-link" type="button" data-view="attendance" data-role="member"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#attendance"></use></svg></span>Asistencia</button>
+        <button class="nav-link" type="button" data-view="routines" data-role="staff"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#routine"></use></svg></span>Rutinas</button>
+        <button class="nav-link" type="button" data-view="announcements"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#dashboard"></use></svg></span>Avisos<span id="announcementBadge" class="nav-badge" hidden></span></button>
         <button class="nav-link" type="button" data-view="coaches"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#coach"></use></svg></span>Profesores</button>
         <button class="nav-link" type="button" data-view="invitations" data-role="admin"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#shield"></use></svg></span>Accesos</button>
         <button class="nav-link" type="button" data-view="institution-settings" data-role="admin"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#settings"></use></svg></span>Configuración</button>

@@ -1,7 +1,7 @@
 """Prueba de aceptacion del PRIMER USO de administracion en un navegador real (Playwright + Chromium).
 
 Recorre lo que vive Agustin la primera vez: entra con la clave temporal con la que se creo la cuenta, el portal le
-obliga a elegir una propia, y arranca solo la guia de globos de texto. Comprueba que la guia recorre las 11 pantallas
+obliga a elegir una propia, y arranca solo la guia de globos de texto. Comprueba que la guia recorre las 13 pantallas
 en orden (cada globo dentro de la pantalla, tambien en un telefono), que se puede saltar con Escape, que no vuelve a
 aparecer despues de terminada o saltada (se recuerda en el servidor, no en el navegador) y que se puede repetir.
 
@@ -24,8 +24,8 @@ PROPIA = "clave-propia-de-agustin-2026"
 PG = (os.environ.get("E2E_PG_CONTAINER", "ikigai-pg"), os.environ.get("E2E_PG_USER", "ikigai"), os.environ.get("E2E_PG_DB", "ikigai_test"))
 problems = []
 TITULOS = ["Bienvenido a Ikigai", "1. Datos del gimnasio", "2. Servicios y precios", "3. Profesores", "4. Miembros",
-           "5. Accesos: usuario y clave", "6. Horarios semanales", "7. Membresías", "8. Cuenta corriente",
-           "9. Agenda y asistencia", "Listo"]
+           "5. Accesos: usuario y clave", "6. Horarios semanales", "7. Rutinas", "8. Membresías", "9. Cuenta corriente",
+           "10. Agenda y asistencia", "11. Avisos", "Listo"]
 
 
 def sql(statement):

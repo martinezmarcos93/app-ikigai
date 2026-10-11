@@ -216,3 +216,23 @@ button, .button, .nav-link, input[type="checkbox"], input[type="radio"] { touch-
 .panel.narrow { max-width: 520px; }
 .credentials-panel { border-color: var(--red); margin-top: 16px; }
 .tour-bubble.tour-centered { top: 50%; left: 50%; transform: translate(-50%, -50%); bottom: auto; right: auto; }
+
+/* ---- Avisos y rutinas ---- */
+.nav-badge { margin-left: auto; min-width: 22px; padding: 2px 7px; border-radius: 999px; background: var(--red); color: #fff; font-size: 12px; font-weight: 700; text-align: center; }
+.notice-card.is-unread { border-color: var(--red); }
+.notice-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.unread-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-color: var(--red); margin-bottom: 16px; }
+.unread-banner p { margin: 0; }
+.routine-rows { display: grid; gap: 10px; margin-bottom: 10px; }
+.routine-row { display: grid; grid-template-columns: minmax(160px, 2fr) 1fr 1fr 1fr 2fr auto; gap: 8px; align-items: center; }
+@media (max-width: 720px) { .routine-row { grid-template-columns: 1fr 1fr; padding: 10px; border: 1px solid var(--line, #2a2a2a); border-radius: 10px; } .routine-row select, .routine-row input[name="rowNotes"] { grid-column: 1 / -1; } }
+
+/* ---- Pantalla de carga: el logo sobre negro hasta que el portal sabe si hay sesion ---- */
+.boot-splash { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; background: #000; opacity: 1; transition: opacity .25s ease; }
+.boot-splash img { width: 144px; height: 144px; animation: boot-pulse 1.6s ease-in-out infinite; }
+.boot-splash.is-done { opacity: 0; pointer-events: none; }
+/* Red de seguridad sin JavaScript: si el portal no arranca, la pantalla de carga no tapa el mensaje de error. */
+.boot-splash { animation: boot-failsafe 0s linear 8s forwards; }
+@keyframes boot-failsafe { to { opacity: 0; visibility: hidden; } }
+@keyframes boot-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .boot-splash img { animation: none; } .boot-splash { transition: none; } }

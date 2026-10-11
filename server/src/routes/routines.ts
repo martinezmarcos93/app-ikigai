@@ -154,7 +154,7 @@ export function registerRoutineRoutes(
     if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
     if (!actor.roles.includes("admin") && !actor.roles.includes("coach")) return reply.code(403).send({ error: "forbidden", message: "Members can only view routines assigned to them." });
     const result = await db.query(
-      "SELECT r.id, r.name, r.discipline, r.level, r.active, rv.id AS version_id, rv.version_number, rv.notes AS version_notes, COALESCE(json_agg(json_build_object('position',re.position,'exerciseId',e.id,'name',e.name,'description',e.description,'equipment',e.equipment,'precautions',e.precautions,'sets',re.sets,'reps',re.reps,'durationSeconds',re.duration_seconds,'restSeconds',re.rest_seconds,'notes',re.notes) ORDER BY re.position) FILTER (WHERE re.exercise_id IS NOT NULL),'[]'::json) AS exercises FROM routines r JOIN LATERAL (SELECT id,routine_id,version_number,notes FROM routine_versions WHERE routine_id=r.id ORDER BY version_number DESC LIMIT 1) rv ON true LEFT JOIN routine_exercises re ON re.routine_version_id=rv.id LEFT JOIN exercises e ON e.id=re.exercise_id WHERE r.active=true GROUP BY r.id,rv.id ORDER BY lower(r.name),r.id"
+      "SELECT r.id, r.name, r.discipline, r.level, r.active, rv.id AS version_id, rv.version_number, rv.notes AS version_notes, COALESCE(json_agg(json_build_object('position',re.position,'exerciseId',e.id,'name',e.name,'description',e.description,'equipment',e.equipment,'precautions',e.precautions,'sets',re.sets,'reps',re.reps,'durationSeconds',re.duration_seconds,'restSeconds',re.rest_seconds,'notes',re.notes) ORDER BY re.position) FILTER (WHERE re.exercise_id IS NOT NULL),'[]'::json) AS exercises FROM routines r JOIN LATERAL (SELECT id,routine_id,version_number,notes FROM routine_versions WHERE routine_id=r.id ORDER BY version_number DESC LIMIT 1) rv ON true LEFT JOIN routine_exercises re ON re.routine_version_id=rv.id LEFT JOIN exercises e ON e.id=re.exercise_id WHERE r.active=true GROUP BY r.id,rv.id,rv.version_number,rv.notes ORDER BY lower(r.name),r.id"
     );
     return reply.send({ routines: result.rows });
   });
@@ -313,5 +313,27 @@ export function registerRoutineRoutes(
       });
       return reply.code(result.replayed ? 200 : 201).send(result);
     } catch (error) { return sendError(reply, error); }
+  });
+
+  // Los miembros con quienes el profesor tiene clases (las mismas reglas de alcance que asistencia y rutinas).
+  app.get("/api/v1/coach/members", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("coach") || !actor.coachId) return reply.code(403).send({ error: "forbidden", message: "Only coaches can list their members." });
+    const result = await db.query(
+      `SELECT mp.id, mp.full_name, mp.status
+         FROM member_profiles mp
+        WHERE mp.anonymized_at IS NULL AND (
+          EXISTS (SELECT 1 FROM recurring_assignments ra JOIN class_templates ct ON ct.id = ra.template_id
+                   WHERE ra.member_id = mp.id AND ct.coach_id = $1 AND ra.active = true
+                     AND ra.starts_on <= CURRENT_DATE AND (ra.ends_on IS NULL OR ra.ends_on >= CURRENT_DATE))
+          OR EXISTS (SELECT 1 FROM bookings b JOIN class_sessions cs ON cs.id = b.session_id JOIN class_templates ct ON ct.id = cs.template_id
+                      WHERE b.member_id = mp.id AND ct.coach_id = $1 AND b.status IN ('confirmed','waitlist')
+                        AND cs.starts_at BETWEEN now() - interval '30 days' AND now() + interval '30 days'))
+        ORDER BY lower(mp.full_name), mp.id`,
+      [actor.coachId]
+    );
+    return reply.send({ members: result.rows });
   });
 }

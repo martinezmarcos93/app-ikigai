@@ -50,7 +50,7 @@ consentimiento libre, expreso e informado. Texto sugerido, a validar legalmente:
 | Derecho | Cómo se ejerce hoy | Plazo de respuesta |
 | --- | --- | --- |
 | **Acceso / portabilidad** | La propia persona entra a «Resumen» → **Descargar mis datos** y recibe un archivo JSON con todo lo que se guarda de ella. Administración puede hacerlo por cualquier miembro desde «Miembros» → **Exportar datos**. Cada exportación queda auditada. `GET /api/v1/members/:id/export` | 10 días corridos (art. 14, Ley 25.326) |
-| **Rectificación** | Administración corrige el perfil en «Miembros» → *Ver / editar* (queda auditado por campos). La API también deja al miembro actualizar su teléfono, dirección y contacto de emergencia (`PATCH /api/v1/members/:id`); el portal todavía no tiene esa pantalla para el miembro | 5 días hábiles (art. 16) |
+| **Rectificación** | Administración corrige el perfil en «Miembros» → *Ver / editar* (queda auditado por campos). El propio miembro corrige su teléfono, dirección y contacto de emergencia desde «Resumen» → *Actualizar mis datos de contacto* (`PATCH /api/v1/members/:id`); nombre, DNI y estado los cambia administración | 5 días hábiles (art. 16) |
 | **Supresión** | Administración anonimiza a quien dejó el gimnasio: **Miembros → Anonimizar** (exige estado «baja», sin reservas futuras ni membresías abiertas, un motivo escrito y la confirmación `ANONIMIZAR`). `POST /api/v1/members/:id/anonymize` | 5 días hábiles (art. 16) |
 | **Oposición / baja del tratamiento** | Es lo mismo que pasar a «baja» y, si lo pide, anonimizar | 5 días hábiles |
 

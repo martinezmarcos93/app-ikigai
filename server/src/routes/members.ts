@@ -334,7 +334,8 @@ export function registerMemberRoutes(
           additionalProperties: false,
           properties: {
             full_name: { type: "string", minLength: 1, maxLength: 120 },
-            email: { type: "string", format: "email", maxLength: 254 },
+            // Vacio = quitar el dato: el formulario de edicion manda todos los campos, tambien los que no tiene.
+            email: { type: "string", anyOf: [{ maxLength: 0 }, { format: "email", maxLength: 254 }] },
             phone: { type: "string", maxLength: 40 },
             address: { type: "string", maxLength: 240 },
             dni: { type: "string", maxLength: 30 },
@@ -375,15 +376,15 @@ export function registerMemberRoutes(
       }
       if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
 
-      const normalized: Record<string, string> = {};
+      const normalized: Record<string, string | null> = {};
+      const clearable = ["email", "phone", "address", "dni", "emergency_contact_name", "emergency_contact_phone", "notes"];
       for (const [key, value] of bodyEntries) {
         if (typeof value !== "string") continue;
         const typedKey = key as keyof PatchMemberBody;
-        normalized[typedKey] = typedKey === "email"
-          ? value.trim().toLowerCase()
-          : ["full_name", "phone", "address", "dni", "emergency_contact_name", "emergency_contact_phone", "notes"].includes(key)
-            ? value.trim()
-            : value;
+        const text = typedKey === "email" ? value.trim().toLowerCase()
+          : ["full_name", ...clearable].includes(key) ? value.trim() : value;
+        // Un dato opcional vacio se guarda como NULL (ausente), no como cadena vacia.
+        normalized[typedKey] = clearable.includes(key) && text === "" ? null : text;
       }
       if (normalized.full_name !== undefined && !normalized.full_name) {
         return invalid(reply, "El nombre no puede quedar vacío.");
