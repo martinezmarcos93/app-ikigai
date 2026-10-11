@@ -199,3 +199,20 @@ button, .button, .nav-link, input[type="checkbox"], input[type="radio"] { touch-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---- Guia de primer uso ---- */
+.tour-highlight { outline: 3px solid var(--red); outline-offset: 4px; border-radius: 10px; position: relative; z-index: 40; }
+.tour-bubble { position: fixed; z-index: 1000; width: min(360px, calc(100vw - 32px)); background: #111; color: #f5f5f5; border: 1px solid var(--red); border-radius: 14px; padding: 16px 18px; box-shadow: 0 12px 40px rgba(0, 0, 0, .6); }
+.tour-bubble h3 { margin: 4px 0 8px; font-size: 1.15rem; }
+.tour-bubble p { margin: 0 0 8px; line-height: 1.45; }
+.tour-bubble .tour-count { font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: #aaa; }
+.tour-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+@media (max-width: 720px) {
+  .tour-bubble { left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); top: auto; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .tour-highlight { transition: none; } }
+.password-pending .portal-sidebar, .password-pending .nav-link { pointer-events: none; opacity: .4; }
+.password-pending .nav-link[data-view="my-password"] { pointer-events: auto; opacity: 1; }
+.panel.narrow { max-width: 520px; }
+.credentials-panel { border-color: var(--red); margin-top: 16px; }
+.tour-bubble.tour-centered { top: 50%; left: 50%; transform: translate(-50%, -50%); bottom: auto; right: auto; }

@@ -11,7 +11,7 @@ reales** (ver «Pendiente»).
 | Dato | De quién | Para qué | Dónde |
 | --- | --- | --- | --- |
 | Nombre completo | Miembros, profesores | Identificar a la persona en la agenda, la asistencia y la cuenta | `member_profiles`, `coach_profiles` |
-| Correo de acceso | Quien tiene cuenta | Iniciar sesión y recuperar la contraseña | `users` (la contraseña se guarda sólo como hash) |
+| Usuario y correo de acceso | Quien tiene cuenta | Iniciar sesión y recuperar la contraseña; el usuario lo genera administración a partir del nombre (`ikigai-miembro-ana`) y el correo puede ser interno | `users` (la contraseña se guarda sólo como hash) |
 | Teléfono y dirección | Miembros (opcional) | Contacto del gimnasio | `member_profiles` |
 | DNI | Miembros (opcional) | Identificación administrativa si el gimnasio la necesita | `member_profiles` |
 | Contacto de emergencia (nombre y teléfono) | Miembros (opcional) | Avisar ante una emergencia durante la clase | `member_profiles` |

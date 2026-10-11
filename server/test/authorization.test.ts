@@ -11,6 +11,7 @@ function actor(overrides: Partial<AuthenticatedActor> = {}): AuthenticatedActor 
     coachId: null,
     sessionId: "session-1",
     sessionToken: "opaque-session-token",
+    mustChangePassword: false,
     ...overrides
   };
 }

@@ -179,13 +179,17 @@
 - [x] Recorrido completo en un navegador real contra la API y PostgreSQL: `scripts/e2e-agenda.py` (manual; el CI no tiene navegador).
 - [ ] Revisión visual del flujo de «Horarios» en 320–480 px y en un dispositivo Android real.
 
-## Alta por invitación y recorrido por rol
+## Accesos creados por administración y recorrido por rol
 
-- [x] Administración invita a un miembro y a un profesor desde «Accesos» y obtiene un enlace de un solo uso con el token en el fragmento de la URL (nunca en la query).
-- [x] La pantalla `accept-invitation.html` activa la cuenta, quita el token de la barra de direcciones y rechaza con un mensaje claro un enlace ya usado, vencido o inválido.
-- [x] El miembro activado inicia sesión, ve sólo sus secciones, reserva y cancela una clase y consulta su asistencia; las rutas de administración le responden `403` aunque el cliente las invoque.
+- [x] Administración crea el acceso de un miembro y de un profesor desde «Accesos»: usuario `ikigai-miembro-<nombre>` / `ikigai-profesor-<nombre>` y clave temporal con el formato `XX-Ikigai-XXXX-XXXX`, visible una sola vez (`accounts.integration.test.ts`, `e2e-roles.py`).
+- [x] Sólo administración puede crear o restablecer accesos; un homónimo recibe un usuario distinto (apellido o número); una persona no recibe dos cuentas; la clave no queda en la base ni en la auditoría.
+- [x] Con la clave temporal el servidor rechaza toda ruta salvo ver la sesión, cambiar la clave y salir (`password_change_required`); al cambiarla se cierran las demás sesiones.
+- [x] «Restablecer clave» cierra las sesiones de la persona y vuelve a exigir el cambio; nunca se aplica a un administrador.
+- [x] El miembro inicia sesión con su usuario, ve sólo sus secciones, reserva y cancela una clase y consulta su asistencia; las rutas de administración le responden `403` aunque el cliente las invoque.
 - [x] El profesor activado ve su agenda y registra la asistencia de una clase ya dada; el miembro la ve reflejada como «Presente».
-- [x] Los formularios de invitación de miembro y de profesor no comparten `id` (accesibilidad).
+- [x] La pantalla «Accesos» no repite `id` (accesibilidad).
+- [x] **Primer uso de administración** (`scripts/e2e-tour.py`): clave temporal → elegir clave propia → guía de globos que recorre 11 pantallas en orden, también en un teléfono; se puede saltar con Escape, se recuerda en el servidor (no reaparece al recargar ni en otro dispositivo) y se repite desde «Guía de primer uso».
+- [ ] Probado a mano por Agustín en su propio celular.
 - [x] Recorrido automatizado en navegador real con tres personas: `scripts/e2e-roles.py` (manual; el CI no tiene navegador).
 
 ## Flujos de administración y PWA en navegador real

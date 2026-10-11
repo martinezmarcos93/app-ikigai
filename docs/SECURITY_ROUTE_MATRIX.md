@@ -15,6 +15,8 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/auth/password-reset/confirm` | Público con token válido | Token no vencido, no usado ni revocado; cuenta local activa | Origin + transacción; revoca sesiones | `password-reset.integration.test.ts` |
 | `GET /api/v1/auth/me` | Sesión válida | Sesión vigente y usuario activo | No | `auth.test.ts` |
 | `POST /api/v1/auth/logout` | Sesión válida o cierre idempotente sin sesión | CSRF + Origin cuando hay sesión; Origin si no la hay | Revocación de sesión | `auth.test.ts` |
+| `POST /api/v1/auth/tour-completed` | Sesión válida | Solo marca la propia guía de primer uso como vista | CSRF | `accounts.integration.test.ts` |
+| `POST /api/v1/auth/change-password` | Sesión válida (también con clave temporal pendiente) | Exige la clave actual; la nueva ≥ 12 caracteres y distinta; cierra las demás sesiones | CSRF + rate limit + auditoría | `accounts.integration.test.ts` |
 | `GET /api/v1/members` | Administración | Paginación acotada | No | `members.test.ts` |
 | `GET /api/v1/members/:id` | Administración, miembro propio o profesor asignado | Alcance comprobado en servidor; campos minimizados | No | `members.test.ts` |
 | `POST /api/v1/members` | Administración | Esquema de entrada y reglas de fechas/estado | CSRF + transacción + auditoría | `members.test.ts` |
@@ -64,6 +66,9 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/auth/accept-invitation` | Público con token válido | Token de un uso, expiración y cuenta deshabilitada | Origin + transacción + auditoría | `invitations.integration.test.ts` |
 | `POST /api/v1/admin/users/:id/reset-access` | Administración | Sólo cuentas de miembro/profesor; requiere motivo; no permite reset de admins | CSRF + transacción + rate limit + auditoría | `admin-security.integration.test.ts` |
 | `POST /api/v1/admin/users/:id/sessions/revoke` | Administración | Revocación idempotente de sesiones del usuario objetivo | CSRF + transacción + rate limit + auditoría | `admin-security.integration.test.ts` |
+| `GET /api/v1/admin/accounts` | Administración | Miembros y profesores con su usuario y estado de acceso (nunca claves) | No | `accounts.integration.test.ts` |
+| `POST /api/v1/admin/accounts` | Administración | Crea el usuario y una clave temporal aleatoria de un solo uso visible; exige cambio en el primer ingreso; un perfil, una cuenta | CSRF + transacción + rate limit + auditoría (sin la clave) | `accounts.integration.test.ts` |
+| `POST /api/v1/admin/accounts/:id/reset-password` | Administración | Sólo cuentas de miembro/profesor, nunca administradores; cierra sus sesiones y exige nuevo cambio | CSRF + transacción + rate limit + auditoría | `accounts.integration.test.ts` |
 
 ## Controles transversales
 

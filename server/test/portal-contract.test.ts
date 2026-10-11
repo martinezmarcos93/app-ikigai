@@ -28,7 +28,8 @@ test("connected portal does not fall back to demo browser storage", async () => 
   assert.match(portal, /api\.logout\(/);
   assert.ok(portal.includes('"create-ledger"'));
   assert.ok(portal.includes('"create-membership"'));
-  assert.ok(portal.includes('"invite-member"'));
+  assert.ok(portal.includes('"create-account"'));
+  assert.ok(portal.includes('"change-password"'));
   assert.match(portal, /async function renderMyRoutine/);
   assert.match(portal, /async function renderAttendance/);
   assert.match(portal, /memberPageSize: 25/);

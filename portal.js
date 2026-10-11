@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastToken: "", memberOffset: 0, memberPageSize: 25, memberTotal: 0 };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0 };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "schedule-templates":"Horarios y clases" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", "schedule-templates":"Horarios y clases" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -133,7 +133,7 @@
     $("#loginPanel").hidden = true;
     $("#portalPanel").hidden = false;
     $("#accountArea").hidden = false;
-    $("#accountEmail").textContent = user.email;
+    $("#accountEmail").textContent = user.username || user.email;
     $("#accountRole").textContent = (user.roles || []).map(r => ({ admin:"Administración", coach:"Profesor", member:"Miembro" }[r] || r)).join(" · ");
     $("#connectionLabel").textContent = "Sesión activa";
     $("#apiBaseLabel").textContent = api.baseUrl;
@@ -141,6 +141,10 @@
   }
   function setUnauthenticated() {
     state.user = null;
+    state.mustChange = false;
+    state.lastCredentials = "";
+    if (window.IkigaiTour) window.IkigaiTour.stop();
+    $("#portalPanel").classList.remove("password-pending");
     $("#loginPanel").hidden = false;
     $("#portalPanel").hidden = true;
     $("#accountArea").hidden = true;
@@ -173,7 +177,7 @@
             </article>
           `).join("")}
         </div>
-        <p class="footer-note">Cuando existan los perfiles, usá <strong>Accesos</strong> para invitar a cada profesor o miembro por separado. El primer administrador se crea desde el servidor, nunca mediante registro público.</p>
+        <p class="footer-note">Cuando existan los perfiles, usá <strong>Accesos</strong> para crear el usuario y la clave de cada profesor o miembro. El primer administrador se crea desde el servidor, nunca mediante registro público.</p>
         <button class="button ghost small" type="button" data-view="invitations">Preparar accesos</button>
       </section>`;
   }
@@ -468,30 +472,62 @@
       <p class="footer-note">La obligación es fija, no depende de reservas ni de porcentajes de la recaudación. Los pagos parciales quedan en el historial.</p></section>`;
   }
 
-  async function renderInvitations() {
+  const ROLE_NAME = { member: "Miembro", coach: "Profesor" };
+  async function renderAccess() {
     if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
     setPage("Accesos");
-    await Promise.all([loadMembers(),loadCoaches()]);
-    const memberOpts = memberOptions();
-    const coachOpts = coachOptions();
-    const memberInvite = memberOpts.length
-      ? form("Invitar a un miembro","invite-member",selectField("Perfil de miembro","memberId",memberOpts,memberOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")
-      : empty("Primero creá un perfil de miembro; después podrás vincularle un acceso.");
-    const coachInvite = coachOpts.length
-      ? form("Invitar a un profesor","invite-coach",selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value)+field("Correo de acceso","email","email",{required:true}),"Generar invitación")
-      : empty("Primero creá un perfil de profesor; después podrás vincularle un acceso.");
-    const adminCoachLink = coachOpts.length
+    setLoading("Consultando los accesos…");
+    await loadCoaches();
+    const { accounts } = await api.listAccounts();
+    const accessState = item => !item.user_id ? '<span class="badge warn">Sin acceso</span>'
+      : item.account_status !== "active" ? '<span class="badge warn">Deshabilitado</span>'
+      : item.must_change_password ? '<span class="badge warn">Debe cambiar la clave</span>' : '<span class="badge success">Activo</span>';
+    const accessAction = item => !item.user_id
+      ? `<button class="button primary small" type="button" data-action="create-account" data-role-kind="${esc(item.role)}" data-profile="${esc(item.profile_id)}" data-name="${esc(item.full_name)}">Crear acceso</button>`
+      : item.username ? `<button class="button ghost small" type="button" data-action="reset-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Restablecer clave</button>` : "";
+    const section = (role, title) => {
+      const items = accounts.filter(item => item.role === role);
+      return `<section class="panel" data-tour="access-${role}"><h2 class="section-title">${title}</h2>${table(["Nombre", "Usuario", "Estado", ""], items.map(item =>
+        row([esc(item.full_name), item.username ? `<code>${esc(item.username)}</code>` : "—", accessState(item), accessAction(item)])))}</section>`;
+    };
+    const adminCoachLink = state.coaches.length
       ? form("Vincular profesor a una cuenta existente","link-admin-coach",
         field("Correo de la cuenta administradora","email","email",{required:true,value:state.user?.email || ""})+
-        selectField("Perfil de profesor","coachId",coachOpts,coachOpts[0]?.value),
+        selectField("Perfil de profesor","coachId",coachOptions(),coachOptions()[0]?.value),
         "Vincular cuenta",
-        "Reutiliza el login actual. El correo del perfil de profesor debe coincidir con el de la cuenta administradora; no se crea otro usuario.")
-      : empty("Creá primero el perfil de profesor con el correo que usa la cuenta administradora.");
+        "Para cuando quien administra también da clases: reutiliza su login actual. El correo del perfil de profesor debe coincidir con el de la cuenta administradora; no se crea otro usuario.")
+      : "";
     $("#pageContent").innerHTML = `
-      <div class="two-col">${memberInvite}${coachInvite}</div>
-      <div style="margin-top:16px">${adminCoachLink}</div>
-      <div id="invitationResult" style="margin-top:16px"></div>
-      <p class="footer-note">La API no envía correos todavía. El token aparece una sola vez en esta pantalla: entregalo por un canal seguro y no lo incluyas en capturas o mensajes públicos. Vence a las 24 horas.</p>`;
+      <section class="panel" data-tour="access-intro"><h2 class="section-title">Crear accesos</h2>
+        <p>Solo administración crea usuarios. El usuario se arma con el nombre (<code>ikigai-miembro-ana</code>, <code>ikigai-profesor-lucia</code>) y la clave es temporal y aleatoria: <strong>quien entra tiene que cambiarla en su primer ingreso</strong>.</p>
+        <p class="footer-note">La clave se muestra una sola vez, al crearla. Si se pierde, usá «Restablecer clave».</p></section>
+      <div id="accountResult"></div>
+      <div class="two-col" style="margin-top:16px">${section("coach", "Profesores")}${section("member", "Miembros")}</div>
+      <div style="margin-top:16px">${adminCoachLink}</div>`;
+  }
+  function showCredentials(title, name, username, temporaryPassword) {
+    const message = `Hola ${name}, este es tu acceso a Ikigai Training.\nUsuario: ${username}\nClave temporal: ${temporaryPassword}\nAl entrar por primera vez te va a pedir que la cambies por una propia.`;
+    state.lastCredentials = message;
+    $("#accountResult").innerHTML = `<section class="panel credentials-panel" role="status"><h2 class="section-title">${esc(title)}</h2>
+      <p>Persona: <strong>${esc(name)}</strong></p>
+      <div class="token-box"><strong>Usuario</strong><code data-testid="new-username">${esc(username)}</code><strong>Clave temporal</strong><code data-testid="new-password">${esc(temporaryPassword)}</code>
+      <button class="button" type="button" data-action="copy-credentials">Copiar mensaje con el acceso</button></div>
+      <p class="footer-note">Entregáselo por un canal seguro (en persona o mensaje directo). No se puede volver a ver: el servidor guarda solo un hash.</p></section>`;
+    $("#accountResult").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  function renderPasswordChange() {
+    setPage("Mi contraseña");
+    const pending = state.mustChange;
+    $("#portalPanel").classList.toggle("password-pending", pending);
+    $("#pageContent").innerHTML = `<section class="panel narrow">
+      ${pending ? '<p class="notice" role="alert">Tu clave es temporal: elegí una propia para empezar a usar Ikigai.</p>' : ""}
+      <h2 class="section-title">${pending ? "Elegí tu contraseña" : "Cambiar mi contraseña"}</h2>
+      <form data-form="change-password" autocomplete="off"><div class="form-grid">
+        <div class="field full-span"><label for="cp-current">Contraseña actual${pending ? " (la temporal)" : ""}</label><input id="cp-current" name="currentPassword" type="password" autocomplete="current-password" required maxlength="128"></div>
+        <div class="field full-span"><label for="cp-new">Contraseña nueva (mínimo 12 caracteres)</label><input id="cp-new" name="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></div>
+        <div class="field full-span"><label for="cp-repeat">Repetí la contraseña nueva</label><input id="cp-repeat" name="repeatPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></div>
+      </div><div class="form-actions"><button class="button primary" type="submit">Guardar contraseña</button></div>
+      <p class="footer-note">Al cambiarla se cierran las demás sesiones abiertas con esta cuenta.</p></form></section>`;
   }
   async function renderInstitutionSettings() {
     if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
@@ -742,6 +778,7 @@
   }
 
   async function renderView(view = state.currentView) {
+    if (state.mustChange) view = "my-password";   // con la clave temporal pendiente no hay otra pantalla
     state.currentView = view;
     hideNotice();
     document.querySelectorAll(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.view === view));
@@ -756,7 +793,8 @@
       else if (view === "schedule") await renderSchedule();
       else if (view === "schedule-templates") await renderScheduleTemplates();
       else if (view === "coaches") await renderCoaches();
-      else if (view === "invitations") await renderInvitations();
+      else if (view === "invitations") await renderAccess();
+      else if (view === "my-password") renderPasswordChange();
       else if (view === "institution-settings") await renderInstitutionSettings();
       else renderDenied("No disponible","Esta sección todavía no está conectada.");
     } catch (error) {
@@ -911,17 +949,15 @@
         showNotice(`La cuenta ${result.email} conserva administración y ahora también tiene rol de profesor. No se creó otro usuario.`, "success");
         return;
       }
-      if (kind === "invite-member" || kind === "invite-coach") {
-        const role = kind === "invite-member" ? "member" : "coach";
-        const payload = { email:v("email"),role };
-        if (role === "member") payload.memberId = v("memberId"); else payload.coachId = v("coachId");
-        const result = await api.createInvitation(payload);
-        // El enlace lleva el token en el fragmento (#token=...): no viaja al servidor web ni queda en sus logs.
-        const link = new URL("./accept-invitation.html", window.location.href);
-        link.search = ""; link.hash = new URLSearchParams({ token: result.invitationToken }).toString();
-        state.lastToken = link.href;
-        $("#invitationResult").innerHTML = `<section class="panel"><h2 class="section-title">Invitación generada</h2><p>Cuenta: <strong>${esc(result.invitation.email)}</strong></p><p>Vence: ${esc(new Date(result.invitation.expiresAt).toLocaleString("es-AR"))}</p><div class="token-box"><strong>Enlace de invitación (un solo uso)</strong><code>${esc(link.href)}</code><button class="button" type="button" data-action="copy-token">Copiar enlace</button></div><p class="footer-note">Entregalo por un canal seguro (por ejemplo, en persona o por mensaje directo). El servidor guarda sólo un hash del token y no se puede recuperar después de abandonar esta pantalla.</p></section>`;
-        showNotice("Invitación generada. Entregá el enlace por un canal seguro.", "success");
+      if (kind === "change-password") {
+        if (v("newPassword") !== v("repeatPassword")) throw new Error("Las dos contraseñas nuevas no coinciden.");
+        await api.changePassword(v("currentPassword"), v("newPassword"));
+        const wasPending = state.mustChange;
+        state.mustChange = false;
+        $("#portalPanel").classList.remove("password-pending");
+        if (wasPending) { await renderView("dashboard"); maybeStartTour(); }
+        else renderPasswordChange();
+        showNotice("Contraseña actualizada.", "success");
         return;
       }
       throw new Error("Formulario no reconocido.");
@@ -1044,12 +1080,25 @@
         await renderCoachFinance(action.dataset.id);
         const mount = $("#coachFinanceMount"); if (mount) mount.dataset.coachId = action.dataset.id;
       }
-      else if (action.dataset.action === "copy-token") {
-        const token = state.lastToken;
-        if (!token) throw new Error("No hay un enlace disponible para copiar.");
-        await navigator.clipboard.writeText(token);
-        showNotice("Enlace copiado al portapapeles.", "success");
+      else if (action.dataset.action === "copy-credentials") {
+        if (!state.lastCredentials) throw new Error("No hay un acceso para copiar.");
+        await navigator.clipboard.writeText(state.lastCredentials);
+        showNotice("Mensaje copiado al portapapeles.", "success");
       }
+      else if (action.dataset.action === "create-account") {
+        action.disabled = true;
+        const role = action.dataset.roleKind;
+        const result = await api.createAccount(role === "member" ? { role, memberId: action.dataset.profile } : { role, coachId: action.dataset.profile });
+        await renderAccess();
+        showCredentials(`Acceso creado (${ROLE_NAME[role] || role})`, result.account.fullName, result.account.username, result.temporaryPassword);
+      }
+      else if (action.dataset.action === "reset-account") {
+        if (!window.confirm(`¿Restablecer la clave de ${action.dataset.name}? Se cierran sus sesiones y tendrá que elegir una nueva.`)) return;
+        const result = await api.resetAccountPassword(action.dataset.user);
+        await renderAccess();
+        showCredentials("Clave restablecida", action.dataset.name, result.username, result.temporaryPassword);
+      }
+      else if (action.dataset.action === "start-tour") { startTour(); }
     } catch (error) { showError(error); }
   });
 
@@ -1079,9 +1128,12 @@
     const button = formNode.querySelector('button[type="submit"]');
     button.disabled = true; button.textContent = "Validando…";
     try {
-      const result = await api.login(valueOf(formNode,"email"),new FormData(formNode).get("password"));
+      const result = await api.login(valueOf(formNode,"login"),new FormData(formNode).get("password"));
+      state.mustChange = result.mustChangePassword === true;
+      state.tourDone = result.tourCompleted === true;
       setAuthenticated(result.user);
       await renderView("dashboard");
+      maybeStartTour();
     } catch (error) { showError(error); }
     finally { button.disabled=false; button.innerHTML='Ingresar <span aria-hidden="true">↗</span>'; }
   });
@@ -1094,6 +1146,31 @@
     catch (error) { showError(error); }
   });
 
+
+  // ---- Guia de primer uso (globos de texto) ----
+  const TOUR_STEPS = [
+    { view: "dashboard", target: ".nav-link[data-view='dashboard']", title: "Bienvenido a Ikigai", text: "Esta guía te muestra, en pocos pasos, cómo dejar el gimnasio funcionando. Podés salir cuando quieras y volver a verla desde «Guía de primer uso» en el menú." },
+    { view: "institution-settings", target: "form[data-form='institution-settings']", title: "1. Datos del gimnasio", text: "Empezá por acá: nombre, contacto, dirección y horario de atención. Se guardan en el servidor y los ven todos los que entran." },
+    { view: "services", target: "form[data-form='create-service']", title: "2. Servicios y precios", text: "Cargá cada disciplina con su precio mensual. Si después cambiás un precio, las membresías ya acordadas conservan el suyo." },
+    { view: "coaches", target: "form[data-form='create-coach']", title: "3. Profesores", text: "Creá el perfil de cada profesor con su disciplina. Desde su ficha también acordás su obligación mensual y registrás pagos." },
+    { view: "members", target: "form[data-form='create-member']", title: "4. Miembros", text: "Cargá a cada persona con sus datos. Solo el nombre es obligatorio; el DNI, el teléfono y el contacto de emergencia son opcionales. Crear un miembro no genera cobros ni accesos." },
+    { view: "invitations", target: "[data-tour='access-intro']", title: "5. Accesos: usuario y clave", text: "Solo vos podés crear usuarios. Tocá «Crear acceso» junto a un profesor o miembro: se genera un usuario con su nombre y una clave temporal que se muestra una sola vez. Quien entra tiene que cambiarla." },
+    { view: "schedule-templates", target: "#pageContent > :first-child", title: "6. Horarios semanales", text: "Definí qué clases hay, qué día y a qué hora, con qué profesor y cuántos lugares. De ahí se generan las clases reales de cada semana." },
+    { view: "memberships", target: "#pageContent > :first-child", title: "7. Membresías", text: "Elegí un miembro y asignale un servicio con el precio acordado. La membresía no cobra sola: los cargos los registrás vos en la cuenta corriente." },
+    { view: "accounts", target: "#pageContent > :first-child", title: "8. Cuenta corriente", text: "Acá anotás cargos, pagos (completos o parciales) y ajustes. Los movimientos no se editan ni se borran: si algo se cargó mal, se corrige con un ajuste." },
+    { view: "schedule", target: "#pageContent > :first-child", title: "9. Agenda y asistencia", text: "La agenda muestra las clases y sus reservas. Los profesores toman asistencia desde su cuenta; vos también podés hacerlo y corregirla." },
+    { view: "dashboard", target: ".nav-link[data-action='start-tour']", title: "Listo", text: "Eso es todo para empezar. Si necesitás repasar algo, tocá «Guía de primer uso» y la guía vuelve a empezar." }
+  ];
+  function markTourDone() {
+    state.tourDone = true;
+    api.markTourCompleted().catch(() => { /* si falla, la guia se ofrece otra vez en el proximo ingreso: no es grave */ });
+  }
+  function startTour() {
+    if (!window.IkigaiTour || !isAdmin() || state.mustChange) return;
+    window.IkigaiTour.start(TOUR_STEPS, { navigate: view => renderView(view), onClose: markTourDone });
+  }
+  function maybeStartTour() { if (isAdmin() && !state.mustChange && !state.tourDone) startTour(); }
+
   async function boot() {
     $("#connectionLabel").textContent = "API";
     if (api.configurationError) {
@@ -1102,8 +1179,11 @@
     }
     try {
       const result = await api.me();
+      state.mustChange = result.mustChangePassword === true;
+      state.tourDone = result.tourCompleted === true;
       setAuthenticated(result.user);
       await renderView("dashboard");
+      maybeStartTour();
     } catch (error) {
       setUnauthenticated();
       if (error.status !== 401) showError(error);

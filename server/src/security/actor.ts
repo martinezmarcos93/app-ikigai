@@ -10,6 +10,7 @@ export interface AuthenticatedActor {
   coachId: string | null;
   sessionId: string;
   sessionToken: string;
+  mustChangePassword: boolean;
 }
 
 interface ActorRow extends Record<string, unknown> {
@@ -19,6 +20,7 @@ interface ActorRow extends Record<string, unknown> {
   roles: string[];
   member_id: string | null;
   coach_id: string | null;
+  must_change_password: boolean;
 }
 
 // Un request resuelve su sesion una sola vez: el hook global de autenticacion y el
@@ -47,7 +49,7 @@ async function lookupActor(
   const result = await db.query<ActorRow>(
     `SELECT s.id AS session_id, u.id AS user_id, u.email,
             array_remove(array_agg(DISTINCT ur.role), NULL) AS roles,
-            mp.id AS member_id, cp.id AS coach_id
+            mp.id AS member_id, cp.id AS coach_id, u.must_change_password
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.revoked_at IS NULL
@@ -57,7 +59,7 @@ async function lookupActor(
         AND s.revoked_at IS NULL
         AND s.expires_at > now()
         AND u.status = 'active'
-      GROUP BY s.id, u.id, u.email, mp.id, cp.id
+      GROUP BY s.id, u.id, u.email, u.must_change_password, mp.id, cp.id
       LIMIT 1`,
     [tokenHash(token)]
   );
@@ -65,6 +67,7 @@ async function lookupActor(
   if (!row) return null;
 
   return {
+    mustChangePassword: row.must_change_password === true,
     userId: row.user_id,
     email: row.email,
     roles: row.roles ?? [],

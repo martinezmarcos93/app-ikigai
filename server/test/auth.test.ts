@@ -94,7 +94,7 @@ test("login creates an opaque HttpOnly session and returns role plus CSRF token"
 
   assert.equal(response.statusCode, 200);
   const body = response.json();
-  assert.deepEqual(body.user, { id: "user-1", email: "admin@example.com", roles: ["admin"], memberId: null, coachId: null });
+  assert.deepEqual(body.user, { id: "user-1", email: "admin@example.com", username: null, roles: ["admin"], memberId: null, coachId: null });
   assert.equal(typeof body.csrfToken, "string");
   assert.ok(response.headers["set-cookie"]);
   const cookies = response.headers["set-cookie"];
@@ -131,7 +131,7 @@ test("wrong credentials do not create a session", async (t) => {
   assert.equal(response.statusCode, 401);
   assert.deepEqual(response.json(), {
     error: "invalid_credentials",
-    message: "Email or password is incorrect."
+    message: "Username/email or password is incorrect."
   });
   assert.equal(db.sessions.length, 0);
 });

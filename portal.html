@@ -43,8 +43,8 @@
     <form id="loginForm" class="panel login-card">
       <p class="eyebrow">ACCESO</p>
       <h2>Iniciar sesión</h2>
-      <label for="loginEmail">Correo electrónico</label>
-      <input id="loginEmail" name="email" type="email" autocomplete="username" required maxlength="254" placeholder="tu@correo.com">
+      <label for="loginEmail">Usuario o correo</label>
+      <input id="loginEmail" name="login" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="254" placeholder="ikigai-miembro-ana">
       <label for="loginPassword">Contraseña</label>
       <input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128" placeholder="Tu contraseña">
       <button class="button primary full" type="submit">Ingresar <span aria-hidden="true">↗</span></button>
@@ -69,6 +69,8 @@
         <button class="nav-link" type="button" data-view="coaches"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#coach"></use></svg></span>Profesores</button>
         <button class="nav-link" type="button" data-view="invitations" data-role="admin"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#shield"></use></svg></span>Accesos</button>
         <button class="nav-link" type="button" data-view="institution-settings" data-role="admin"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#settings"></use></svg></span>Configuración</button>
+        <button class="nav-link" type="button" data-view="my-password"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#shield"></use></svg></span>Mi contraseña</button>
+        <button class="nav-link" type="button" data-action="start-tour" data-role="admin"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#dashboard"></use></svg></span>Guía de primer uso</button>
       </nav>
       <div class="sidebar-foot"><small>PORTAL EN DESARROLLO</small><span id="apiBaseLabel"></span></div>
     </aside>
@@ -88,6 +90,7 @@
 </footer>
 
 <script src="api-client.js"></script>
+<script src="tour.js"></script>
 <script src="portal.js"></script>
 <script src="./sw-register.js"></script>
 </body>
