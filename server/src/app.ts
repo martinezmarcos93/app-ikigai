@@ -18,6 +18,7 @@ import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
 import { registerInstitutionalSettingsRoutes } from "./routes/institutional-settings.js";
 import { registerAdminRoleRoutes } from "./routes/admin-roles.js";
 import { registerScheduleRoutes } from "./routes/schedule.js";
+import { registerNoticeRoutes } from "./routes/notices.js";
 import { createHmac } from "node:crypto";
 import { resolveActor } from "./security/actor.js";
 
@@ -36,7 +37,7 @@ export interface AppDependencies {
   db?: Database;
   transactionalDb?: TransactionalDatabase;
   /** Solo para pruebas: recibe cada ruta registrada (metodo + url) para auditar la matriz de autorizacion. */
-  onRoute?: (route: { method: string; url: string }) => void;
+  onRoute?: (route: { method: string; url: string; schema?: unknown }) => void;
 }
 
 export async function buildApp(
@@ -51,14 +52,18 @@ export async function buildApp(
       ? (_address: string, hop: number) => hop < config.trustProxyHops
       : false,
     bodyLimit: 1_048_576,
-    requestTimeout: 15_000
+    requestTimeout: 15_000,
+    // Fastify, por defecto, ELIMINA en silencio las propiedades que el esquema no declara. Los esquemas de este
+    // servidor son estrictos (additionalProperties: false) para RECHAZAR lo desconocido con 400: un cliente que
+    // manda `role` o `isAdmin` de mas recibe un error, no una respuesta que lo ignora sin avisar.
+    ajv: { customOptions: { removeAdditional: false } }
   });
 
   if (dependencies.onRoute) {
     const observe = dependencies.onRoute;
     app.addHook("onRoute", (route) => {
       for (const method of Array.isArray(route.method) ? route.method : [route.method])
-        observe({ method: String(method), url: route.url });
+        observe({ method: String(method), url: route.url, schema: route.schema });
     });
   }
 
@@ -163,6 +168,7 @@ export async function buildApp(
   if (dependencies.transactionalDb) {
     registerBookingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerScheduleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerNoticeRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerLedgerRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerCoachRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAttendanceRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);

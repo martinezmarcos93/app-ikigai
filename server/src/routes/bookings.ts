@@ -144,7 +144,9 @@ export function registerBookingRoutes(
                   (SELECT count(*)::int FROM bookings b
                     WHERE b.session_id = cs.id AND b.status = 'waitlist') AS waitlist_count,
                   mine.id AS my_booking_id,
-                  mine.status AS my_booking_status
+                  mine.status AS my_booking_status,
+                  mine_notice.kind AS my_notice_kind,
+                  mine_notice.note AS my_notice_note
              FROM class_sessions cs
              JOIN class_templates ct ON ct.id = cs.template_id
              JOIN services s ON s.id = ct.service_id
@@ -153,6 +155,7 @@ export function registerBookingRoutes(
                ON mine.session_id = cs.id
               AND mine.member_id = $4::uuid
               AND mine.status IN ('confirmed', 'waitlist')
+             LEFT JOIN booking_notices mine_notice ON mine_notice.booking_id = mine.id
             WHERE ${filters}
             ORDER BY cs.starts_at ASC, cs.id ASC
             LIMIT $5 OFFSET $6`,
