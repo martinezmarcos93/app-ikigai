@@ -2,6 +2,7 @@
 # Compila, firma y publica (en landing/) la APK de Ikigai: una TWA que abre el portal del servidor.
 #
 #   apk/build-apk.sh app.tudominio.com [versionName] [versionCode]
+#   SOLO_ASSETLINKS=1 apk/build-apk.sh x   # solo escribe deploy/assetlinks.json (la huella sale de la clave, no del dominio)
 #
 # - La direccion queda grabada dentro de la APK: cambiarla exige recompilar y volver a distribuir.
 # - La clave de firma vive en ~/.ikigai-signing (fuera del repo). Se crea la primera vez. HACER COPIA DE
@@ -11,6 +12,7 @@
 set -euo pipefail
 
 HOST="${1:?Uso: apk/build-apk.sh app.tudominio.com [versionName] [versionCode]}"
+SOLO_ASSETLINKS="${SOLO_ASSETLINKS:-0}"
 VERSION_NAME="${2:-1.0.0}"
 VERSION_CODE="${3:-1}"
 APP_URL="${APP_URL:-https://$HOST}"
@@ -25,11 +27,6 @@ export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/sdk}"
 BW_SDK="$WORK/sdk"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 BT="$ANDROID_HOME/build-tools/36.1.0"
-[ -d "$BT" ] || { echo "Falta: sdkmanager \"build-tools;36.1.0\" \"platforms;android-36\"" >&2; exit 1; }
-mkdir -p "$BW_SDK/bin"
-for d in cmdline-tools platforms build-tools platform-tools licenses; do ln -sfn "$ANDROID_HOME/$d" "$BW_SDK/$d"; done
-mkdir -p "$HOME/.bubblewrap"
-printf '{"jdkPath":"%s","androidSdkPath":"%s"}\n' "$JAVA_HOME" "$BW_SDK" > "$HOME/.bubblewrap/config.json"
 
 umask 077
 mkdir -p "$SIGN_DIR"
@@ -43,6 +40,26 @@ fi
 PASS="$(cat "$SIGN_DIR/password.txt")"
 export BUBBLEWRAP_KEYSTORE_PASSWORD="$PASS" BUBBLEWRAP_KEY_PASSWORD="$PASS"
 
+# La huella de la clave de firma (publica) es lo que va en assetlinks.json; no depende del dominio, asi que se puede
+# publicar antes de tener el servidor o la APK.
+FPR="$(keytool -list -v -keystore "$KEYSTORE" -alias ikigai -storepass "$PASS" | awk -F'SHA256: ' '/SHA256:/{print $2}')"
+python3 - "$REPO" "$FPR" <<'PY'
+import json, sys
+repo, fpr = sys.argv[1:3]
+with open(f"{repo}/deploy/assetlinks.json", "w", encoding="utf-8") as f:
+    json.dump([{"relation": ["delegate_permission/common.handle_all_urls"],
+                "target": {"namespace": "android_app", "package_name": "ar.com.ikigaitraining.app",
+                           "sha256_cert_fingerprints": [fpr]}}], f, indent=2)
+    f.write("\n")
+PY
+if [ "$SOLO_ASSETLINKS" = 1 ]; then echo "deploy/assetlinks.json escrito (huella $FPR)"; exit 0; fi
+
+[ -d "$BT" ] || { echo "Falta: sdkmanager \"build-tools;36.1.0\" \"platforms;android-36\"" >&2; exit 1; }
+mkdir -p "$BW_SDK/bin"
+for d in cmdline-tools platforms build-tools platform-tools licenses; do ln -sfn "$ANDROID_HOME/$d" "$BW_SDK/$d"; done
+mkdir -p "$HOME/.bubblewrap"
+printf '{"jdkPath":"%s","androidSdkPath":"%s"}\n' "$JAVA_HOME" "$BW_SDK" > "$HOME/.bubblewrap/config.json"
+
 # Los iconos se bajan de una copia local del repo: asi se puede compilar antes de que el dominio exista.
 ICON_PORT=8791
 python3 -m http.server "$ICON_PORT" --bind 127.0.0.1 --directory "$REPO" >/dev/null 2>&1 &
@@ -51,7 +68,7 @@ trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
 sleep 1
 
 # Si el dominio todavia no responde se compila una APK de PRUEBA (manifiesto local): sirve para instalarla en un
-# emulador o telefono y verificar el empaquetado, pero no se publica ni toca landing/ ni assetlinks.json.
+# emulador o telefono y verificar el empaquetado, pero no se publica ni toca landing/.
 if curl -fsS --max-time 10 -o /dev/null "https://$HOST/manifest.webmanifest" 2>/dev/null; then
   MODO=publicacion; MANIFEST_URL="https://$HOST/manifest.webmanifest"
 else
@@ -85,23 +102,16 @@ mkdir -p "$REPO/landing/downloads"
 cp "$APK" "$REPO/landing/downloads/ikigai-training.apk"
 SHA="$(sha256sum "$APK" | cut -d' ' -f1)"
 SIZE="$(python3 -c "import os,sys;print(round(os.path.getsize(sys.argv[1])/1048576,1))" "$APK")"
-FPR="$(keytool -list -v -keystore "$KEYSTORE" -alias ikigai -storepass "$PASS" | awk -F'SHA256: ' '/SHA256:/{print $2}')"
-
-python3 - "$REPO" "$APP_URL" "$VERSION_NAME" "$SIZE" "$SHA" "$FPR" <<'PY'
+python3 - "$REPO" "$APP_URL" "$VERSION_NAME" "$SIZE" "$SHA" <<'PY'
 import json, sys, datetime
-repo, app_url, version, size, sha, fpr = sys.argv[1:7]
+repo, app_url, version, size, sha = sys.argv[1:6]
 with open(f"{repo}/landing/app.json", "w", encoding="utf-8") as f:
     json.dump({"appUrl": app_url, "apk": {"file": "downloads/ikigai-training.apk", "version": version,
                "sizeMB": float(size), "sha256": sha, "date": datetime.date.today().strftime("%d/%m/%Y")}}, f, indent=2)
-    f.write("\n")
-with open(f"{repo}/deploy/assetlinks.json", "w", encoding="utf-8") as f:
-    json.dump([{"relation": ["delegate_permission/common.handle_all_urls"],
-                "target": {"namespace": "android_app", "package_name": "ar.com.ikigaitraining.app",
-                           "sha256_cert_fingerprints": [fpr]}}], f, indent=2)
     f.write("\n")
 PY
 echo
 echo "APK:        landing/downloads/ikigai-training.apk ($SIZE MB)"
 echo "SHA-256:    $SHA"
-echo "Huella de la clave (para assetlinks): $FPR"
-echo "Falta: servir deploy/assetlinks.json en https://$HOST/.well-known/assetlinks.json y subir landing/ a Cloudflare Pages."
+echo "Huella de la clave (assetlinks.json): $FPR"
+echo "Falta: que https://$HOST/.well-known/assetlinks.json la sirva el servidor (imagen web reconstruida) y subir landing/ a Cloudflare Pages."
