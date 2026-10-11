@@ -66,6 +66,26 @@ jobs:
           }
           console.log('Password recovery page and token transport contract passed.');
           NODE
+      - name: Validate invitation acceptance page and token transport
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html = fs.readFileSync('accept-invitation.html', 'utf8');
+          const client = fs.readFileSync('accept-invitation.js', 'utf8');
+          const portal = fs.readFileSync('portal.js', 'utf8');
+          const sw = fs.readFileSync('sw.js', 'utf8');
+          const missing = [
+            ...['id="acceptForm"', 'accept-invitation.js', 'name="referrer"', 'noindex'].filter(v => !html.includes(v)).map(v => 'HTML: ' + v),
+            ...['acceptInvitation', 'window.location.hash', 'history.replaceState'].filter(v => !client.includes(v)).map(v => 'client: ' + v),
+            ...['accept-invitation.html', 'accept-invitation.js'].filter(v => !sw.includes(v)).map(v => 'service worker: ' + v)
+          ];
+          if (missing.length) { console.error('Invitation contract missing:', missing.join(', ')); process.exit(1); }
+          if (!portal.includes('link.hash = new URLSearchParams({ token: result.invitationToken }).toString();')) {
+            console.error('Invitation tokens must be shared in the URL fragment.'); process.exit(1);
+          }
+          if (/searchParams\.set\(["']token["']/.test(portal)) { console.error('Invitation token found in a URL query.'); process.exit(1); }
+          console.log('Invitation page and token transport contract passed.');
+          NODE
       - name: Set up Python for brand asset validation
         uses: actions/setup-python@v5
         with:

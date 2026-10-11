@@ -206,6 +206,15 @@
     },
     createBooking: sessionId => request(`/class-sessions/${id(sessionId)}/bookings`, { method: "POST", body: {} }),
     cancelBooking: bookingId => request(`/bookings/${id(bookingId)}/cancel`, { method: "POST", body: {} }),
+    acceptInvitation: (token, password) => {
+      if (typeof token !== "string" || !/^[A-Za-z0-9_-]{40,64}$/.test(token)) {
+        throw new ApiError(0, "invalid_invitation", "La invitación no tiene un formato válido.");
+      }
+      if (typeof password !== "string" || password.length < 12 || password.length > 128) {
+        throw new ApiError(0, "invalid_password", "La contraseña debe tener entre 12 y 128 caracteres.");
+      }
+      return request("/auth/accept-invitation", { method: "POST", body: { token, password }, skipCsrf: true });
+    },
     listClassTemplates: (filters = {}) => {
       const query = new URLSearchParams();
       if (filters.active !== undefined) {

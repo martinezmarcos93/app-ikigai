@@ -379,3 +379,28 @@ test("schedule administration uses authenticated, CSRF-protected and validated c
   }
   assert.throws(() => api.listClassTemplates({ active: "yes" }), error => error && error.code === "invalid_filter");
 });
+
+test("invitation acceptance validates locally and posts without CSRF to the public endpoint", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const token = "A".repeat(43);
+  await api.acceptInvitation(token, "una-clave-larga-segura");
+  assert.match(calls[0].url, /\/auth\/accept-invitation$/);
+  assert.equal(calls[0].options.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { token, password: "una-clave-larga-segura" });
+  assert.equal(calls[0].options.headers["X-CSRF-Token"], undefined);
+  assert.equal(calls[0].options.cache, "no-store");
+
+  for (const [badToken, badPassword, code] of [
+    ["short", "una-clave-larga-segura", "invalid_invitation"],
+    ["A".repeat(43) + "!", "una-clave-larga-segura", "invalid_invitation"],
+    [token, "corta", "invalid_password"],
+    [token, "x".repeat(129), "invalid_password"]
+  ]) {
+    assert.throws(() => api.acceptInvitation(badToken, badPassword), error => error && error.code === code);
+  }
+  assert.equal(calls.length, 1, "nada se envia si la validacion local falla");
+});

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Activación segura de tu cuenta de Ikigai Training.">
+<title>Ikigai Training — Activar cuenta</title>
+<link rel="stylesheet" href="./assets/brand/tokens.css">
+<link rel="stylesheet" href="./portal.css">
+</head>
+<body>
+<header class="portal-topbar">
+  <a class="portal-brand" href="./portal.html" aria-label="Ir al acceso del portal">
+    <img class="portal-brand-logo" src="./assets/ikigai-logo.jpg" alt="">
+    <span><strong>IKIGAI</strong><small>TRAINING · ACTIVAR CUENTA</small></span>
+  </a>
+</header>
+<main class="portal-main">
+  <div id="inviteNotice" class="notice" role="status" aria-live="polite" hidden></div>
+  <section class="login-layout">
+    <div class="login-intro">
+      <p class="eyebrow">BIENVENIDO/A</p>
+      <h1>Activá tu<br><span>cuenta.</span></h1>
+      <p>Elegí tu contraseña para entrar a Ikigai. El enlace de invitación es de un solo uso y vence a los pocos días.</p>
+    </div>
+    <div class="panel login-card">
+      <form id="acceptForm" hidden>
+        <p class="eyebrow">NUEVA CONTRASEÑA</p>
+        <h2>Crear tu acceso</h2>
+        <label for="newPassword">Contraseña</label>
+        <input id="newPassword" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128">
+        <label for="confirmPassword">Repetir contraseña</label>
+        <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128">
+        <button class="button primary full" type="submit">Activar cuenta</button>
+        <p class="form-help">Usá entre 12 y 128 caracteres.</p>
+      </form>
+      <div id="missingToken" hidden>
+        <p class="eyebrow">ENLACE NO VÁLIDO</p>
+        <h2>Falta la invitación</h2>
+        <p class="form-help">Abrí el enlace completo que te entregó Ikigai. Si ya lo usaste o venció, pedí otra invitación a administración.</p>
+      </div>
+      <p class="form-help"><a href="./portal.html">Ir al inicio de sesión</a></p>
+    </div>
+  </section>
+</main>
+<script src="./api-client.js"></script>
+<script src="./accept-invitation.js"></script>
+</body>
+</html>

@@ -880,9 +880,12 @@
         const payload = { email:v("email"),role };
         if (role === "member") payload.memberId = v("memberId"); else payload.coachId = v("coachId");
         const result = await api.createInvitation(payload);
-        state.lastToken = result.invitationToken;
-        $("#invitationResult").innerHTML = `<section class="panel"><h2 class="section-title">Invitación generada</h2><p>Cuenta: <strong>${esc(result.invitation.email)}</strong></p><p>Vence: ${esc(new Date(result.invitation.expiresAt).toLocaleString("es-AR"))}</p><div class="token-box"><strong>Token de un solo uso</strong><code>${esc(result.invitationToken)}</code><button class="button" type="button" data-action="copy-token">Copiar token</button></div><p class="footer-note">Entrega manual requerida. El token se almacena en el servidor como hash y no se puede recuperar después de abandonar esta pantalla.</p></section>`;
-        showNotice("Invitación generada. Entregá el token por un canal seguro.", "success");
+        // El enlace lleva el token en el fragmento (#token=...): no viaja al servidor web ni queda en sus logs.
+        const link = new URL("./accept-invitation.html", window.location.href);
+        link.search = ""; link.hash = new URLSearchParams({ token: result.invitationToken }).toString();
+        state.lastToken = link.href;
+        $("#invitationResult").innerHTML = `<section class="panel"><h2 class="section-title">Invitación generada</h2><p>Cuenta: <strong>${esc(result.invitation.email)}</strong></p><p>Vence: ${esc(new Date(result.invitation.expiresAt).toLocaleString("es-AR"))}</p><div class="token-box"><strong>Enlace de invitación (un solo uso)</strong><code>${esc(link.href)}</code><button class="button" type="button" data-action="copy-token">Copiar enlace</button></div><p class="footer-note">Entregalo por un canal seguro (por ejemplo, en persona o por mensaje directo). El servidor guarda sólo un hash del token y no se puede recuperar después de abandonar esta pantalla.</p></section>`;
+        showNotice("Invitación generada. Entregá el enlace por un canal seguro.", "success");
         return;
       }
       throw new Error("Formulario no reconocido.");
@@ -978,9 +981,9 @@
       }
       else if (action.dataset.action === "copy-token") {
         const token = state.lastToken;
-        if (!token) throw new Error("No hay un token disponible para copiar.");
+        if (!token) throw new Error("No hay un enlace disponible para copiar.");
         await navigator.clipboard.writeText(token);
-        showNotice("Token copiado al portapapeles.", "success");
+        showNotice("Enlace copiado al portapapeles.", "success");
       }
     } catch (error) { showError(error); }
   });
@@ -1041,5 +1044,21 @@
       if (error.status !== 401) showError(error);
     }
   }
+  // Dos formularios de una misma pantalla pueden tener un campo con el mismo nombre (por ejemplo
+  // «email» al invitar a un miembro y a un profesor): los id repetidos rompen la asociacion
+  // etiqueta-campo para lectores de pantalla. Se desambiguan dentro de cada formulario.
+  function uniqueFormIds(root) {
+    const seen = new Map();
+    root.querySelectorAll("[id]").forEach(node => seen.set(node.id, (seen.get(node.id) || 0) + 1));
+    root.querySelectorAll("form[data-form]").forEach(formNode => {
+      formNode.querySelectorAll("[id]").forEach(node => {
+        if (seen.get(node.id) < 2) return;
+        const previous = node.id;
+        node.id = `${formNode.dataset.form}-${previous}`;
+        formNode.querySelectorAll(`label[for="${previous}"]`).forEach(label => { label.htmlFor = node.id; });
+      });
+    });
+  }
+  new MutationObserver(() => uniqueFormIds($("#pageContent"))).observe($("#pageContent"), { childList: true, subtree: true });
   boot();
 })();
