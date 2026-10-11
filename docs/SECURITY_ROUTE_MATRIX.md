@@ -19,6 +19,7 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `GET /api/v1/members/:id` | Administración, miembro propio o profesor asignado | Alcance comprobado en servidor; campos minimizados | No | `members.test.ts` |
 | `POST /api/v1/members` | Administración | Esquema de entrada y reglas de fechas/estado | CSRF + transacción + auditoría | `members.test.ts` |
 | `PATCH /api/v1/members/:id` | Administración o miembro propio | Miembro sólo puede editar teléfono/dirección/contacto de emergencia; no DNI, notas ni estado | CSRF + transacción + auditoría por campos | `members.test.ts` |
+| `GET /api/v1/class-sessions` | Administración, miembro vinculado o profesor | Ventana de 90 días máximo y paginación acotada; el profesor sin otro rol sólo ve las clases de su propio perfil (exige perfil vinculado); cada fila incluye sólo la reserva propia del actor | No; `Cache-Control: no-store` | `route-security.test.ts` (anónimo rechazado); alcance de profesor por confirmar en integración |
 | `POST /api/v1/class-sessions/:id/bookings` | Miembro autenticado | Reserva sólo para su miembro vinculado; cupo, duplicado y corte de 40 min | CSRF + transacción + bloqueo de sesión | `bookings.integration.test.ts` |
 | `POST /api/v1/bookings/:id/cancel` | Administración o dueño de la reserva | Cancelación y promoción según corte/cupo | CSRF + transacción + auditoría | `bookings.integration.test.ts` |
 | `GET /api/v1/members/:id/ledger-entries` | Administración o miembro propio | No permite consultar la cuenta de otro miembro | No | `financial-rules.integration.test.ts` |
@@ -53,6 +54,9 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/admin/users/:id/sessions/revoke` | Administración | Revocación idempotente de sesiones del usuario objetivo | CSRF + transacción + rate limit + auditoría | `admin-security.integration.test.ts` |
 
 ## Controles transversales
+
+- **Autenticación antes de validación:** un hook `preValidation` global exige sesión válida en toda ruta que no esté en `PUBLIC_ROUTES` (`src/app.ts`); un anónimo recibe `401` y no puede sondear los esquemas de entrada. Los handlers siguen autorizando por rol y alcance, reutilizando la misma resolución de sesión del request.
+- **Auditoría automática de esta matriz:** `server/test/route-security.test.ts` enumera todas las rutas registradas y falla si (a) una ruta no tiene fila aquí o una fila no tiene ruta, (b) una ruta privada responde a un anónimo, o (c) una ruta marcada «Administración» deja pasar a un miembro o a un profesor con sesión y CSRF válidos.
 
 - Toda ruta privada debe resolver la sesión en el servidor; los roles del navegador no son fuente de autoridad.
 - Las escrituras autenticadas validan CSRF y Origin; los endpoints públicos de autenticación validan Origin.

@@ -18,10 +18,24 @@ import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
 import { registerInstitutionalSettingsRoutes } from "./routes/institutional-settings.js";
 import { registerAdminRoleRoutes } from "./routes/admin-roles.js";
 import { createHmac } from "node:crypto";
+import { resolveActor } from "./security/actor.js";
+
+/** Rutas sin sesion por diseno (docs/SECURITY_ROUTE_MATRIX.md). Todo lo demas exige sesion antes de validar el cuerpo. */
+export const PUBLIC_ROUTES = new Set([
+  "GET /healthz",
+  "GET /api/v1/health",
+  "POST /api/v1/auth/login",
+  "POST /api/v1/auth/logout",
+  "POST /api/v1/auth/password-reset/request",
+  "POST /api/v1/auth/password-reset/confirm",
+  "POST /api/v1/auth/accept-invitation"
+]);
 
 export interface AppDependencies {
   db?: Database;
   transactionalDb?: TransactionalDatabase;
+  /** Solo para pruebas: recibe cada ruta registrada (metodo + url) para auditar la matriz de autorizacion. */
+  onRoute?: (route: { method: string; url: string }) => void;
 }
 
 export async function buildApp(
@@ -38,6 +52,14 @@ export async function buildApp(
     bodyLimit: 1_048_576,
     requestTimeout: 15_000
   });
+
+  if (dependencies.onRoute) {
+    const observe = dependencies.onRoute;
+    app.addHook("onRoute", (route) => {
+      for (const method of Array.isArray(route.method) ? route.method : [route.method])
+        observe({ method: String(method), url: route.url });
+    });
+  }
 
   await app.register(helmet, config.nodeEnv === "production" ? {} : {
     contentSecurityPolicy: false
@@ -119,6 +141,21 @@ export async function buildApp(
 
   const appDb = dependencies.db ?? dependencies.transactionalDb;
   if (appDb) {
+    // Autenticar ANTES de validar el esquema del cuerpo: un anonimo recibe 401 y no
+    // puede sondear la validacion de rutas privadas. El handler sigue autorizando
+    // por rol y alcance (resolveActor reutiliza esta misma resolucion de sesion).
+    app.addHook("preValidation", async (request, reply) => {
+      const url = request.routeOptions?.url;
+      if (!url) return;
+      const method = request.method === "HEAD" ? "GET" : request.method;
+      if (method === "OPTIONS" || PUBLIC_ROUTES.has(`${method} ${url}`)) return;
+      if (await resolveActor(request, appDb)) return;
+      return reply.code(401).header("Cache-Control", "no-store").send({
+        error: "unauthenticated",
+        message: "A valid session is required."
+      });
+    });
+
     registerAuthRoutes(app, appDb, config, dependencies.transactionalDb);
     registerMemberRoutes(app, appDb, config, dependencies.transactionalDb);
   }
