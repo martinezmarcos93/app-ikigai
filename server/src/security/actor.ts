@@ -21,7 +21,23 @@ interface ActorRow extends Record<string, unknown> {
   coach_id: string | null;
 }
 
-export async function resolveActor(
+// Un request resuelve su sesion una sola vez: el hook global de autenticacion y el
+// handler de la ruta comparten el resultado (una consulta a la base, no dos).
+const resolved = new WeakMap<FastifyRequest, Promise<AuthenticatedActor | null>>();
+
+export function resolveActor(
+  request: FastifyRequest,
+  db: Database
+): Promise<AuthenticatedActor | null> {
+  let pending = resolved.get(request);
+  if (!pending) {
+    pending = lookupActor(request, db);
+    resolved.set(request, pending);
+  }
+  return pending;
+}
+
+async function lookupActor(
   request: FastifyRequest,
   db: Database
 ): Promise<AuthenticatedActor | null> {

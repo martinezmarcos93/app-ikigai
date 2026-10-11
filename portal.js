@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "schedule-templates":"Horarios y clases" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -552,6 +552,7 @@
       const dateLabel = startsAt.toLocaleDateString("es-AR", { dateStyle: "medium" });
       const timeLabel = `${startsAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}–${endsAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`;
       const booked = ["confirmed", "waitlist"].includes(session.my_booking_status);
+      const noticeText = session.my_notice_kind === "late" ? " · avisaste que llegás tarde" : session.my_notice_kind === "absence" ? " · avisaste que no vas" : "";
       const status = session.status === "completed" ? "Finalizada"
         : session.my_booking_status === "confirmed" ? (future && !bookingOpen ? "Reservada · cancelación cerrada" : "Reservada")
         : session.my_booking_status === "waitlist" ? (future && !bookingOpen ? "En espera · cancelación cerrada" : "Lista de espera")
@@ -563,6 +564,15 @@
       } else if (isMemberUser && future && bookingOpen && session.status === "scheduled") {
         action = `<button class="button primary small" type="button" data-action="create-booking" data-id="${esc(session.id)}">${session.confirmed_count >= session.capacity ? "Anotarme en espera" : "Reservar clase"}</button>`;
       }
+      if (isMemberUser && future && booked && session.my_booking_id && session.status === "scheduled") {
+        const id = esc(session.my_booking_id);
+        action += ` <button class="button ghost small" type="button" data-action="notice" data-kind="late" data-id="${id}">Llego tarde</button>`
+          + ` <button class="button ghost small" type="button" data-action="notice" data-kind="absence" data-id="${id}">No voy</button>`;
+        if (session.my_notice_kind) action += ` <button class="button ghost small" type="button" data-action="remove-notice" data-id="${id}">Quitar aviso</button>`;
+      }
+      if (isAdmin() && future && session.status === "scheduled") {
+        action += ` <button class="button ghost small" type="button" data-action="cancel-session" data-id="${esc(session.id)}">Cancelar clase</button>`;
+      }
       if (canTakeAttendance && !future && session.status !== "cancelled") {
         action += ` <button class="button ghost small" type="button" data-action="session-attendance" data-id="${esc(session.id)}">Tomar asistencia</button>`;
       }
@@ -571,7 +581,7 @@
         esc(session.service_name || "Clase"),
         esc(session.coach_name || "Sin profesor"),
         esc(`${session.confirmed_count}/${session.capacity}${session.waitlist_count > 0 ? ` · ${session.waitlist_count} en espera` : ""}`),
-        esc(status),
+        esc(status + noticeText),
         action || '<span class="muted">—</span>'
       ]);
     });
@@ -584,6 +594,75 @@
       <p class="footer-note">Datos consultados en la API. Las reservas y cancelaciones se validan en el servidor; la lista de espera depende del cupo real al momento de la operación.</p>`;
   }
 
+  const weekdayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const weekdayOptions = weekdayNames.map((name, index) => ({ value: String(index), label: name }));
+  const addDays = (iso, days) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+
+  async function renderScheduleTemplates() {
+    if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+    setPage("Horarios y clases");
+    setLoading("Consultando horarios del servidor…");
+    await Promise.all([loadServices(), loadCoaches(), loadMembers()]);
+    const result = await api.listClassTemplates();
+    const templates = result.templates || [];
+    const rows = templates.map(tpl => row([
+      esc(weekdayNames[tpl.weekday] || "—"),
+      esc(tpl.localStartTime),
+      esc(tpl.service.name),
+      esc(tpl.coach.name),
+      esc(`${tpl.durationMinutes} min`),
+      esc(String(tpl.capacity)),
+      statusBadge(tpl.active ? "active" : "suspended"),
+      `<button class="button small" type="button" data-action="template-assignments" data-id="${esc(tpl.id)}">Turnos fijos</button> `
+        + `<button class="button ghost small" type="button" data-action="toggle-template" data-id="${esc(tpl.id)}" data-active="${tpl.active ? "false" : "true"}">${tpl.active ? "Desactivar" : "Activar"}</button>`
+    ]));
+    const from = today();
+    $("#pageContent").innerHTML = `
+      <section class="panel"><h2 class="section-title">Plantillas semanales</h2>
+        ${templates.length ? table(["Día","Hora","Servicio","Profesor","Duración","Cupo","Estado","Acción"], rows)
+          : empty("Todavía no hay horarios. Creá la primera plantilla para poder generar clases.")}</section>
+      <div style="height:16px"></div>
+      ${state.services.length && state.coaches.length ? form("Nueva plantilla semanal", "create-template",
+        selectField("Servicio", "service_id", serviceOptions(), "", true)
+        + selectField("Profesor", "coach_id", coachOptions(), "", true)
+        + selectField("Día de la semana", "weekday", weekdayOptions, "1", true)
+        + field("Hora de inicio", "local_start_time", "time", { required: true, value: "19:00" })
+        + field("Duración (minutos)", "duration_minutes", "number", { required: true, min: 1, max: 480, value: 60 })
+        + field("Cupo", "capacity", "number", { required: true, min: 1, max: 30, value: 10 }),
+        "Crear plantilla", "La hora es la local del gimnasio. Cambiar una plantilla no modifica las clases ya generadas.")
+        : `<section class="panel">${empty("Para crear horarios primero tiene que haber al menos un servicio activo y un profesor activo.")}</section>`}
+      <div style="height:16px"></div>
+      ${form("Generar clases", "generate-sessions",
+        field("Desde", "from_date", "date", { required: true, value: from })
+        + field("Hasta", "to_date", "date", { required: true, value: addDays(from, 27) }),
+        "Generar clases", "Se crean las clases de las plantillas activas en ese período (hasta 90 días). Repetirlo no duplica nada y quienes tienen un turno fijo quedan reservados.")}
+      <div id="assignmentsMount" style="margin-top:16px"></div>`;
+  }
+
+  async function renderTemplateAssignments(templateId) {
+    const mount = $("#assignmentsMount");
+    if (!mount) return;
+    mount.innerHTML = `<div class="loading">Consultando turnos fijos…</div>`;
+    const result = await api.listTemplateAssignments(templateId);
+    const members = new Map(state.members.map(m => [m.id, m]));
+    const rows = (result.assignments || []).map(a => row([
+      esc(members.get(a.memberId)?.full_name || "Miembro"),
+      esc(date(a.startsOn)),
+      esc(a.endsOn ? date(a.endsOn) : "Sin fin"),
+      `<button class="button ghost small" type="button" data-action="end-assignment" data-id="${esc(a.id)}" data-template="${esc(templateId)}">Terminar turno</button>`
+    ]));
+    mount.innerHTML = `
+      <section class="panel"><h2 class="section-title">Turnos fijos de la clase</h2>
+        ${rows.length ? table(["Miembro","Desde","Hasta","Acción"], rows) : empty("Nadie tiene un turno fijo en esta clase.")}</section>
+      <div style="height:16px"></div>
+      ${form("Asignar turno fijo", "create-assignment",
+        `<input type="hidden" name="template_id" value="${esc(templateId)}">`
+        + selectField("Miembro", "member_id", memberOptions(), "", true)
+        + field("Desde", "starts_on", "date", { required: true, value: today() })
+        + field("Hasta (opcional)", "ends_on", "date"),
+        "Asignar turno fijo", "Al generar clases, el miembro se reserva solo en cada una; si el cupo está lleno queda en lista de espera.")}`;
+  }
+
   async function renderSessionAttendance(sessionId) {
     if (!(isAdmin() || isCoach())) throw new Error("Sólo administración o el profesor asignado pueden registrar asistencia.");
     setPage("Tomar asistencia");
@@ -592,10 +671,11 @@
     const records = result.records || [];
     const fields = records.map(record => `
       <label class="attendance-entry">
-        <span><strong>${esc(record.member_name || "Miembro")}</strong><small>${record.attended === true ? "Último registro: presente" : record.attended === false ? "Último registro: ausente" : "Todavía sin registrar"}</small></span>
+        <span><strong>${esc(record.member_name || "Miembro")}</strong><small>${record.attended === true ? (record.arrived_late ? "Último registro: presente, llegó tarde" : "Último registro: presente") : record.attended === false ? "Último registro: ausente" : "Todavía sin registrar"}</small>${record.notice_kind ? `<small class="notice-hint">Aviso de la persona: ${record.notice_kind === "late" ? "llegará tarde" : "no asistirá"}${record.notice_note ? ` — «${esc(record.notice_note)}»` : ""}</small>` : ""}</span>
         <select data-booking-id="${esc(record.booking_id)}" aria-label="Asistencia de ${esc(record.member_name || "Miembro")}">
           <option value="" ${record.attended == null ? "selected" : ""}>Sin registrar</option>
-          <option value="true" ${record.attended === true ? "selected" : ""}>Presente</option>
+          <option value="true" ${record.attended === true && !record.arrived_late ? "selected" : ""}>Presente</option>
+          <option value="late" ${record.attended === true && record.arrived_late ? "selected" : ""}>Presente (llegó tarde)</option>
           <option value="false" ${record.attended === false ? "selected" : ""}>Ausente</option>
         </select>
       </label>`).join("");
@@ -618,19 +698,23 @@
     const records = result.records || [];
     const attendedCount = records.filter(record => record.attended === true).length;
     const missedCount = records.filter(record => record.attended === false).length;
+    const lateCount = records.filter(record => record.attended === true && record.arrived_late === true).length;
     $("#pageContent").innerHTML = `
       <div class="stats-grid">
         <div class="stat-card"><small>Clases registradas</small><strong>${records.length}</strong></div>
         <div class="stat-card"><small>Asistencias</small><strong>${attendedCount}</strong></div>
         <div class="stat-card"><small>Ausencias</small><strong>${missedCount}</strong></div>
+        <div class="stat-card"><small>Llegadas tarde</small><strong>${lateCount}</strong></div>
       </div>
       <section class="panel"><h2 class="section-title">Historial por clase</h2>
       ${table(["Fecha y hora","Clase / servicio","Registro"],records.map(record=>row([
         esc(record.starts_at ? new Date(record.starts_at).toLocaleString("es-AR",{dateStyle:"medium",timeStyle:"short"}) : date(record.recorded_at)),
         esc(record.service_name || "Clase"),
-        record.attended ? '<span class="badge success">Presente</span>' : '<span class="badge warn">Ausente</span>'
+        record.attended
+          ? `<span class="badge success">Presente</span>${record.arrived_late ? ' <span class="badge warn">Llegó tarde</span>' : ""}`
+          : '<span class="badge warn">Ausente</span>'
       ])))}</section>
-      <p class="footer-note">La asistencia queda asociada a cada clase histórica. Una corrección del registro no crea una segunda asistencia.</p>`;
+      <p class="footer-note">La asistencia queda asociada a cada clase histórica. Una corrección del registro no crea una segunda asistencia. Ausencias y llegadas tarde se registran sólo como información: no generan sanciones ni cargos.</p>`;
   }
 
   function renderDenied(title, message) {
@@ -651,6 +735,7 @@
       else if (view === "my-routine") await renderMyRoutine();
       else if (view === "attendance") await renderAttendance();
       else if (view === "schedule") await renderSchedule();
+      else if (view === "schedule-templates") await renderScheduleTemplates();
       else if (view === "coaches") await renderCoaches();
       else if (view === "invitations") await renderInvitations();
       else if (view === "institution-settings") await renderInstitutionSettings();
@@ -668,6 +753,7 @@
     const optional = name => v(name) || undefined;
     const body = Object.fromEntries(new FormData(formNode).entries());
     const btn = formNode.querySelector('button[type="submit"]');
+    const originalLabel = btn ? btn.textContent : "Guardar";
     if (kind === "institution-settings") {
       if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
       if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
@@ -684,7 +770,7 @@
       } catch (error) {
         showError(error);
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = "Guardar configuración"; }
+        if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
       }
       return;
     }
@@ -693,12 +779,38 @@
       if (kind === "record-attendance") {
         if (!(isAdmin() || isCoach())) throw new Error("Sólo administración o el profesor asignado pueden registrar asistencia.");
         const records = Array.from(formNode.querySelectorAll("[data-booking-id]"))
-          .filter(input => input.value === "true" || input.value === "false")
-          .map(input => ({ bookingId: input.dataset.bookingId, attended: input.value === "true" }));
-        if (!records.length) throw new Error("Elegí Presente o Ausente para al menos una persona antes de guardar.");
+          .filter(input => ["true", "late", "false"].includes(input.value))
+          .map(input => ({
+            bookingId: input.dataset.bookingId,
+            attended: input.value !== "false",
+            // «Presente» pisa una llegada tarde anterior; «Ausente» no puede llevarla (la API lo rechaza).
+            ...(input.value === "false" ? {} : { arrivedLate: input.value === "late" })
+          }));
+        if (!records.length) throw new Error("Elegí Presente, Presente (llegó tarde) o Ausente para al menos una persona antes de guardar.");
         const result = await api.updateAttendance(v("sessionId"), records);
-        showNotice(`Asistencia guardada: ${result.created} nuevos, ${result.updated} corregidos y ${result.unchanged} sin cambios.`, "success");
         await renderView("schedule");
+        showNotice(`Asistencia guardada: ${result.created} nuevos, ${result.updated} corregidos y ${result.unchanged} sin cambios.`, "success");
+        return;
+      }
+      if (kind === "create-template") {
+        await api.createClassTemplate({
+          service_id: v("service_id"), coach_id: v("coach_id"), weekday: Number(v("weekday")),
+          local_start_time: v("local_start_time"), duration_minutes: Number(v("duration_minutes")), capacity: Number(v("capacity"))
+        });
+        await renderView("schedule-templates");
+        showNotice("Plantilla creada. Generá las clases para que aparezcan en la agenda.", "success");
+        return;
+      }
+      if (kind === "generate-sessions") {
+        const result = await api.generateClassSessions(v("from_date"), v("to_date"));
+        const turnos = result.recurringBookings;
+        showNotice(`Clases generadas: ${result.created} nuevas y ${result.alreadyExisting} que ya existían. Turnos fijos reservados: ${turnos.confirmed}${turnos.waitlisted ? ` (y ${turnos.waitlisted} en lista de espera)` : ""}.`, "success");
+        return;
+      }
+      if (kind === "create-assignment") {
+        await api.createTemplateAssignment(v("template_id"), { member_id: v("member_id"), starts_on: v("starts_on"), ends_on: optional("ends_on") });
+        showNotice("Turno fijo asignado. Se aplicará a las clases que se generen desde ahora.", "success");
+        await renderTemplateAssignments(v("template_id"));
         return;
       }
       if (kind === "select-member") {
@@ -713,8 +825,8 @@
           status:v("status"), joined_on:optional("joined_on"), exited_on:optional("exited_on"), notes:optional("notes")
         });
         state.selectedMember = result.member.id;
-        showNotice("Miembro creado. El alta no generó un cargo ni una cuenta de acceso.", "success");
         await renderView("members");
+        showNotice("Miembro creado. El alta no generó un cargo ni una cuenta de acceso.", "success");
         return;
       }
       if (kind === "edit-member") {
@@ -724,20 +836,20 @@
           emergency_contact_name:v("emergency_contact_name"),emergency_contact_phone:v("emergency_contact_phone"),
           status:v("status"),joined_on:v("joined_on") || undefined,exited_on:v("exited_on") || undefined,notes:v("notes")
         });
-        showNotice("Perfil actualizado.", "success");
         await renderView("members");
+        showNotice("Perfil actualizado.", "success");
         return;
       }
       if (kind === "create-service") {
         await api.createService({ name:v("name"), description:optional("description"), currentPrice:optional("currentPrice") });
-        showNotice("Servicio creado.", "success"); await renderView("services"); return;
+        await renderView("services"); showNotice("Servicio creado.", "success"); return;
       }
       if (kind === "create-membership") {
         await api.createMembership(memberId(),{
           serviceId:v("serviceId"), startsOn:v("startsOn"), endsOn:optional("endsOn"),
           billingPeriod:v("billingPeriod"), agreedPrice:v("agreedPrice"), status:"active"
         });
-        showNotice("Membresía creada. No se generó ningún cargo automático.", "success"); await renderView("memberships"); return;
+        await renderView("memberships"); showNotice("Membresía creada. No se generó ningún cargo automático.", "success"); return;
       }
       if (kind === "create-ledger") {
         const type = v("type");
@@ -750,11 +862,11 @@
         }
         const key = api.idempotencyKeyFor(formNode,"ledger",payload);
         await api.createLedgerEntry(memberId(),payload,key);
-        showNotice("Movimiento registrado.", "success"); await renderView("accounts"); return;
+        await renderView("accounts"); showNotice("Movimiento registrado.", "success"); return;
       }
       if (kind === "create-coach") {
         await api.createCoach({ full_name:v("full_name"),discipline:v("discipline"),email:optional("email"),phone:optional("phone") });
-        showNotice("Profesor creado.", "success"); await renderView("coaches"); return;
+        await renderView("coaches"); showNotice("Profesor creado.", "success"); return;
       }
       if (kind === "create-obligation") {
         await api.createCoachObligation(state.selectedCoach,{
@@ -785,16 +897,19 @@
         const payload = { email:v("email"),role };
         if (role === "member") payload.memberId = v("memberId"); else payload.coachId = v("coachId");
         const result = await api.createInvitation(payload);
-        state.lastToken = result.invitationToken;
-        $("#invitationResult").innerHTML = `<section class="panel"><h2 class="section-title">Invitación generada</h2><p>Cuenta: <strong>${esc(result.invitation.email)}</strong></p><p>Vence: ${esc(new Date(result.invitation.expiresAt).toLocaleString("es-AR"))}</p><div class="token-box"><strong>Token de un solo uso</strong><code>${esc(result.invitationToken)}</code><button class="button" type="button" data-action="copy-token">Copiar token</button></div><p class="footer-note">Entrega manual requerida. El token se almacena en el servidor como hash y no se puede recuperar después de abandonar esta pantalla.</p></section>`;
-        showNotice("Invitación generada. Entregá el token por un canal seguro.", "success");
+        // El enlace lleva el token en el fragmento (#token=...): no viaja al servidor web ni queda en sus logs.
+        const link = new URL("./accept-invitation.html", window.location.href);
+        link.search = ""; link.hash = new URLSearchParams({ token: result.invitationToken }).toString();
+        state.lastToken = link.href;
+        $("#invitationResult").innerHTML = `<section class="panel"><h2 class="section-title">Invitación generada</h2><p>Cuenta: <strong>${esc(result.invitation.email)}</strong></p><p>Vence: ${esc(new Date(result.invitation.expiresAt).toLocaleString("es-AR"))}</p><div class="token-box"><strong>Enlace de invitación (un solo uso)</strong><code>${esc(link.href)}</code><button class="button" type="button" data-action="copy-token">Copiar enlace</button></div><p class="footer-note">Entregalo por un canal seguro (por ejemplo, en persona o por mensaje directo). El servidor guarda sólo un hash del token y no se puede recuperar después de abandonar esta pantalla.</p></section>`;
+        showNotice("Invitación generada. Entregá el enlace por un canal seguro.", "success");
         return;
       }
       throw new Error("Formulario no reconocido.");
     } catch (error) {
       showError(error);
     } finally {
-      if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = "Guardar"; }
+      if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = originalLabel; }
     }
   }
 
@@ -806,16 +921,53 @@
     try {
       if (action.dataset.action === "create-booking") {
         await api.createBooking(action.dataset.id);
-        showNotice("Reserva procesada por el servidor.", "success");
         await renderView("schedule");
+        showNotice("Reserva procesada por el servidor.", "success");
       }
       else if (action.dataset.action === "cancel-booking") {
         await api.cancelBooking(action.dataset.id);
-        showNotice("Reserva cancelada.", "success");
         await renderView("schedule");
+        showNotice("Reserva cancelada.", "success");
       }
       else if (action.dataset.action === "session-attendance") {
         await renderSessionAttendance(action.dataset.id);
+      }
+      else if (action.dataset.action === "toggle-template") {
+        await api.updateClassTemplate(action.dataset.id, { active: action.dataset.active === "true" });
+        await renderView("schedule-templates");
+        showNotice(action.dataset.active === "true" ? "Plantilla activada." : "Plantilla desactivada: ya no genera clases nuevas.", "success");
+      }
+      else if (action.dataset.action === "template-assignments") {
+        await renderTemplateAssignments(action.dataset.id);
+      }
+      else if (action.dataset.action === "end-assignment") {
+        const ended = await api.endRecurringAssignment(action.dataset.id);
+        showNotice(ended.upcomingBookingsKept > 0
+          ? `Turno fijo terminado. Las ${ended.upcomingBookingsKept} reservas ya generadas se mantienen: cancelalas desde la agenda si corresponde.`
+          : "Turno fijo terminado.", "success");
+        await renderTemplateAssignments(action.dataset.template);
+      }
+      else if (action.dataset.action === "cancel-session") {
+        const reason = window.prompt("Motivo de la cancelación (opcional):", "");
+        if (reason === null) return;
+        const cancelled = await api.cancelClassSession(action.dataset.id, reason.trim() || undefined);
+        await renderView("schedule");
+        showNotice(`Clase cancelada. Se liberaron ${cancelled.cancelledBookings} reservas; no se generó ningún cargo ni devolución.`, "success");
+      }
+      else if (action.dataset.action === "notice") {
+        const kind = action.dataset.kind;
+        const note = window.prompt(kind === "late" ? "¿A qué hora llegás? (opcional)" : "¿Querés dejar una nota? (opcional)", "");
+        if (note === null) return;
+        await api.setBookingNotice(action.dataset.id, kind, note.trim() || undefined);
+        await renderView("schedule");
+        showNotice(kind === "late"
+          ? "Avisaste que llegás tarde: el profesor lo ve en su lista. Tu lugar sigue reservado."
+          : "Avisaste que no vas: el profesor lo ve en su lista, pero tu lugar sigue reservado. Para liberarlo, cancelá la reserva (hasta 40 minutos antes).", "success");
+      }
+      else if (action.dataset.action === "remove-notice") {
+        await api.removeBookingNotice(action.dataset.id);
+        await renderView("schedule");
+        showNotice("Aviso quitado.", "success");
       }
       else if (action.dataset.action === "refresh-schedule") {
         await renderView("schedule");
@@ -853,7 +1005,7 @@
         const endedOn = window.prompt("Fecha de finalización (AAAA-MM-DD):",today());
         if (!endedOn) return;
         await api.endMembership(action.dataset.id,endedOn);
-        showNotice("Membresía finalizada.", "success"); await renderView("memberships");
+        await renderView("memberships"); showNotice("Membresía finalizada.", "success");
       }
       else if (action.dataset.action === "coach-finance") {
         await renderCoachFinance(action.dataset.id);
@@ -861,9 +1013,9 @@
       }
       else if (action.dataset.action === "copy-token") {
         const token = state.lastToken;
-        if (!token) throw new Error("No hay un token disponible para copiar.");
+        if (!token) throw new Error("No hay un enlace disponible para copiar.");
         await navigator.clipboard.writeText(token);
-        showNotice("Token copiado al portapapeles.", "success");
+        showNotice("Enlace copiado al portapapeles.", "success");
       }
     } catch (error) { showError(error); }
   });
@@ -880,8 +1032,8 @@
       const button = formNode.querySelector('button[type="submit"]'); if (button) button.disabled = true;
       try {
         await api.updateService(id,body);
-        showNotice("Servicio actualizado. Las membresías históricas mantienen su precio acordado.", "success");
         await renderView("services");
+        showNotice("Servicio actualizado. Las membresías históricas mantienen su precio acordado.", "success");
       } catch (error) { showError(error); if(button)button.disabled=false; }
       return;
     }
@@ -924,5 +1076,21 @@
       if (error.status !== 401) showError(error);
     }
   }
+  // Dos formularios de una misma pantalla pueden tener un campo con el mismo nombre (por ejemplo
+  // «email» al invitar a un miembro y a un profesor): los id repetidos rompen la asociacion
+  // etiqueta-campo para lectores de pantalla. Se desambiguan dentro de cada formulario.
+  function uniqueFormIds(root) {
+    const seen = new Map();
+    root.querySelectorAll("[id]").forEach(node => seen.set(node.id, (seen.get(node.id) || 0) + 1));
+    root.querySelectorAll("form[data-form]").forEach(formNode => {
+      formNode.querySelectorAll("[id]").forEach(node => {
+        if (seen.get(node.id) < 2) return;
+        const previous = node.id;
+        node.id = `${formNode.dataset.form}-${previous}`;
+        formNode.querySelectorAll(`label[for="${previous}"]`).forEach(label => { label.htmlFor = node.id; });
+      });
+    });
+  }
+  new MutationObserver(() => uniqueFormIds($("#pageContent"))).observe($("#pageContent"), { childList: true, subtree: true });
   boot();
 })();

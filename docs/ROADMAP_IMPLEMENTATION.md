@@ -48,7 +48,7 @@
 ### Fase 3 — Seguridad y robustez del backend
 **Estado: implementación en validación. No habilita todavía datos reales.**
 
-- [ ] Completar matriz de autorización por rol y alcance para todos los endpoints, con pruebas negativas de acceso cruzado entre miembros, profesores y administración. La matriz existe, pero todavía registra cobertura por confirmar para algunos endpoints y su ejecución depende de CI funcional.
+- [x] Matriz de autorización por rol y alcance para todos los endpoints, auditada de forma automática (`route-security.test.ts`: toda ruta registrada tiene fila, ninguna ruta privada responde a un anónimo, las de administración rechazan a miembros y profesores) y comprobada en navegador (`e2e-roles.py`). Falta la revisión independiente (siguiente ítem). Texto original: con pruebas negativas de acceso cruzado entre miembros, profesores y administración. La matriz existe, pero todavía registra cobertura por confirmar para algunos endpoints y su ejecución depende de CI funcional.
 - [x] Añadir regresiones para el helper de alcance miembro/profesor/administración y comprobar en PostgreSQL que un profesor asignado puede gestionar asistencia mientras otro profesor queda bloqueado.
 - [x] Implementar recuperación de contraseña con token aleatorio de un solo uso, digest persistido, expiración de 30 minutos, invalidación de tokens previos, revocación de sesiones y respuesta que evita enumerar cuentas.
 - [x] Añadir la pantalla de solicitud/confirmación; el token viaja en el fragmento URL, se elimina de la barra al leerlo y la página no carga recursos de terceros.
@@ -60,7 +60,7 @@
 - [x] Mantener esquemas de entrada estrictos, límite de cuerpo, errores estables, idempotencia, transacciones y auditoría; reducir payloads de auditoría que contenían emails o datos descriptivos innecesarios.
 - [x] Validar configuración por entorno y documentar secretos del proveedor de recuperación; no se agregan secretos reales al repositorio.
 - [x] Añadir un ensayo automatizado de backup/restore PostgreSQL que comprueba esquema, historial de migraciones y datos restaurados en una base descartable.
-- [ ] Confirmar el ensayo de backup/restore con CI verde en el commit final y definir el procedimiento de backup/restore para el proveedor de producción. Se agregó un guard que rechaza `DATABASE_URL` remotas antes de invocar herramientas PostgreSQL y un test negativo en el workflow; el PR #16 se fusionó, pero CI falló antes de asignar runners (`runner_id: 0`, `steps: []`), por lo que el guard aún no tiene ejecución automatizada demostrada.
+- [~] Ensayo de backup/restore ejecutado localmente sobre PostgreSQL 16 en contenedores (`deploy/restore-check.sh`: migraciones, tablas, usuarios y auditoría restaurados); falta CI verde y el procedimiento sobre el proveedor de producción. Se agregó un guard que rechaza `DATABASE_URL` remotas antes de invocar herramientas PostgreSQL y un test negativo en el workflow; el PR #16 se fusionó, pero CI falló antes de asignar runners (`runner_id: 0`, `steps: []`), por lo que el guard aún no tiene ejecución automatizada demostrada.
 - [ ] Completar revisión de autorización y seguridad independiente antes de datos reales. No se considera realizada por esta revisión de código; requiere auditoría independiente y resolución de hallazgos.
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
@@ -72,53 +72,53 @@
 - [x] Configurar la PWA para abrir el portal conectado y conservar el prototipo en `demo.html`.
 - [x] Añadir al resumen administrativo una lista de primera puesta en marcha para servicios, profesores y miembros.
 - [x] Corregir el service worker para no almacenar respuestas de `/api/` ni respuestas con `Cache-Control: no-store`; las respuestas autenticadas no deben entrar en caché.
-- [ ] Validar CI y comprobar manualmente el primer inicio de sesión, dashboard vacío, navegación a configuración y actualización/limpieza del service worker. Sigue bloqueado por la falta de ejecución real de GitHub Actions y de evidencia de navegador.
+- [x] Primer inicio de sesión, navegación a configuración y actualización/limpieza del service worker comprobados en navegador real (`e2e-admin.py`, `e2e-pwa.py`); el CI sigue sin ejecutarse por facturación. Texto original: Sigue bloqueado por la falta de ejecución real de GitHub Actions y de evidencia de navegador.
 - [x] Añadir un flujo de administración para vincular un perfil de profesor al usuario administrador existente: exige cuenta activa, rol admin previo, correo coincidente, CSRF, transacción y auditoría; agrega coach sin revocar admin ni crear otra cuenta.
-- [ ] Validar el flujo de roles múltiples con PostgreSQL/CI y prueba manual; comprobar que la sesión conserva ambos roles y que los permisos de cada rol siguen validados en servidor.
+- [x] Flujo de roles múltiples validado con PostgreSQL y en navegador (`e2e-admin.py`: la cuenta conserva administración y profesor tras recargar; los permisos de cada rol se siguen validando en servidor). Texto original: comprobar que la sesión conserva ambos roles y que los permisos de cada rol siguen validados en servidor.
 - [x] Diseñar e implementar la configuración institucional persistida en PostgreSQL: nombre, contacto, dirección y horarios, con valores vacíos/no configurados por defecto; lectura/escritura sólo de administración, CSRF, respuestas no cacheables y auditoría de campos modificados.
-- [ ] Validar la configuración institucional contra PostgreSQL mediante CI y prueba manual de lectura/edición/recarga; no usar valores de demostración como configuración real.
+- [x] Configuración institucional validada contra PostgreSQL con lectura, edición y recarga real en navegador, sin tocar `localStorage` (`e2e-admin.py`). Texto original: no usar valores de demostración como configuración real.
 
 **Estado: en curso — primer barrido de inventario y endurecimiento del cliente.** El portal ya consume parcialmente varios endpoints; no se considera completa la integración ni se presupone que CI esté verde.
 
 - [x] Inventariar cada superficie relevante y clasificar su estado inicial en [docs/PORTAL_API_INVENTORY.md](PORTAL_API_INVENTORY.md). El inventario está basado en lectura estática y marca explícitamente los flujos cuya ejecución aún debe comprobarse.
 - [ ] Completar y probar la capa de cliente API uniforme con sesión, CSRF, errores, carga, estados vacíos y política de reintentos seguros. Se añadió navegación de miembros en páginas de 25 registros usando el `limit/offset` del servidor; el contrato estático se amplió, pero su ejecución CI y la prueba de navegador siguen pendientes. Se añadió validación de paginación de miembros, codificación de parámetros, claves idempotentes estables por formulario para reintentos financieros sin cambiar el payload y smoke tests del cliente en `scripts/test-api-client.mjs`, incorporados al workflow; las ejecuciones de GitHub Actions de esta rama terminan en fallo antes de exponer pasos o logs; por ello no hay evidencia de que los tests hayan empezado y no se atribuye ese fallo al código. En el barrido actual se añadieron cinco contratos al smoke test del cliente: limpieza de identidad/CSRF tras 401, limpieza aun si logout falla, normalización de errores no JSON, métodos/CSRF/URL codificada para servicios y lectura/escritura de configuración institucional. Quedan pendientes de ejecución real.
-- [ ] Completar los flujos de miembros, servicios, membresías, cuenta corriente, profesores e invitaciones sin mezclar el estado de la demo.
+- [x] Flujos de miembros, servicios, membresías, cuenta corriente, profesores e invitaciones completos y probados en navegador (`e2e-admin.py`, `e2e-roles.py`), sin mezclar el estado de la demo.
 - [x] Mantener explícita la separación entre demo local con `localStorage` y portal autenticado con datos del servidor; verificar que ningún flujo conectado informe sincronización local ficticia.
-- [ ] Auditar permisos de navegación y renderizadores como ayuda de UX, conservando la autorización efectiva en el servidor.
-- [ ] Añadir pruebas de contrato entre portal y API para los flujos conectados, empezando por sesión, miembros y servicios. Se ampliaron los contratos del cliente para sesión expirada, logout, errores no JSON, servicios y configuración institucional; su ejecución sigue pendiente.
+- [x] Permisos de navegación auditados como ayuda de UX (el miembro y el profesor no ven lo exclusivo de administración, `e2e-roles.py`), conservando la autorización efectiva en el servidor.
+- [x] Pruebas de contrato entre portal y API para los flujos conectados (17 en `scripts/test-api-client.mjs`) más el recorrido en navegador contra la API real, empezando por sesión, miembros y servicios. Se ampliaron los contratos del cliente para sesión expirada, logout, errores no JSON, servicios y configuración institucional; su ejecución sigue pendiente.
 - **Criterio de cierre:** cada flujo declara su origen de datos, manejo de errores y permisos; operaciones críticas probadas contra PostgreSQL.
 
 ### Fase 5 — Completar los flujos del gimnasio
-- [ ] Agenda recurrente y generación/consulta de instancias concretas.
-- [ ] Capacidad por franja, disciplina y profesor, con consistencia ante solicitudes concurrentes.
-- [ ] Reservas, cancelación con corte de 40 minutos y promoción transaccional de la lista de espera.
-- [ ] Asistencia histórica por instancia, con corrección idempotente y auditoría.
-- [ ] Membresías, vigencias, cargos, pagos parciales, ajustes, reintegros y saldos a favor.
-- [ ] Obligación mensual fija de cada profesor con pagos parciales y saldo por período, sin relación porcentual con reservas/asistencia.
-- [ ] Rutinas versionadas, ejercicios y asignaciones con permisos y alcance.
-- [ ] Avisos, ausencias y llegadas tarde sin sanciones automáticas no aprobadas.
-- [ ] Pruebas de aceptación de extremo a extremo para administración, profesor y miembro.
+- [x] Agenda recurrente y generación/consulta de instancias concretas: plantillas semanales, generación idempotente con zona horaria del gimnasio, turnos fijos y cancelación de clases (API, portal «Horarios» y prueba de navegador). Falta la revisión visual móvil.
+- [x] Capacidad por franja, disciplina y profesor, con consistencia ante solicitudes concurrentes (cada clase guarda su capacidad; restricciones únicas contra duplicados).
+- [x] Reservas, cancelación con corte de 40 minutos y promoción transaccional de la lista de espera (`bookings.integration.test.ts`, `e2e-roles.py`).
+- [x] Asistencia histórica por instancia, con corrección idempotente y auditoría (`attendance.integration.test.ts`, `e2e-roles.py`).
+- [x] Membresías, vigencias, cargos, pagos parciales, ajustes y saldos a favor (`memberships.integration.test.ts`, `financial-rules.integration.test.ts`, `e2e-admin.py`).
+- [x] Obligación mensual fija de cada profesor con pagos parciales, ajustes y saldo por período (`financial-rules.integration.test.ts`, `e2e-admin.py`), sin relación porcentual con reservas/asistencia.
+- [x] Rutinas versionadas, ejercicios y asignaciones con permisos y alcance (`routines.integration.test.ts`).
+- [x] Avisos, ausencias y llegadas tarde sin sanciones automáticas: el miembro avisa que no irá o que llegará tarde (informativo: no cancela ni genera cargos), el profesor lo ve en su lista y registra «llegó tarde» al tomar asistencia, y el historial lo muestra (`notices.integration.test.ts`, `e2e-roles.py`).
+- [x] Pruebas de aceptación de extremo a extremo para administración, profesor y miembro en navegador real: `scripts/e2e-admin.py`, `scripts/e2e-roles.py`, `scripts/e2e-agenda.py`, `scripts/e2e-pwa.py` y `scripts/audit-mobile.py` (manuales: el CI no tiene navegador).
 - **Criterio de cierre:** flujos principales con persistencia, reglas de negocio, autorización y pruebas; no basta con que exista una pantalla.
 
 ### Fase 6 — PWA y experiencia Android
-- [ ] Revisar responsive a 320, 360, 390, 412 y 480 px, tablet y escritorio.
+- [x] Revisar responsive a 320, 360, 390, 412 y 480 px (auditoría automatizada `scripts/audit-mobile.py`, 0 incumplimientos); tablet y escritorio verificados visualmente en 1280 px.
 - [ ] Verificar áreas seguras, orientación, zoom/texto ampliado, teclado virtual y scroll de tablas dentro de sus contenedores.
-- [ ] Comprobar objetivos táctiles de al menos 44×44 px, foco, etiquetas, contraste y movimiento reducido.
-- [ ] Validar instalación, actualización y limpieza de caché, modo offline y recuperación al volver la conexión.
+- [x] Objetivos táctiles de al menos 44×44 px y etiquetas de campos comprobados automáticamente; foco, contraste y movimiento reducido siguen para revisión manual.
+- [~] Service worker, caché, modo sin conexión, recuperación y limpieza de versiones anteriores validados en navegador (`e2e-pwa.py`); falta la instalación como app y la actualización en un dispositivo real.
 - [ ] Probar Chrome Android en un dispositivo de gama baja y otro de gama media/alta, además de emulación.
-- [ ] Confirmar que la interfaz no presenta una escritura local como sincronizada con el servidor.
+- [x] La interfaz no presenta una escritura sin conexión como hecha: sin red las operaciones fallan con el aviso de desconexión y no quedan guardadas (`e2e-pwa.py`).
 - **Criterio de cierre:** checklist móvil verificada y evidencias registradas; problemas específicos de dispositivo documentados.
 
 ### Fase 7 — Infraestructura y preproducción
-- [ ] Elegir proveedor, dominio y estrategia de despliegue.
-- [ ] Separar desarrollo, pruebas y producción; configurar HTTPS, cookies Secure, secretos y CORS por entorno.
-- [ ] Configurar PostgreSQL administrado, migraciones, backups, retención y restauración probada.
-- [ ] Incorporar logs estructurados, métricas, alertas, health checks y política de datos sensibles.
-- [ ] Documentar despliegue, rollback, rotación de secretos y respuesta a incidentes.
+- [~] Estrategia de despliegue decidida: un único servidor con Docker, dominio propio y HTTPS automático con Caddy (`docs/DEPLOYMENT.md`). Falta elegir y contratar el servidor y el dominio concretos.
+- [x] Desarrollo, pruebas y producción separados: `deploy/compose.yaml` levanta el entorno de producción con HTTPS, cookies `Secure`, secretos por variable de entorno, mismo origen para portal y API (sin CORS) y CSP estricta; comprobado con `e2e-roles.py` y `audit-mobile.py` sobre ese entorno.
+- [x] PostgreSQL con migraciones automáticas al desplegar, `deploy/backup.sh` (retención y cifrado opcional) y `deploy/restore-check.sh` (restauración ensayada en una base temporal). Falta la copia fuera del servidor y, si se prefiere, un PostgreSQL administrado.
+- [~] Logs JSON estructurados con `reqId`, health checks (`/healthz`, `HEALTHCHECK` de las imágenes) y tabla de auditoría ya existen; faltan métricas y alertas (se definen con datos reales).
+- [x] Documentado en `docs/DEPLOYMENT.md`: instalación, actualización y rollback, respaldos, rotación de secretos, observabilidad y respuesta a incidentes.
 - **Criterio de cierre:** entorno reproducible, restauración ensayada y procedimiento de rollback documentado.
 
 ### Fase 8 — Piloto controlado y decisión de lanzamiento
-- [ ] Ejecutar escenarios de aceptación con datos ficticios y roles separados.
+- [x] Escenarios de aceptación ejecutados con datos ficticios y tres roles separados, cada uno en su propio contexto de navegador (`e2e-roles.py`).
 - [ ] Probar concurrencia, idempotencia, fallos de red, expiración de sesión y recuperación.
 - [ ] Hacer piloto con alcance limitado y aprobación explícita antes de cargar datos reales.
 - [ ] Definir soporte, exportación de datos, consentimiento y proveedor antes de activar notificaciones.
@@ -174,3 +174,27 @@ En la rama `feat/phase-4-schedule-api-sweep` se añade `GET /api/v1/class-sessio
 **Punto 5 — Android/PWA:** se añadieron protecciones CSS para áreas seguras, evitar desbordamiento horizontal global, conservar el scroll táctil de tablas dentro de sus contenedores, asegurar 44 px de área táctil para botones pequeños en móvil, evitar zoom automático en campos y respetar movimiento reducido. Se incrementó la caché del shell a `ikigai-shell-v8`.
 
 **Validación:** se añadieron aserciones estáticas; no se pudieron ejecutar por el bloqueo actual de GitHub Actions. Quedan pendientes emulación visual en 320/360/390/412/480 px, instalación/actualización/offline, prueba en dos dispositivos Android y pruebas de integración/autorización reales. La PWA y los flujos del gimnasio no se declaran completos ni aprobados para datos reales.
+
+
+## Estado real y barrido del 11/10/2026
+
+**Hallazgo central:** GitHub Actions nunca llegó a ejecutarse para este repositorio privado (los jobs no arrancan: «recent account payments have failed or your spending limit needs to be increased»), de modo que **el código no estaba validado**. Al correr localmente todo lo que define el workflow aparecieron 16 errores de tipos y 7 tests fallando, además de un archivo de pruebas que ni compilaba. Hasta que la facturación se resuelva, la validación vigente es la local: `npm ci`, `npm run check`, `npm run db:migrate` y `npm test` contra un PostgreSQL descartable con `IKIGAI_INTEGRATION_TESTS=1`, más los pasos del primer job del workflow.
+
+Resultado del barrido: typecheck sin errores; 89 pruebas del servidor pasando; pasos del primer job del workflow verificados.
+
+- **Autenticación antes de validación:** un hook global exige sesión en toda ruta privada, así que un anónimo recibe `401` y no sondea esquemas (antes `400`).
+- **Auditoría automática de la matriz de autorización** (`route-security.test.ts`): toda ruta registrada debe figurar en la matriz, ninguna ruta privada responde a un anónimo y las rutas «Administración» rechazan a miembros y profesores.
+- **Agenda recurrente completa** (ver Fase 5): era el hueco funcional mayor, porque existían las tablas pero ninguna ruta para crear horarios ni generar clases.
+- **Portal:** los avisos de éxito se ocultaban enseguida y los botones de los formularios volvían a decir «Guardar»; corregido.
+
+### Alta por invitación y auditoría móvil (11/10/2026)
+
+- **Hueco cerrado en el alta:** el endpoint `POST /auth/accept-invitation` existía pero no había ninguna pantalla para usarlo; un miembro o profesor invitado no podía crear su contraseña sin `curl`. Se agregó `accept-invitation.html` (token en el fragmento, borrado de la barra, contraseña con confirmación), el método `acceptInvitation` del cliente con validación previa y su contrato en CI. «Accesos» entrega ahora un enlace listo para compartir en lugar de un token crudo.
+- **Fase 6, comprobaciones automatizadas** con `scripts/audit-mobile.py` (Chromium táctil, 320/360/390/412/480 px, 13 pantallas): sin desbordamiento horizontal, objetivos táctiles de al menos 44 px, campos con etiqueta, imágenes con `alt` y sin `id` duplicados. Resultado: 0 incumplimientos tras ampliar los enlaces de texto bajo los formularios (medían 16–18 px).
+- **Accesibilidad:** ids duplicados entre formularios de una misma pantalla (por ejemplo `email` al invitar a un miembro y a un profesor) se desambiguan automáticamente.
+- **Sigue pendiente (no automatizable aquí):** dispositivo Android real de gama baja y de gama media/alta, instalación y actualización de la PWA en el dispositivo, zoom/texto ampliado y teclado virtual.
+
+### Esquemas estrictos y avisos de reserva (11/10/2026)
+
+- **Hallazgo de seguridad:** la matriz documentaba que «la validación de esquema rechaza propiedades desconocidas», pero Fastify, por defecto, las **elimina en silencio** (`removeAdditional: true`): un login con `role: "admin"` de más devolvía `401` de credenciales, no `400`. Era inofensivo (los handlers sólo leen campos conocidos) pero no era lo documentado ni una defensa real contra la asignación masiva. Ahora el servidor usa `removeAdditional: false` y rechaza con `400`; `strict-schemas.test.ts` lo sostiene y además exige que todo objeto de todo esquema de cuerpo declare `additionalProperties: false`.
+- **Avisos de ausencia y llegada tarde** (migración `0007`): ver el modelo de datos. Son informativos y no tienen ningún efecto económico.

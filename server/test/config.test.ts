@@ -9,7 +9,8 @@ test("development defaults are local and explicit", () => {
     port: 3001,
     trustProxyHops: 0,
     corsOrigins: ["http://localhost:8000", "http://127.0.0.1:8000"],
-    sessionSecret: "development-only-session-secret-change-before-deploy"
+    sessionSecret: "development-only-session-secret-change-before-deploy",
+    gymTimezone: "America/Argentina/Buenos_Aires"
   });
 });
 

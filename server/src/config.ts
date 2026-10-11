@@ -7,6 +7,8 @@ export interface AppConfig {
   trustProxyHops: number;
   corsOrigins: string[];
   sessionSecret: string;
+  /** Zona horaria IANA del gimnasio: las plantillas de clase guardan hora local y de ahi se calcula cada instancia. */
+  gymTimezone: string;
   passwordResetDeliveryUrl?: string;
   passwordResetDeliveryToken?: string;
   passwordResetPublicUrl?: string;
@@ -61,6 +63,12 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
     throw new Error("SESSION_SECRET must be explicitly configured with at least 32 characters in production.");
   }
   const sessionSecret = env.SESSION_SECRET ?? "development-only-session-secret-change-before-deploy";
+  const gymTimezone = (env.GYM_TIMEZONE ?? "America/Argentina/Buenos_Aires").trim();
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: gymTimezone });
+  } catch {
+    throw new Error("GYM_TIMEZONE must be a valid IANA time zone, for example America/Argentina/Buenos_Aires.");
+  }
   const passwordResetDeliveryUrl = env.PASSWORD_RESET_DELIVERY_URL?.trim();
   const passwordResetDeliveryToken = env.PASSWORD_RESET_DELIVERY_TOKEN?.trim();
   const passwordResetPublicUrl = env.PASSWORD_RESET_PUBLIC_URL?.trim();
@@ -95,7 +103,7 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
   }
 
   return {
-    nodeEnv: rawEnv, host, port, trustProxyHops, corsOrigins, sessionSecret,
+    nodeEnv: rawEnv, host, port, trustProxyHops, corsOrigins, sessionSecret, gymTimezone,
     ...(passwordResetDeliveryUrl ? { passwordResetDeliveryUrl } : {}),
     ...(passwordResetDeliveryToken ? { passwordResetDeliveryToken } : {}),
     ...(passwordResetPublicUrl ? { passwordResetPublicUrl } : {})

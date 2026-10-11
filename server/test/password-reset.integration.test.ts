@@ -1,7 +1,7 @@
 import test from "node:test";
 import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomUUID, createHmac } from "node:crypto";
 import pg from "pg";
 import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
@@ -89,7 +89,7 @@ test("password reset is generic, single-use, expires, invalidates previous token
   assert.ok(token);
 
   const stored = await pool.query(
-    "SELECT token_hash,expires_at,used_at,revoked_at FROM password_reset_tokens WHERE user_id=$1",
+    "SELECT token_hash,expires_at,used_at,revoked_at FROM password_reset_tokens WHERE user_id=$1 AND revoked_at IS NULL AND used_at IS NULL",
     [userId]
   );
   assert.equal(stored.rows.length, 1);
@@ -165,7 +165,7 @@ test("database-backed sensitive endpoint limits are shared across API replicas",
     await pool.end();
   });
 
-  const key = createHash("sha256").update("POST:/api/v1/auth/password-reset/request:127.0.0.1").digest("hex");
+  const key = createHmac("sha256", config.sessionSecret).update("POST:/api/v1/auth/password-reset/request:127.0.0.1").digest("hex");
   await pool.query("DELETE FROM rate_limit_buckets WHERE bucket_key=$1", [key]);
   const payload = { email: `nonexistent-${randomUUID()}@example.test` };
   const send = (app: typeof appA) => app.inject({

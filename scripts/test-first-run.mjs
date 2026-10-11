@@ -18,7 +18,8 @@ const bookingRoutes = await read("server/src/routes/bookings.ts");
 assert.match(index, /url=\.\/portal\.html/);
 assert.equal(manifest.start_url, "./portal.html");
 assert.match(portalHtml, /rel="manifest"/);
-assert.match(portalHtml, /navigator\.serviceWorker\.register/);
+assert.match(portalHtml, /<script src="\.\/sw-register\.js"><\/script>/);
+assert.match(await read("sw-register.js"), /navigator\.serviceWorker\.register/);
 assert.match(demo, /PROTOTIPO LOCAL|PROTOTIPO/);
 assert.doesNotMatch(demo, /navigator\.serviceWorker\.register|rel="manifest"/);
 assert.match(app, /members:\[\]/);
@@ -42,7 +43,8 @@ assert.match(portal, /data-action="create-booking"/);
 assert.match(portal, /data-action="session-attendance"/);
 assert.match(portal, /option value="true"/);
 assert.match(portal, /option value="false"/);
-assert.ok(portal.includes('filter(input => input.value === "true" || input.value === "false")'));
+// «Sin registrar» (valor vacío) nunca se envia: sólo presente, presente con llegada tarde y ausente.
+assert.ok(portal.includes('filter(input => ["true", "late", "false"].includes(input.value))'));
 assert.ok(portal.includes('selectField("Dirección (solo para ajustes)"'));
 assert.match(portal, /payload.direction = direction/);
 
@@ -59,10 +61,25 @@ assert.match(mobileStyles, /env\(safe-area-inset-bottom\)/);
 assert.match(mobileStyles, /prefers-reduced-motion/);
 assert.match(mobileStyles, /\.button\.small \{ min-height: 44px; \}/);
 
-assert.match(sw, /ikigai-shell-v8/);
+assert.match(sw, /ikigai-shell-v12/);
 assert.match(sw, /url\.pathname\.endsWith\('\/demo\.html'\)/);
 assert.match(setupGuide, /npm run admin:create/);
 assert.match(setupGuide, /no hay registro público de administradores/i);
 assert.match(setupGuide, /datos reales/);
+
+// El portal conectado no carga recursos de terceros (privacidad, uso sin conexion y CSP estricta):
+// ni tipografias ni scripts ni estilos externos, y sin scripts en linea (la CSP no los admite).
+for (const page of ["portal.html", "reset-password.html", "accept-invitation.html"]) {
+  const html = await read(page);
+  assert.doesNotMatch(html, /(?:src|href)=["']https?:\/\/(?!localhost)/i, `${page} carga un recurso externo`);
+  assert.doesNotMatch(html, /fonts\.googleapis\.com|fonts\.gstatic\.com/i, `${page} usa Google Fonts`);
+  assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/i, `${page} tiene un script en linea`);
+}
+for (const stylesheet of ["portal.css", "assets/brand/tokens.css", "assets/fonts/fonts.css"]) {
+  assert.doesNotMatch(await read(stylesheet), /@import|url\(\s*["']?https?:/i, `${stylesheet} importa algo externo`);
+}
+for (const font of ["bebas-neue-400", "rajdhani-400", "rajdhani-500", "rajdhani-600", "rajdhani-700"]) {
+  assert.match(sw, new RegExp(`assets/fonts/${font}\\.woff2`), `el service worker no precachea ${font}`);
+}
 
 console.log("First-run setup, empty prototype, connected entry point, and API cache boundaries passed.");

@@ -15,7 +15,9 @@
     const requested = new URLSearchParams(window.location.search).get("apiBase");
     const page = new URL(window.location.href);
     const isLocalHost = ["localhost", "127.0.0.1"].includes(page.hostname);
-    const defaultBase = isLocalHost && page.port !== "3001"
+    // Atajo de desarrollo: el portal servido por `python -m http.server 8000` habla con la API en :3001.
+    // Cualquier otro origen (HTTPS, otro puerto, un despliegue) usa la API del mismo origen.
+    const defaultBase = isLocalHost && page.protocol === "http:" && page.port === "8000"
       ? `http://${page.hostname}:3001/api/v1`
       : "/api/v1";
     const candidate = new URL(requested || defaultBase, page.href);
@@ -206,6 +208,49 @@
     },
     createBooking: sessionId => request(`/class-sessions/${id(sessionId)}/bookings`, { method: "POST", body: {} }),
     cancelBooking: bookingId => request(`/bookings/${id(bookingId)}/cancel`, { method: "POST", body: {} }),
+    acceptInvitation: (token, password) => {
+      if (typeof token !== "string" || !/^[A-Za-z0-9_-]{40,64}$/.test(token)) {
+        throw new ApiError(0, "invalid_invitation", "La invitación no tiene un formato válido.");
+      }
+      if (typeof password !== "string" || password.length < 12 || password.length > 128) {
+        throw new ApiError(0, "invalid_password", "La contraseña debe tener entre 12 y 128 caracteres.");
+      }
+      return request("/auth/accept-invitation", { method: "POST", body: { token, password }, skipCsrf: true });
+    },
+    listClassTemplates: (filters = {}) => {
+      const query = new URLSearchParams();
+      if (filters.active !== undefined) {
+        if (typeof filters.active !== "boolean") throw new ApiError(0, "invalid_filter", "El filtro de plantillas debe ser verdadero o falso.");
+        query.set("active", String(filters.active));
+      }
+      return request(`/class-templates${query.size ? `?${query.toString()}` : ""}`);
+    },
+    createClassTemplate: body => request("/class-templates", { method: "POST", body }),
+    updateClassTemplate: (templateId, body) => request(`/class-templates/${id(templateId)}`, { method: "PATCH", body }),
+    generateClassSessions: (fromDate, toDate) => {
+      const day = /^\d{4}-\d{2}-\d{2}$/;
+      if (!day.test(String(fromDate)) || !day.test(String(toDate)) || String(toDate) < String(fromDate)) {
+        throw new ApiError(0, "invalid_date_range", "Indicá fechas válidas (AAAA-MM-DD) con el fin igual o posterior al inicio.");
+      }
+      return request("/class-sessions/generate", { method: "POST", body: { from_date: fromDate, to_date: toDate } });
+    },
+    cancelClassSession: (sessionId, reason) =>
+      request(`/class-sessions/${id(sessionId)}/cancel`, { method: "POST", body: reason ? { reason } : {} }),
+    listTemplateAssignments: templateId => request(`/class-templates/${id(templateId)}/assignments`),
+    createTemplateAssignment: (templateId, body) =>
+      request(`/class-templates/${id(templateId)}/assignments`, { method: "POST", body }),
+    endRecurringAssignment: assignmentId =>
+      request(`/recurring-assignments/${id(assignmentId)}/end`, { method: "POST", body: {} }),
+    setBookingNotice: (bookingId, kind, note) => {
+      if (!["absence", "late"].includes(kind)) {
+        throw new ApiError(0, "invalid_notice", "El aviso debe ser de ausencia o de llegada tarde.");
+      }
+      if (note !== undefined && note !== null && (typeof note !== "string" || note.length > 200)) {
+        throw new ApiError(0, "invalid_notice", "La nota del aviso admite hasta 200 caracteres.");
+      }
+      return request(`/bookings/${id(bookingId)}/notice`, { method: "PUT", body: note ? { kind, note } : { kind } });
+    },
+    removeBookingNotice: bookingId => request(`/bookings/${id(bookingId)}/notice`, { method: "DELETE" }),
     getSessionAttendance: sessionId => request(`/class-sessions/${id(sessionId)}/attendance`),
     listAttendance: memberId => request(`/members/${id(memberId)}/attendance`),
     updateAttendance: (sessionId, records) => request(`/class-sessions/${id(sessionId)}/attendance`, { method: "PUT", body: { records } })

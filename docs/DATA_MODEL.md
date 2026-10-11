@@ -42,6 +42,12 @@ Este modelo separa el funcionamiento del gimnasio de la interfaz. Es la base con
 ### Asistencia
 - Reserva/miembro, instancia de clase, estado presente/ausente, fecha y hora de registro, usuario responsable, última modificación.
 - Debe ser histórica y corregible con trazabilidad; no depender de un contador manual aislado.
+- `arrived_late`: marca informativa de que la persona asistió pero llegó tarde. Sólo puede ser verdadera si asistió (restricción `attendance_late_requires_presence`). Al corregir a «ausente» se limpia; si una corrección no la menciona, se conserva.
+
+### Aviso de una reserva (`booking_notices`)
+- Una reserva, tipo (`absence`: no asistirá; `late`: llegará tarde), nota opcional de hasta 200 caracteres, autor y fechas. A lo sumo un aviso por reserva (cambiarlo lo reemplaza).
+- Lo crea el miembro dueño de la reserva (o administración) mientras la reserva no esté cancelada y la clase no haya empezado; el profesor de la clase y administración lo ven en la lista de asistencia.
+- **Es informativo:** no cancela la reserva, no libera el cupo, no genera cargos, multas ni sanciones de ningún tipo (regla de producto). Para liberar el cupo hay que cancelar la reserva dentro del corte de 40 minutos. La auditoría registra el tipo y si hubo nota, pero no el texto de la nota.
 
 ### Profesor y obligación mensual
 - Perfil, disciplinas, estado y datos de contacto.

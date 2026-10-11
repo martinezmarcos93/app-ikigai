@@ -17,11 +17,27 @@ import { registerInvitationRoutes } from "./routes/invitations.js";
 import { registerAdminSecurityRoutes } from "./routes/admin-security.js";
 import { registerInstitutionalSettingsRoutes } from "./routes/institutional-settings.js";
 import { registerAdminRoleRoutes } from "./routes/admin-roles.js";
+import { registerScheduleRoutes } from "./routes/schedule.js";
+import { registerNoticeRoutes } from "./routes/notices.js";
 import { createHmac } from "node:crypto";
+import { resolveActor } from "./security/actor.js";
+
+/** Rutas sin sesion por diseno (docs/SECURITY_ROUTE_MATRIX.md). Todo lo demas exige sesion antes de validar el cuerpo. */
+export const PUBLIC_ROUTES = new Set([
+  "GET /healthz",
+  "GET /api/v1/health",
+  "POST /api/v1/auth/login",
+  "POST /api/v1/auth/logout",
+  "POST /api/v1/auth/password-reset/request",
+  "POST /api/v1/auth/password-reset/confirm",
+  "POST /api/v1/auth/accept-invitation"
+]);
 
 export interface AppDependencies {
   db?: Database;
   transactionalDb?: TransactionalDatabase;
+  /** Solo para pruebas: recibe cada ruta registrada (metodo + url) para auditar la matriz de autorizacion. */
+  onRoute?: (route: { method: string; url: string; schema?: unknown }) => void;
 }
 
 export async function buildApp(
@@ -30,10 +46,26 @@ export async function buildApp(
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: config.nodeEnv !== "test",
-    trustProxy: config.trustProxyHops || false,
+    // Confiar en los primeros N saltos de proxy (equivale al entero que acepta
+    // el runtime de Fastify, que sus tipos no admiten): hop 0 es el mas cercano.
+    trustProxy: config.trustProxyHops
+      ? (_address: string, hop: number) => hop < config.trustProxyHops
+      : false,
     bodyLimit: 1_048_576,
-    requestTimeout: 15_000
+    requestTimeout: 15_000,
+    // Fastify, por defecto, ELIMINA en silencio las propiedades que el esquema no declara. Los esquemas de este
+    // servidor son estrictos (additionalProperties: false) para RECHAZAR lo desconocido con 400: un cliente que
+    // manda `role` o `isAdmin` de mas recibe un error, no una respuesta que lo ignora sin avisar.
+    ajv: { customOptions: { removeAdditional: false } }
   });
+
+  if (dependencies.onRoute) {
+    const observe = dependencies.onRoute;
+    app.addHook("onRoute", (route) => {
+      for (const method of Array.isArray(route.method) ? route.method : [route.method])
+        observe({ method: String(method), url: route.url, schema: route.schema });
+    });
+  }
 
   await app.register(helmet, config.nodeEnv === "production" ? {} : {
     contentSecurityPolicy: false
@@ -115,11 +147,28 @@ export async function buildApp(
 
   const appDb = dependencies.db ?? dependencies.transactionalDb;
   if (appDb) {
+    // Autenticar ANTES de validar el esquema del cuerpo: un anonimo recibe 401 y no
+    // puede sondear la validacion de rutas privadas. El handler sigue autorizando
+    // por rol y alcance (resolveActor reutiliza esta misma resolucion de sesion).
+    app.addHook("preValidation", async (request, reply) => {
+      const url = request.routeOptions?.url;
+      if (!url) return;
+      const method = request.method === "HEAD" ? "GET" : request.method;
+      if (method === "OPTIONS" || PUBLIC_ROUTES.has(`${method} ${url}`)) return;
+      if (await resolveActor(request, appDb)) return;
+      return reply.code(401).header("Cache-Control", "no-store").send({
+        error: "unauthenticated",
+        message: "A valid session is required."
+      });
+    });
+
     registerAuthRoutes(app, appDb, config, dependencies.transactionalDb);
     registerMemberRoutes(app, appDb, config, dependencies.transactionalDb);
   }
   if (dependencies.transactionalDb) {
     registerBookingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerScheduleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerNoticeRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerLedgerRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerCoachRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAttendanceRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);

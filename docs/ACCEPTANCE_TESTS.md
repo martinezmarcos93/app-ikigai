@@ -165,3 +165,46 @@
 - [ ] El profesor asignado a una sesión puede consultar y corregir asistencia; otro profesor no puede leer ni escribir esa sesión.
 - [ ] Los endpoints de rutinas permiten alcance propio del miembro y alcance del profesor sólo cuando existe una asignación vigente o reserva dentro de la ventana definida.
 - [ ] Los intentos de escritura de miembros en endpoints exclusivos de administración/profesores son rechazados en el servidor, aunque el cliente invoque la API directamente.
+
+## Agenda recurrente (plantillas, generación y turnos fijos)
+
+- [x] Sólo administración crea y modifica plantillas; miembros y profesores reciben `403` (`schedule.integration.test.ts`, `route-security.test.ts`).
+- [x] Un profesor no puede tener dos plantillas activas el mismo día y hora (`409 template_slot_taken`).
+- [x] Generar clases convierte la hora local a instante en la zona del gimnasio: 19:30 en Buenos Aires queda en 22:30 UTC.
+- [x] Generar el mismo rango dos veces no duplica clases ni reservas; un rango de más de 90 días o invertido se rechaza.
+- [x] Cambiar la capacidad de una plantilla no modifica las clases ya generadas.
+- [x] Un turno fijo reserva al miembro en cada clase generada; con cupo lleno queda en lista de espera.
+- [x] Cancelar una clase libera las reservas y no genera movimientos en la cuenta corriente.
+- [x] Terminar un turno fijo no cancela reservas ya generadas e informa cuántas quedan.
+- [x] Recorrido completo en un navegador real contra la API y PostgreSQL: `scripts/e2e-agenda.py` (manual; el CI no tiene navegador).
+- [ ] Revisión visual del flujo de «Horarios» en 320–480 px y en un dispositivo Android real.
+
+## Alta por invitación y recorrido por rol
+
+- [x] Administración invita a un miembro y a un profesor desde «Accesos» y obtiene un enlace de un solo uso con el token en el fragmento de la URL (nunca en la query).
+- [x] La pantalla `accept-invitation.html` activa la cuenta, quita el token de la barra de direcciones y rechaza con un mensaje claro un enlace ya usado, vencido o inválido.
+- [x] El miembro activado inicia sesión, ve sólo sus secciones, reserva y cancela una clase y consulta su asistencia; las rutas de administración le responden `403` aunque el cliente las invoque.
+- [x] El profesor activado ve su agenda y registra la asistencia de una clase ya dada; el miembro la ve reflejada como «Presente».
+- [x] Los formularios de invitación de miembro y de profesor no comparten `id` (accesibilidad).
+- [x] Recorrido automatizado en navegador real con tres personas: `scripts/e2e-roles.py` (manual; el CI no tiene navegador).
+
+## Flujos de administración y PWA en navegador real
+
+- [x] Configuración institucional: se guarda, se recarga la página y los valores vienen del servidor; nada en `localStorage` (`scripts/e2e-admin.py`).
+- [x] Servicios: alta con precio, edición del precio vigente y rechazo legible de un nombre repetido.
+- [x] Membresía con precio acordado distinto del vigente del servicio: se conserva el acordado; se puede finalizar.
+- [x] Cuenta corriente: cargo, pago parcial y ajuste de crédito dejan el saldo esperado (16.000 − 6.000 − 1.000 = 9.000).
+- [x] Profesores: obligación mensual fija, pago parcial y ajuste negativo; el saldo y el historial se muestran consistentes (30.000 − 2.000 − 12.000 = 16.000).
+- [x] Roles múltiples: vincular una cuenta de administración con un perfil de profesor conserva ambos roles tras recargar.
+- [x] PWA: el service worker precachea el shell y las tipografías; el portal abre sin red; sin red las operaciones fallan con aviso de desconexión y nunca se muestran como hechas; al volver la red se recupera; ninguna respuesta de `/api/` entra en la caché; al actualizar se borran los cachés anteriores (`scripts/e2e-pwa.py`).
+- [ ] Instalación como aplicación y actualización de la PWA en un dispositivo Android real.
+
+## Avisos, ausencias y llegadas tarde
+
+- [x] El miembro dueño de la reserva (o administración) deja, cambia y quita un aviso de ausencia o de llegada tarde; otra persona, otro profesor o un anónimo no pueden (`404`/`401`) (`notices.integration.test.ts`).
+- [x] Un aviso es informativo: la reserva sigue confirmada, el cupo ocupado y la cuenta corriente intacta.
+- [x] No se puede avisar sobre una reserva cancelada ni una vez empezada la clase (`409`).
+- [x] El profesor de la clase ve el aviso y su nota en la lista de asistencia; la nota no se copia a la auditoría.
+- [x] El profesor registra «llegó tarde» sólo para quien asistió; corregir a ausente lo limpia; repetir o corregir sin mencionarlo conserva el valor.
+- [x] El historial del miembro muestra «Llegó tarde» y cuenta las llegadas tarde (`e2e-roles.py`).
+- [x] Los esquemas rechazan con `400` los campos desconocidos en vez de descartarlos (`strict-schemas.test.ts`).

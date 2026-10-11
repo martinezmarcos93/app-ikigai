@@ -47,6 +47,8 @@ input,select,textarea { width:100%; border:1px solid #414147; background:#09090a
 input:focus,select:focus,textarea:focus,button:focus-visible { outline:2px solid var(--red); outline-offset:2px; }
 textarea { resize:vertical; min-height:88px; }
 .form-help { font-size:13px; line-height:1.4; color:var(--muted); margin:16px 0 0; }
+/* Enlaces de texto bajo los formularios: objetivo tactil de al menos 44 px de alto (Fase 6). */
+.form-help a { display:inline-flex; align-items:center; min-height:44px; padding:0 4px; margin:-12px 0; }
 code { overflow-wrap:anywhere; color:#f4b4ba; }
 .button { display:inline-flex; justify-content:center; align-items:center; gap:10px; border:1px solid var(--line); padding:10px 15px; border-radius:7px; color:var(--text); background:var(--panel-2); font-weight:700; text-decoration:none; min-height:44px; }
 .button.primary { background:var(--red); border-color:var(--red); color:white; }
@@ -160,6 +162,7 @@ td strong { display:block; }
 .attendance-entry { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--ikigai-surface, #080808); cursor: pointer; }
 .attendance-entry input { width: 20px; height: 20px; accent-color: var(--ikigai-red, #d51f2a); flex: 0 0 auto; }
 .attendance-entry span { display: grid; gap: 3px; min-width: 0; flex: 1 1 180px; }
+.attendance-entry small.notice-hint { color: var(--ikigai-warning, #e6b755); }
 .attendance-entry select { width: min(100%, 190px); flex: 0 1 190px; margin-left: auto; }
 .attendance-entry small { color: var(--muted); font-size: 12px; }
 .form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }

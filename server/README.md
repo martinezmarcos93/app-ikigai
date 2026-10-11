@@ -5,7 +5,7 @@ This directory contains the first executable backend slice. It serves health che
 ## Security and operations
 
 - In production, configure `PASSWORD_RESET_DELIVERY_URL`, `PASSWORD_RESET_DELIVERY_TOKEN` (32+ characters) and `PASSWORD_RESET_PUBLIC_URL`; both URLs must use HTTPS and the public URL origin must appear in `CORS_ORIGINS`. The delivery endpoint receives a JSON payload authenticated with a bearer token. For a valid account, `type` is `ikigai.password_reset` and the payload includes `to`, `resetUrl`, `expiresAt` and `requestId`; for an unknown account, `type` is `ikigai.password_reset_noop` and no reset URL is sent. The adapter must enqueue promptly, send only the real reset event, and never log the token or full URL.
-- Sensitive authentication/admin endpoints use a PostgreSQL-backed shared fixed-window limiter; the bucket key is a SHA-256 digest of route/method/IP rather than a stored raw IP. Old buckets are pruned during sensitive traffic. Configure `TRUST_PROXY_HOPS` only when the API is reachable exclusively through the stated number of trusted reverse proxies; leave it at `0` otherwise to prevent spoofed forwarded IPs.
+- Sensitive authentication/admin endpoints use a PostgreSQL-backed shared fixed-window limiter; the bucket key is an HMAC-SHA-256 (keyed with `SESSION_SECRET`) of route/method/IP rather than a stored raw IP. Old buckets are pruned during sensitive traffic. Configure `TRUST_PROXY_HOPS` only when the API is reachable exclusively through the stated number of trusted reverse proxies; leave it at `0` otherwise to prevent spoofed forwarded IPs.
 - Run `bash scripts/backup-restore-check.sh` only against a disposable development/test database. It creates a custom-format dump, restores it into a separate database, verifies schema history and a marker row, then drops the restored database. It is a CI restoration rehearsal, not a production backup policy.
 - The provider-specific backup schedule, retention, encryption, restore access, RPO/RTO and an independent security review remain release gates.
 
@@ -57,8 +57,13 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/coach-obligations/:id/payments`: record partial or excess payments with idempotency keys and an internal-receipt label.
 - `POST /api/v1/coach-obligations/:id/adjustments`: append a signed correction with reason and idempotency key.
 - `GET /api/v1/class-sessions`: authenticated administrator/member lists scheduled and recent completed sessions in a maximum 90-day window; a coach without member/admin access sees only their own sessions. Supports `from`, `to`, `limit` and `offset`; response includes the server clock, capacity, confirmed/waitlist counts and the current member booking status.
+- `GET /api/v1/class-templates` / `POST /api/v1/class-templates` / `PATCH /api/v1/class-templates/:id`: plantillas semanales de clase (servicio, profesor, día `0` = domingo … `6` = sábado, hora local `HH:MM`, duración y cupo). El profesor sólo ve las suyas. Cambiar una plantilla no reescribe las clases ya generadas.
+- `POST /api/v1/class-sessions/generate`: administración genera las clases de las plantillas activas en un rango de hasta 90 días. Es idempotente, convierte la hora local a instante con `GYM_TIMEZONE` y reserva a quienes tienen un turno fijo vigente respetando el cupo (el excedente queda en lista de espera).
+- `POST /api/v1/class-sessions/:id/cancel`: administración cancela una clase que no empezó y libera sus reservas, sin cargos ni devoluciones.
+- `GET`/`POST /api/v1/class-templates/:id/assignments` y `POST /api/v1/recurring-assignments/:id/end`: turnos fijos de miembros; al terminarlos no se tocan las reservas ya generadas.
+- `PUT`/`DELETE /api/v1/bookings/:id/notice`: el miembro dueño de la reserva (o administración) deja, cambia o quita un aviso de ausencia o de llegada tarde, con una nota opcional, mientras la clase no empiece. Es informativo: no cancela la reserva ni genera cargos o sanciones. El profesor de la clase y administración lo ven en la lista de asistencia (`notice_kind`, `notice_note`) y el miembro lo ve en la agenda (`my_notice_kind`, `my_notice_note`).
 - `GET /api/v1/class-sessions/:id/attendance`: administrator or assigned coach reads confirmed attendees and saved attendance.
-- `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally; duplicate bookings are rejected and every change is audited.
+- `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally (each record may carry `arrivedLate`, only valid for an attendee); duplicate bookings are rejected and every change is audited.
 - `GET /api/v1/members/:id/attendance`: administrator or the member reads the member's own attendance history.
 - `GET /api/v1/exercises` and `POST /api/v1/exercises`: coaches/admin browse active exercises; only administration creates them.
 - `GET /api/v1/routines`: administration/coaches browse active routines at their latest immutable version.
@@ -68,6 +73,10 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `POST /api/v1/bookings/:id/cancel`: member-owner or administrator cancellation before the 40-minute cutoff, with transactional waitlist promotion.
 
 Set `CORS_ORIGINS` to exact comma-separated origins. Production startup fails closed if it is missing, if `SESSION_SECRET` is absent or shorter than 32 characters, or if `DATABASE_URL` is missing. Use a high-entropy secret from the hosting secret manager. Never use `*` for origins when credentials are enabled. Keep the server bound to localhost for local development unless a deliberate network deployment requires otherwise. The frontend and API should be deployed under the same site so the strict same-site session cookie is sent as expected.
+
+## Time zone
+
+`GYM_TIMEZONE` (zona IANA, por defecto `America/Argentina/Buenos_Aires`) define en qué hora local están las plantillas de clase. Un valor inválido hace fallar el arranque. Cambiarla no mueve las clases ya generadas.
 
 ## Database migration
 

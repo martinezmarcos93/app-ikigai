@@ -334,3 +334,122 @@ test("session attendance roster uses authenticated no-store GET contract", async
   assert.equal(calls[1].options.method, "GET");
   assert.equal(calls[1].options.cache, "no-store");
 });
+
+test("schedule administration uses authenticated, CSRF-protected and validated contracts", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-schedule-token", user: { id: "admin-user", roles: ["admin"] } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("admin@example.test", "correct horse battery staple");
+  const template = { service_id: "s", coach_id: "c", weekday: 1, local_start_time: "19:30", duration_minutes: 60, capacity: 10 };
+  await api.listClassTemplates({ active: true });
+  await api.createClassTemplate(template);
+  await api.updateClassTemplate("tpl/with space", { capacity: 12 });
+  await api.generateClassSessions("2031-01-01", "2031-01-28");
+  await api.cancelClassSession("ses-1", "Profesor enfermo");
+  await api.listTemplateAssignments("tpl-1");
+  await api.createTemplateAssignment("tpl-1", { member_id: "m", starts_on: "2031-01-06" });
+  await api.endRecurringAssignment("asg-1");
+
+  const byPath = suffix => calls.find(call => call.url.endsWith(suffix));
+  assert.equal(new URL(byPath("/class-templates?active=true").url).search, "?active=true");
+  assert.equal(byPath("/class-templates?active=true").options.method, "GET");
+  const create = calls.find(call => call.url.endsWith("/class-templates") && call.options.method === "POST");
+  assert.deepEqual(JSON.parse(create.options.body), template);
+  assert.equal(create.options.headers["X-CSRF-Token"], "csrf-schedule-token");
+  const patch = calls.find(call => call.options.method === "PATCH");
+  assert.match(patch.url, /\/class-templates\/tpl%2Fwith%20space$/);
+  assert.equal(patch.options.headers["X-CSRF-Token"], "csrf-schedule-token");
+  const generate = byPath("/class-sessions/generate");
+  assert.deepEqual(JSON.parse(generate.options.body), { from_date: "2031-01-01", to_date: "2031-01-28" });
+  assert.equal(generate.options.headers["X-CSRF-Token"], "csrf-schedule-token");
+  assert.deepEqual(JSON.parse(byPath("/class-sessions/ses-1/cancel").options.body), { reason: "Profesor enfermo" });
+  assert.equal(byPath("/class-templates/tpl-1/assignments").options.method, "GET");
+  assert.equal(byPath("/recurring-assignments/asg-1/end").options.headers["X-CSRF-Token"], "csrf-schedule-token");
+  for (const call of calls) assert.equal(call.options.cache, "no-store");
+
+  for (const dates of [["2031-1-1", "2031-01-28"], ["2031-01-28", "2031-01-01"], ["", ""], [null, undefined]]) {
+    assert.throws(() => api.generateClassSessions(...dates), error => error && error.code === "invalid_date_range");
+  }
+  assert.throws(() => api.listClassTemplates({ active: "yes" }), error => error && error.code === "invalid_filter");
+});
+
+test("invitation acceptance validates locally and posts without CSRF to the public endpoint", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const token = "A".repeat(43);
+  await api.acceptInvitation(token, "una-clave-larga-segura");
+  assert.match(calls[0].url, /\/auth\/accept-invitation$/);
+  assert.equal(calls[0].options.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { token, password: "una-clave-larga-segura" });
+  assert.equal(calls[0].options.headers["X-CSRF-Token"], undefined);
+  assert.equal(calls[0].options.cache, "no-store");
+
+  for (const [badToken, badPassword, code] of [
+    ["short", "una-clave-larga-segura", "invalid_invitation"],
+    ["A".repeat(43) + "!", "una-clave-larga-segura", "invalid_invitation"],
+    [token, "corta", "invalid_password"],
+    [token, "x".repeat(129), "invalid_password"]
+  ]) {
+    assert.throws(() => api.acceptInvitation(badToken, badPassword), error => error && error.code === code);
+  }
+  assert.equal(calls.length, 1, "nada se envia si la validacion local falla");
+});
+
+test("the API base is same-origin everywhere except the documented development static server", async () => {
+  const seen = {};
+  for (const href of [
+    "http://localhost:8000/portal.html",          // servidor estatico de desarrollo -> API en :3001
+    "https://localhost:8443/portal.html",         // despliegue local con HTTPS -> mismo origen
+    "http://localhost:8080/portal.html",          // otro puerto -> mismo origen
+    "http://localhost:3001/portal.html",          // servido por la propia API -> mismo origen
+    "https://ikigai.example.com/portal.html"      // produccion -> mismo origen
+  ]) {
+    const api = loadClient(async url => { seen[href] = String(url); return new Response("{}", { status: 200, headers: { "content-type": "application/json" } }); }, href);
+    await api.listServices();
+  }
+  assert.equal(seen["http://localhost:8000/portal.html"], "http://localhost:3001/api/v1/services");
+  assert.equal(seen["https://localhost:8443/portal.html"], "https://localhost:8443/api/v1/services");
+  assert.equal(seen["http://localhost:8080/portal.html"], "http://localhost:8080/api/v1/services");
+  assert.equal(seen["http://localhost:3001/portal.html"], "http://localhost:3001/api/v1/services");
+  assert.equal(seen["https://ikigai.example.com/portal.html"], "https://ikigai.example.com/api/v1/services");
+});
+
+test("booking notices use CSRF-protected PUT/DELETE contracts and validate locally", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-notice-token", user: { id: "u", roles: ["member"] } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("socia@example.test", "correct horse battery staple");
+  await api.setBookingNotice("booking/with space", "late", "Llego 10:15");
+  await api.setBookingNotice("b2", "absence");
+  await api.removeBookingNotice("b2");
+  const [, put, putNoNote, del] = calls;
+  assert.match(put.url, /\/bookings\/booking%2Fwith%20space\/notice$/);
+  assert.equal(put.options.method, "PUT");
+  assert.deepEqual(JSON.parse(put.options.body), { kind: "late", note: "Llego 10:15" });
+  assert.equal(put.options.headers["X-CSRF-Token"], "csrf-notice-token");
+  assert.deepEqual(JSON.parse(putNoNote.options.body), { kind: "absence" });
+  assert.equal(del.options.method, "DELETE");
+  assert.equal(del.options.headers["X-CSRF-Token"], "csrf-notice-token");
+  for (const call of calls) assert.equal(call.options.cache, "no-store");
+  for (const [kind, note] of [["vacaciones", undefined], ["", undefined], [undefined, undefined], ["late", "x".repeat(201)], ["late", 5]]) {
+    assert.throws(() => api.setBookingNotice("b", kind, note), error => error && error.code === "invalid_notice");
+  }
+  assert.equal(calls.length, 4, "nada se envia si la validacion local falla");
+});

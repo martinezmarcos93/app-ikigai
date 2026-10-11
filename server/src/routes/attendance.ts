@@ -6,7 +6,7 @@ import { requireCsrf } from "../security/csrf.js";
 
 interface SessionParams { id: string }
 interface MemberParams { id: string }
-interface AttendanceRecordInput { bookingId: string; attended: boolean }
+interface AttendanceRecordInput { bookingId: string; attended: boolean; arrivedLate?: boolean }
 interface AttendanceBody { records: AttendanceRecordInput[] }
 
 interface SessionScopeRow extends Record<string, unknown> {
@@ -23,6 +23,7 @@ interface AttendanceRow extends Record<string, unknown> {
   id: string;
   booking_id: string;
   attended: boolean;
+  arrived_late: boolean;
   recorded_at: string | Date;
   updated_at: string | Date;
 }
@@ -91,10 +92,12 @@ export function registerAttendanceRoutes(
 
       const records = await db.query(
         `SELECT b.id AS booking_id, b.member_id, m.full_name AS member_name,
-                ar.attended, ar.recorded_at, ar.updated_at
+                ar.attended, ar.arrived_late, ar.recorded_at, ar.updated_at,
+                bn.kind AS notice_kind, bn.note AS notice_note
            FROM bookings b
            JOIN member_profiles m ON m.id = b.member_id
            LEFT JOIN attendance_records ar ON ar.booking_id = b.id
+           LEFT JOIN booking_notices bn ON bn.booking_id = b.id
           WHERE b.session_id = $1 AND b.status = 'confirmed'
           ORDER BY lower(m.full_name), b.id`,
         [request.params.id]
@@ -128,7 +131,8 @@ export function registerAttendanceRoutes(
                 additionalProperties: false,
                 properties: {
                   bookingId: { type: "string", format: "uuid" },
-                  attended: { type: "boolean" }
+                  attended: { type: "boolean" },
+                  arrivedLate: { type: "boolean" }
                 }
               }
             }
@@ -150,6 +154,13 @@ export function registerAttendanceRoutes(
         error: "duplicate_booking_in_attendance",
         message: "Each booking may appear only once in an attendance update."
       });
+
+      if (request.body.records.some((record) => record.arrivedLate === true && record.attended !== true)) {
+        return reply.code(400).send({
+          error: "late_requires_attendance",
+          message: "Only a member who attended can be marked as having arrived late."
+        });
+      }
 
       try {
         const result = await transactionalDb.transaction(async (tx) => {
@@ -186,7 +197,7 @@ export function registerAttendanceRoutes(
           let unchanged = 0;
           for (const requested of request.body.records) {
             const existingResult = await tx.query<AttendanceRow>(
-              `SELECT id, booking_id, attended, recorded_at, updated_at
+              `SELECT id, booking_id, attended, arrived_late, recorded_at, updated_at
                  FROM attendance_records
                 WHERE booking_id = $1
                 FOR UPDATE`,
@@ -195,30 +206,39 @@ export function registerAttendanceRoutes(
             const existing = existingResult.rows[0];
             if (!existing) {
               const inserted = await tx.query<AttendanceRow>(
-                `INSERT INTO attendance_records (booking_id, attended, recorded_by)
-                 VALUES ($1, $2, $3)
-                 RETURNING id, booking_id, attended, recorded_at, updated_at`,
-                [requested.bookingId, requested.attended, actor.userId]
+                `INSERT INTO attendance_records (booking_id, attended, arrived_late, recorded_by)
+                 VALUES ($1, $2, $3, $4)
+                 RETURNING id, booking_id, attended, arrived_late, recorded_at, updated_at`,
+                [requested.bookingId, requested.attended, requested.arrivedLate === true, actor.userId]
               );
               const row = inserted.rows[0];
               if (!row) throw new Error("Attendance insert did not return a row.");
               await tx.query(
                 `INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, after_data)
                  VALUES ($1, 'attendance.recorded', 'attendance_record', $2, $3, $4::jsonb)`,
-                [actor.userId, row.id, request.id, JSON.stringify({ bookingId: row.booking_id, attended: row.attended })]
+                [actor.userId, row.id, request.id, JSON.stringify({ bookingId: row.booking_id, attended: row.attended, arrivedLate: row.arrived_late })]
               );
               records.push(row);
               created += 1;
-            } else if (existing.attended === requested.attended) {
+            } else if (
+              existing.attended === requested.attended
+              && (requested.arrivedLate === undefined || existing.arrived_late === requested.arrivedLate)
+            ) {
               records.push(existing);
               unchanged += 1;
             } else {
               const update = await tx.query<AttendanceRow>(
                 `UPDATE attendance_records
-                    SET attended = $2, recorded_by = $3, updated_at = clock_timestamp()
+                    SET attended = $2, arrived_late = $3, recorded_by = $4, updated_at = clock_timestamp()
                   WHERE id = $1
-                  RETURNING id, booking_id, attended, recorded_at, updated_at`,
-                [existing.id, requested.attended, actor.userId]
+                  RETURNING id, booking_id, attended, arrived_late, recorded_at, updated_at`,
+                [
+                  existing.id,
+                  requested.attended,
+                  // Sin `arrivedLate` se conserva lo anterior, salvo que ya no asistio (entonces no pudo llegar tarde).
+                  requested.attended ? (requested.arrivedLate ?? existing.arrived_late) : false,
+                  actor.userId
+                ]
               );
               const row = update.rows[0];
               if (!row) throw new Error("Attendance update did not return a row.");
@@ -229,8 +249,8 @@ export function registerAttendanceRoutes(
                   actor.userId,
                   row.id,
                   request.id,
-                  JSON.stringify({ attended: existing.attended }),
-                  JSON.stringify({ bookingId: row.booking_id, attended: row.attended })
+                  JSON.stringify({ attended: existing.attended, arrivedLate: existing.arrived_late }),
+                  JSON.stringify({ bookingId: row.booking_id, attended: row.attended, arrivedLate: row.arrived_late })
                 ]
               );
               records.push(row);
@@ -282,7 +302,7 @@ export function registerAttendanceRoutes(
       });
 
       const history = await db.query(
-        `SELECT ar.id, ar.attended, ar.recorded_at, ar.updated_at,
+        `SELECT ar.id, ar.attended, ar.arrived_late, ar.recorded_at, ar.updated_at,
                 cs.id AS session_id, cs.starts_at, s.name AS service_name
            FROM attendance_records ar
            JOIN bookings b ON b.id = ar.booking_id
