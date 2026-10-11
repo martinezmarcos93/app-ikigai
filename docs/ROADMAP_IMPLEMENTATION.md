@@ -206,3 +206,13 @@ Resultado del barrido: typecheck sin errores; 89 pruebas del servidor pasando; p
 - **Exportación** de los datos de un miembro (acceso y portabilidad): el propio miembro desde «Resumen → Descargar mis datos», o administración desde «Miembros → Exportar datos»; sólo lo del titular, sin hashes de contraseñas, auditada sin su contenido.
 - **Supresión por anonimización** (migración `0008`): borra la identidad (nombre, contacto, DNI, notas, correo y contraseña de la cuenta) de quien dejó el gimnasio y conserva movimientos de cuenta, membresías, reservas y asistencia sin identidad. Irreversible, transaccional, idempotente y auditada con su motivo; el perfil anonimizado no se puede volver a editar.
 - `docs/DATA_PROTECTION.md`: inventario de datos, finalidades, consentimiento (texto sugerido), derechos y plazos (Ley 25.326), conservación y respaldos, encargados e incidentes, con la lista de lo que todavía requiere revisión legal.
+
+### Revisión de seguridad dirigida (11/10/2026)
+
+Revisión propia —**no sustituye a la auditoría independiente** de la Fase 3— de los puntos habituales del backend:
+
+- **SQL:** todas las consultas son parametrizadas; lo único interpolado es una constante propia (`TEMPLATE_SELECT`).
+- **Autenticación:** tiempos igualados entre usuario inexistente y contraseña incorrecta (hash ficticio), mensaje genérico, límite de intentos compartido en PostgreSQL, tokens de sesión de 256 bits guardados sólo como hash, cookie `HttpOnly; Secure; SameSite=Strict`, CSRF derivado de la sesión con comparación en tiempo constante. Sin hallazgos.
+- **Hallazgo corregido:** el costo de scrypt era N=2¹⁴, p=1, por debajo del mínimo recomendado por OWASP. Ahora es N=2¹⁶, p=2, con los parámetros dentro del hash (una contraseña vieja sigue valiendo y se actualiza al iniciar sesión), una lista cerrada de parámetros aceptables (un hash hostil no puede agotar la memoria) y `mem_limit` en el contenedor.
+- **Hallazgo corregido:** los esquemas descartaban en silencio los campos desconocidos en vez de rechazarlos (ver arriba).
+- **Dependencias:** `npm audit` sin vulnerabilidades.

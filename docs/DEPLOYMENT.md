@@ -104,6 +104,14 @@ deploy/restore-check.sh                              # el respaldo previo sigue 
 Rotar de inmediato ante cualquier sospecha de filtración y siempre al dejar de colaborar con alguien que los vio.
 Nunca guardar secretos en el repositorio, en capturas ni en mensajes.
 
+## Contraseñas y memoria
+
+Las contraseñas se guardan con scrypt (N=2¹⁶, r=8, p=2, unos 64 MiB y ~0,3 s por verificación; recomendación de OWASP). El
+costo viaja dentro de cada hash: las contraseñas guardadas con un costo menor (el anterior era N=2¹⁴) siguen valiendo y se
+vuelven a guardar con el costo actual la próxima vez que la persona inicia sesión. Para subir el costo en el futuro basta
+cambiar `CURRENT_PARAMETERS` en `server/src/security/password.ts`. Como Node puede verificar cuatro contraseñas a la vez, el
+servicio `api` tiene `mem_limit: 1g`: no bajarlo sin revisar este punto.
+
 ## Observabilidad
 
 - **Salud:** `GET /healthz` (también a través del proxy) y el `HEALTHCHECK` de las imágenes; `docker compose ps`

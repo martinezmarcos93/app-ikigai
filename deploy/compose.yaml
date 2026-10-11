@@ -54,6 +54,10 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    # Cada verificacion de contrasena usa ~64 MiB (scrypt N=2^16) y Node puede correr 4 a la vez: se acota el
+    # contenedor para que una rafaga de logins no agote la memoria del servidor.
+    mem_limit: 1g
+    pids_limit: 256
     read_only: true
     tmpfs:
       - /tmp
