@@ -16,6 +16,7 @@ from playwright.sync_api import sync_playwright
 
 OUT = os.environ.get("E2E_OUT", tempfile.gettempdir())
 BASE = os.environ.get("E2E_BASE", "http://localhost:8000")
+IGNORE_TLS = os.environ.get("E2E_IGNORE_HTTPS_ERRORS") == "1"  # certificado interno de Caddy en pruebas locales
 EMAIL = os.environ.get("E2E_ADMIN_EMAIL", "admin.e2e@example.test")
 PASSWORD = os.environ.get("E2E_ADMIN_PASSWORD", "clave-e2e-segura-2026")
 WIDTHS = [320, 360, 390, 412, 480]
@@ -51,7 +52,7 @@ report = {}
 with sync_playwright() as p:
     browser = p.chromium.launch()
     for width in WIDTHS:
-        ctx = browser.new_context(viewport={"width": width, "height": 800}, device_scale_factor=2, has_touch=True, is_mobile=True, locale="es-AR")
+        ctx = browser.new_context(ignore_https_errors=IGNORE_TLS, viewport={"width": width, "height": 800}, device_scale_factor=2, has_touch=True, is_mobile=True, locale="es-AR")
         page = ctx.new_page()
         page.goto(f"{BASE}/portal.html")
         report[(width, "login")] = page.evaluate(AUDIT, MIN_TARGET)

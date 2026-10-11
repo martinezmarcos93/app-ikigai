@@ -60,7 +60,7 @@
 - [x] Mantener esquemas de entrada estrictos, límite de cuerpo, errores estables, idempotencia, transacciones y auditoría; reducir payloads de auditoría que contenían emails o datos descriptivos innecesarios.
 - [x] Validar configuración por entorno y documentar secretos del proveedor de recuperación; no se agregan secretos reales al repositorio.
 - [x] Añadir un ensayo automatizado de backup/restore PostgreSQL que comprueba esquema, historial de migraciones y datos restaurados en una base descartable.
-- [ ] Confirmar el ensayo de backup/restore con CI verde en el commit final y definir el procedimiento de backup/restore para el proveedor de producción. Se agregó un guard que rechaza `DATABASE_URL` remotas antes de invocar herramientas PostgreSQL y un test negativo en el workflow; el PR #16 se fusionó, pero CI falló antes de asignar runners (`runner_id: 0`, `steps: []`), por lo que el guard aún no tiene ejecución automatizada demostrada.
+- [~] Ensayo de backup/restore ejecutado localmente sobre PostgreSQL 16 en contenedores (`deploy/restore-check.sh`: migraciones, tablas, usuarios y auditoría restaurados); falta CI verde y el procedimiento sobre el proveedor de producción. Se agregó un guard que rechaza `DATABASE_URL` remotas antes de invocar herramientas PostgreSQL y un test negativo en el workflow; el PR #16 se fusionó, pero CI falló antes de asignar runners (`runner_id: 0`, `steps: []`), por lo que el guard aún no tiene ejecución automatizada demostrada.
 - [ ] Completar revisión de autorización y seguridad independiente antes de datos reales. No se considera realizada por esta revisión de código; requiere auditoría independiente y resolución de hallazgos.
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
@@ -110,11 +110,11 @@
 - **Criterio de cierre:** checklist móvil verificada y evidencias registradas; problemas específicos de dispositivo documentados.
 
 ### Fase 7 — Infraestructura y preproducción
-- [ ] Elegir proveedor, dominio y estrategia de despliegue.
-- [ ] Separar desarrollo, pruebas y producción; configurar HTTPS, cookies Secure, secretos y CORS por entorno.
-- [ ] Configurar PostgreSQL administrado, migraciones, backups, retención y restauración probada.
-- [ ] Incorporar logs estructurados, métricas, alertas, health checks y política de datos sensibles.
-- [ ] Documentar despliegue, rollback, rotación de secretos y respuesta a incidentes.
+- [~] Estrategia de despliegue decidida: un único servidor con Docker, dominio propio y HTTPS automático con Caddy (`docs/DEPLOYMENT.md`). Falta elegir y contratar el servidor y el dominio concretos.
+- [x] Desarrollo, pruebas y producción separados: `deploy/compose.yaml` levanta el entorno de producción con HTTPS, cookies `Secure`, secretos por variable de entorno, mismo origen para portal y API (sin CORS) y CSP estricta; comprobado con `e2e-roles.py` y `audit-mobile.py` sobre ese entorno.
+- [x] PostgreSQL con migraciones automáticas al desplegar, `deploy/backup.sh` (retención y cifrado opcional) y `deploy/restore-check.sh` (restauración ensayada en una base temporal). Falta la copia fuera del servidor y, si se prefiere, un PostgreSQL administrado.
+- [~] Logs JSON estructurados con `reqId`, health checks (`/healthz`, `HEALTHCHECK` de las imágenes) y tabla de auditoría ya existen; faltan métricas y alertas (se definen con datos reales).
+- [x] Documentado en `docs/DEPLOYMENT.md`: instalación, actualización y rollback, respaldos, rotación de secretos, observabilidad y respuesta a incidentes.
 - **Criterio de cierre:** entorno reproducible, restauración ensayada y procedimiento de rollback documentado.
 
 ### Fase 8 — Piloto controlado y decisión de lanzamiento

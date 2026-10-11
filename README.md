@@ -14,6 +14,7 @@ Documentación relacionada:
 - [Plan de seguridad del backend](docs/BACKEND_SECURITY_PLAN.md)
 - [Matriz de autorización por endpoint](docs/SECURITY_ROUTE_MATRIX.md)
 - [Copias de seguridad y restauración](docs/OPERATIONS_BACKUP_RESTORE.md)
+- [Despliegue y operación (Docker, HTTPS, respaldos, rollback, incidentes)](docs/DEPLOYMENT.md)
 - [Documentación de la API](server/README.md)
 - [Inventario de integración del portal y API](docs/PORTAL_API_INVENTORY.md)
 

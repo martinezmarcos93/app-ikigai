@@ -26,6 +26,7 @@ from playwright.sync_api import expect, sync_playwright
 
 OUT = os.environ.get("E2E_OUT", tempfile.gettempdir())
 BASE = os.environ.get("E2E_BASE", "http://localhost:8000")
+IGNORE_TLS = os.environ.get("E2E_IGNORE_HTTPS_ERRORS") == "1"  # certificado interno de Caddy en pruebas locales
 ADMIN_EMAIL = os.environ.get("E2E_ADMIN_EMAIL", "admin.e2e@example.test")
 ADMIN_PASSWORD = os.environ.get("E2E_ADMIN_PASSWORD", "clave-e2e-segura-2026")
 PG = (os.environ.get("E2E_PG_CONTAINER", "ikigai-pg"), os.environ.get("E2E_PG_USER", "ikigai"), os.environ.get("E2E_PG_DB", "ikigai_test"))
@@ -43,7 +44,7 @@ def sql(statement):
 
 
 def new_page(browser):
-    page = browser.new_context(viewport={"width": 1280, "height": 900}, locale="es-AR").new_page()
+    page = browser.new_context(ignore_https_errors=IGNORE_TLS, viewport={"width": 1280, "height": 900}, locale="es-AR").new_page()
     page.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
     return page
 

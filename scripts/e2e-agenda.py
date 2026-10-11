@@ -17,12 +17,13 @@ from playwright.sync_api import sync_playwright, expect
 
 SC = os.environ.get("E2E_OUT", tempfile.gettempdir())
 BASE = os.environ.get("E2E_BASE", "http://localhost:8000")
+IGNORE_TLS = os.environ.get("E2E_IGNORE_HTTPS_ERRORS") == "1"  # certificado interno de Caddy en pruebas locales
 EMAIL = os.environ.get("E2E_ADMIN_EMAIL", "admin.e2e@example.test")
 PASSWORD = os.environ.get("E2E_ADMIN_PASSWORD", "clave-e2e-segura-2026")
 errors = []
 with sync_playwright() as p:
     browser = p.chromium.launch()
-    page = browser.new_context(viewport={"width": 1280, "height": 900}, locale="es-AR").new_page()
+    page = browser.new_context(ignore_https_errors=IGNORE_TLS, viewport={"width": 1280, "height": 900}, locale="es-AR").new_page()
     page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
     page.on("console", lambda m: errors.append(f"console.{m.type}: {m.text}") if m.type == "error" else None)
     page.goto(f"{BASE}/portal.html")

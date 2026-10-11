@@ -94,3 +94,5 @@ Hasta entonces, la puesta en marcha debe ensayarse sólo con cuentas y datos fic
 Antes de crear horarios, confirmá `GYM_TIMEZONE` en el entorno del servidor. Por defecto es `America/Argentina/Buenos_Aires` (UTC−3, sin horario de verano). Las plantillas de clase guardan la hora local del gimnasio y de ahí se calcula cada clase concreta.
 
 Orden sugerido para dejar la agenda funcionando: servicios → profesores → miembros → **Horarios** (plantilla semanal por clase) → **Generar clases** para las próximas semanas → turnos fijos de quienes tienen horario habitual.
+
+Para instalar en un servidor con HTTPS, respaldos y la operación diaria, ver [`DEPLOYMENT.md`](DEPLOYMENT.md).
