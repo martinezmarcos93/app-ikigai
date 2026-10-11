@@ -119,7 +119,7 @@
 
 ### Fase 8 — Piloto controlado y decisión de lanzamiento
 - [x] Escenarios de aceptación ejecutados con datos ficticios y tres roles separados, cada uno en su propio contexto de navegador (`e2e-roles.py`).
-- [ ] Probar concurrencia, idempotencia, fallos de red, expiración de sesión y recuperación.
+- [x] Concurrencia (reservas con cupo y lista de espera, `bookings.integration.test.ts`), idempotencia (cuenta corriente, pagos, rate limit compartido), fallos de red y recuperación (`e2e-pwa.py`) y expiración, cierre y revocación de sesión con recuperación (`e2e-session.py`) probados.
 - [ ] Hacer piloto con alcance limitado y aprobación explícita antes de cargar datos reales.
 - [ ] Definir soporte, exportación de datos, consentimiento y proveedor antes de activar notificaciones.
 - [ ] Evaluar app nativa/Play Store sólo si hay una necesidad concreta no cubierta por PWA.
@@ -198,3 +198,5 @@ Resultado del barrido: typecheck sin errores; 89 pruebas del servidor pasando; p
 
 - **Hallazgo de seguridad:** la matriz documentaba que «la validación de esquema rechaza propiedades desconocidas», pero Fastify, por defecto, las **elimina en silencio** (`removeAdditional: true`): un login con `role: "admin"` de más devolvía `401` de credenciales, no `400`. Era inofensivo (los handlers sólo leen campos conocidos) pero no era lo documentado ni una defensa real contra la asignación masiva. Ahora el servidor usa `removeAdditional: false` y rechaza con `400`; `strict-schemas.test.ts` lo sostiene y además exige que todo objeto de todo esquema de cuerpo declare `additionalProperties: false`.
 - **Avisos de ausencia y llegada tarde** (migración `0007`): ver el modelo de datos. Son informativos y no tienen ningún efecto económico.
+
+- **Dependencias:** `npm audit` (con y sin dependencias de desarrollo) da 0 vulnerabilidades en el servidor al 11/10/2026.

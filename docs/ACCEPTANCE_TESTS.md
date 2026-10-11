@@ -208,3 +208,9 @@
 - [x] El profesor registra «llegó tarde» sólo para quien asistió; corregir a ausente lo limpia; repetir o corregir sin mencionarlo conserva el valor.
 - [x] El historial del miembro muestra «Llegó tarde» y cuenta las llegadas tarde (`e2e-roles.py`).
 - [x] Los esquemas rechazan con `400` los campos desconocidos en vez de descartarlos (`strict-schemas.test.ts`).
+
+## Sesión: expiración, cierre y revocación
+
+- [x] Cuando la sesión vence en el servidor la interfaz lo dice («venció»), vuelve al inicio de sesión y no deja datos de la sesión a la vista; volver a iniciar sesión recupera el uso normal (`scripts/e2e-session.py`).
+- [x] Al cerrar sesión, una cookie que el navegador conserve ya no sirve (`401`).
+- [x] Administración revoca las sesiones de otra persona y esa persona queda afuera en su siguiente acción.
