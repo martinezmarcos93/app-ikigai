@@ -404,3 +404,22 @@ test("invitation acceptance validates locally and posts without CSRF to the publ
   }
   assert.equal(calls.length, 1, "nada se envia si la validacion local falla");
 });
+
+test("the API base is same-origin everywhere except the documented development static server", async () => {
+  const seen = {};
+  for (const href of [
+    "http://localhost:8000/portal.html",          // servidor estatico de desarrollo -> API en :3001
+    "https://localhost:8443/portal.html",         // despliegue local con HTTPS -> mismo origen
+    "http://localhost:8080/portal.html",          // otro puerto -> mismo origen
+    "http://localhost:3001/portal.html",          // servido por la propia API -> mismo origen
+    "https://ikigai.example.com/portal.html"      // produccion -> mismo origen
+  ]) {
+    const api = loadClient(async url => { seen[href] = String(url); return new Response("{}", { status: 200, headers: { "content-type": "application/json" } }); }, href);
+    await api.listServices();
+  }
+  assert.equal(seen["http://localhost:8000/portal.html"], "http://localhost:3001/api/v1/services");
+  assert.equal(seen["https://localhost:8443/portal.html"], "https://localhost:8443/api/v1/services");
+  assert.equal(seen["http://localhost:8080/portal.html"], "http://localhost:8080/api/v1/services");
+  assert.equal(seen["http://localhost:3001/portal.html"], "http://localhost:3001/api/v1/services");
+  assert.equal(seen["https://ikigai.example.com/portal.html"], "https://ikigai.example.com/api/v1/services");
+});

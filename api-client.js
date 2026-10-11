@@ -15,7 +15,9 @@
     const requested = new URLSearchParams(window.location.search).get("apiBase");
     const page = new URL(window.location.href);
     const isLocalHost = ["localhost", "127.0.0.1"].includes(page.hostname);
-    const defaultBase = isLocalHost && page.port !== "3001"
+    // Atajo de desarrollo: el portal servido por `python -m http.server 8000` habla con la API en :3001.
+    // Cualquier otro origen (HTTPS, otro puerto, un despliegue) usa la API del mismo origen.
+    const defaultBase = isLocalHost && page.protocol === "http:" && page.port === "8000"
       ? `http://${page.hostname}:3001/api/v1`
       : "/api/v1";
     const candidate = new URL(requested || defaultBase, page.href);

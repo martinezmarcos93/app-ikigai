@@ -15,8 +15,7 @@
 <meta property="og:description" content="Portal de gestión de miembros, membresías, cuentas y profesores.">
 <meta property="og:image" content="./assets/social/og-image.png">
 <title>Ikigai Training — Portal conectado</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/fonts/fonts.css">
 <link rel="stylesheet" href="./assets/brand/tokens.css">
 <link rel="stylesheet" href="portal.css">
 </head>
@@ -90,10 +89,6 @@
 
 <script src="api-client.js"></script>
 <script src="portal.js"></script>
-<script>
-  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
-  }
-</script>
+<script src="./sw-register.js"></script>
 </body>
 </html>
