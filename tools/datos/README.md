@@ -35,12 +35,12 @@ instalar). Solo las usan estas herramientas, nunca el servidor.
    debe haber cambiado su clave temporal):
    ```bash
    ~/.venvs/ikigai-datos/bin/python tools/datos/importar_datos.py ~/Ikigai-datos/PlanillaCompleta.xlsx \
-       --url https://app.dominio.com.ar --usuario correo@dueño
+       --url https://app.ikigai-training.com --usuario correo@dueño
    ```
 5. **Aplicar**, creando de paso los accesos y las clases de las próximas 4 semanas:
    ```bash
    ~/.venvs/ikigai-datos/bin/python tools/datos/importar_datos.py ~/Ikigai-datos/PlanillaCompleta.xlsx \
-       --url https://app.dominio.com.ar --usuario correo@dueño --aplicar --crear-accesos --generar-clases 28
+       --url https://app.ikigai-training.com --usuario correo@dueño --aplicar --crear-accesos --generar-clases 28
    ```
    Pide escribir `SI` antes de cargar (`--si` lo omite). **Se puede repetir**: lo que ya existe se omite, no se duplica.
 6. **Entregar los accesos.** El paso anterior deja en `~/Ikigai-accesos/` (carpeta `700`) una **hoja imprimible** con una tarjeta por

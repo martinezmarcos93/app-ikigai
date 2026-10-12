@@ -20,8 +20,8 @@ Regenerar los PDF del instructivo si cambia la interfaz: `bash tools/instructivo
 ## 1. Con el dueño (antes de arrancar)
 
 - [ ] Enviarle el cuestionario, la hoja de costos y la planilla vacía (`Mensaje-WhatsApp-Agustin.txt`).
-- [ ] **Dominio** a nombre del gimnasio (recomendado `.com.ar` en nic.ar, con CUIT y Clave Fiscal). Anotar el nombre elegido.
-- [ ] Contratar el **servidor** (VPS de 2 GB o más con Docker). Guardar el acceso en un gestor de claves.
+- [x] **Dominio** `ikigai-training.com`, comprado por Agustin en DonWeb el 12/10/2026 (vence el 12/10/2027). DNS delegado a Cloudflare (`brian.ns.cloudflare.com`, `jule.ns.cloudflare.com`); activación pendiente de verificación de Cloudflare. Titular: **persona física** (Agustin; aclaró que el «persona jurídica» del cuestionario fue un error). DNSSEC **desactivado**, verificado el 12/10/2026 con `dig DS` (sin registros DS en `.com`). La privacidad del registro (WHOIS) **no se contrata** (decisión del 12/10/2026). Los precios y todo lo que implica dinero los resuelve Agustin. Los documentos de `docs/entrega/` (costos, cuestionario, mensaje) son anteriores a la compra y hablan de `.com.ar`.
+- [ ] Definir dónde corre el **servidor** (ADR-001 §6: Neon + Render gratis como dirección elegida; VPS de 2 GB o más con Docker como plan B). Guardar los accesos en un gestor de claves.
 - [ ] Recibir el cuestionario respondido y la planilla completa.
 - [ ] Revisión jurídica de `docs/DATA_PROTECTION.md` y del texto de consentimiento (Fase 8, con la abogada).
 
@@ -66,5 +66,5 @@ Regenerar los PDF del instructivo si cambia la interfaz: `bash tools/instructivo
 
 ## Costos (estimación al 11/10/2026)
 
-Ver `docs/entrega/Costos-puesta-en-marcha.pdf`. Dominio `.com.ar` ≈ $8.500 por año; servidor ≈ $24.000 a $29.000 por mes. Los montos se
+Ver `docs/entrega/Costos-puesta-en-marcha.pdf`. Dominio (ya pagado; el `.com` de DonWeb se renueva cada año, la hoja de costos calculó un `.com.ar` ≈ $8.500); servidor ≈ $24.000 a $29.000 por mes. Los montos se
 confirman al contratar y se rinden al peso.
