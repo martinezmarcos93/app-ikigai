@@ -15,7 +15,8 @@
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test test/*.test.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "admin:create": "tsx scripts/create-admin.ts"
+    "admin:create": "tsx scripts/create-admin.ts",
+    "seed:inicial": "tsx scripts/seed-inicial.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.1.0",
