@@ -17,6 +17,17 @@
     web.hidden = false;
   }
 
+  const entrar = $("entrar");
+  const notaPortal = $("portalNote");
+  const portalUrl = (config && typeof config.portalUrl === "string" && /^https:\/\//.test(config.portalUrl))
+    ? config.portalUrl
+    : (config && /^https:\/\//.test(config.appUrl || "") ? config.appUrl.replace(/\/+$/, "") + "/portal.html" : "");
+  if (portalUrl) {
+    entrar.href = portalUrl;
+    entrar.hidden = false;
+    notaPortal.hidden = false;
+  }
+
   const apk = config && config.apk;
   if (!apk || !/^[\w.\-/]+\.apk$/.test(apk.file || "")) {
     $("apkSoon").hidden = false;
