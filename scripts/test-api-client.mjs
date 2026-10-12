@@ -520,3 +520,86 @@ test("admin backup download sends the passphrase with CSRF, returns the binary f
   mode = "limit";
   await assert.rejects(api.downloadBackup("frase-larga-de-prueba"), error => error.status === 429 && /demasiados pedidos/.test(error.message));
 });
+
+test("member management contracts use encoded identifiers, CSRF and no-store", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-mem-token", user: { id: "admin" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+
+  await api.login("admin@example.test", "password");
+  await api.getMember("member/123");
+  await api.createMember({ full_name: "Juan Perez" });
+  await api.updateMember("member/123", { status: "active" });
+
+  const [, getCall, createCall, updateCall] = calls;
+
+  assert.match(getCall.url, /\/members\/member%2F123$/);
+  assert.equal(getCall.options.method, "GET");
+
+  assert.match(createCall.url, /\/members$/);
+  assert.equal(createCall.options.method, "POST");
+  assert.equal(createCall.options.headers["X-CSRF-Token"], "csrf-mem-token");
+
+  assert.match(updateCall.url, /\/members\/member%2F123$/);
+  assert.equal(updateCall.options.method, "PATCH");
+  assert.equal(updateCall.options.headers["X-CSRF-Token"], "csrf-mem-token");
+});
+
+test("coach financial operations pass idempotency keys and encode identifiers", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-coach-token", user: { id: "admin" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+
+  await api.login("admin@example.test", "password");
+  await api.recordCoachPayment("ob/1", { amount: 100 }, "idem-pay-1");
+  await api.createCoachAdjustment("ob/1", { amount: -10 }, "idem-adj-1");
+
+  const [, payCall, adjCall] = calls;
+
+  assert.match(payCall.url, /\/coach-obligations\/ob%2F1\/payments$/);
+  assert.equal(payCall.options.method, "POST");
+  assert.equal(payCall.options.headers["Idempotency-Key"], "idem-pay-1");
+  assert.equal(payCall.options.headers["X-CSRF-Token"], "csrf-coach-token");
+
+  assert.match(adjCall.url, /\/coach-obligations\/ob%2F1\/adjustments$/);
+  assert.equal(adjCall.options.method, "POST");
+  assert.equal(adjCall.options.headers["Idempotency-Key"], "idem-adj-1");
+  assert.equal(adjCall.options.headers["X-CSRF-Token"], "csrf-coach-token");
+});
+
+test("password change contract uses CSRF and sends valid payloads", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-pwd-token", user: { id: "u" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+
+  await api.login("user@example.test", "old-password");
+  await api.changePassword("old-password", "new-password");
+
+  const [, pwdCall] = calls;
+
+  assert.match(pwdCall.url, /\/auth\/change-password$/);
+  assert.equal(pwdCall.options.method, "POST");
+  assert.equal(pwdCall.options.headers["X-CSRF-Token"], "csrf-pwd-token");
+  assert.deepEqual(JSON.parse(pwdCall.options.body), { currentPassword: "old-password", newPassword: "new-password" });
+});
