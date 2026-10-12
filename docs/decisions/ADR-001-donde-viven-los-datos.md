@@ -20,6 +20,22 @@
 **Lección:** el modelo «datos en la nube del proveedor + hosting gratis + respaldo propio» sale muy bien cuando la app no tiene servidor propio
 y el uso es chico. **El límite aparece cuando hace falta algo que el plan gratuito no incluye** (ahí fue Storage).
 
+## 1 bis. Otro antecedente: mmac-gestion (Cloudflare Workers + D1)
+
+En producción desde el 22/09/2026: la lógica corre en **Workers**, los datos en **D1** (SQLite administrado de Cloudflare), el login lo resuelve
+**Cloudflare Access** (gratis hasta 50 usuarios, pensado para el uso propio de Marcos) y hay **copias diarias a R2**. Todo en la misma cuenta
+de Cloudflare que va a tener el dominio de Ikigai. Para Ikigai habría que **reescribir la API** para Workers/D1 y resolver el login propio
+(Access no alcanza para cientos de miembros): el hash de contraseñas con scrypt (64 MiB, ~0,3 s) **no entra en el límite de CPU del plan
+gratuito de Workers** (10 ms por solicitud). Es una opción a evaluar, no una decisión tomada.
+
+## 1 ter. Idea: una base local en el celular Android de cada persona, con exportación mensual
+
+La propuesta de Marcos (12/10/2026). **Lo que sí sirve:** que la administración pueda **exportar un respaldo completo** y guardarlo (como la
+tarjeta semanal de app-vet). **Lo que no sirve:** que cada celular tenga *su* base: las reservas con cupo, la lista de espera, la cuenta
+corriente y los permisos por rol necesitan **una sola base compartida**. Con una copia por celular, un miembro no vería los cupos reales ni
+las reservas de otros, dos administradores se pisarían y no habría forma segura de reconciliar. Es lo que hacía el prototipo en `localStorage`
+y se descartó. Los miembros ya pueden descargar *sus* datos desde el resumen; no hace falta pedirles que guarden la base.
+
 ## 2. Por qué no se puede copiar tal cual en Ikigai
 
 Ikigai **no es una app sin servidor**: tiene su propia API (Fastify) y una base **PostgreSQL** con cosas que Firestore no da:
