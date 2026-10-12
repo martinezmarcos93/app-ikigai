@@ -1,0 +1,27 @@
+// Worker de Cloudflare que atiende app.ikigai-training.com con UN solo origen para el navegador:
+//  - el portal (archivos estaticos, siempre despierto y sin costo por pedido) sale de ./public;
+//  - /api/* y /healthz se reenvian al servidor de Render (ver src/index.js);
+//  - un cron le pega a /healthz en horario del gimnasio para que el plan gratis de Render no se duerma.
+// Publicar: bash deploy/worker/publicar.sh
+{
+  "name": "ikigai-app",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    // Rutas literales: sin esto Cloudflare redirige /portal.html a /portal y el service worker y la APK (startUrl) chocan con la redireccion.
+    "html_handling": "none",
+    // Solo estas rutas pasan por el Worker; el resto se sirve directo desde los assets.
+    "run_worker_first": ["/api/*", "/healthz"]
+  },
+  "vars": {
+    "API_ORIGIN": "https://ikigai-api-q17j.onrender.com"
+  },
+  "routes": [{ "pattern": "app.ikigai-training.com", "custom_domain": true }],
+  "triggers": {
+    // Cada 10 minutos, lunes a sabado, 11:00 a 22:59 UTC = 08:00 a 19:59 en Buenos Aires (Render duerme a los 15 min).
+    "crons": ["*/10 11-22 * * 1-6"]
+  },
+  "observability": { "enabled": true }
+}
