@@ -21,6 +21,25 @@ bash scripts/backup-restore-check.sh
 
 El script solo acepta URLs PostgreSQL cuyo host sea `localhost`, `127.0.0.1` o `[::1]`; rechaza hosts remotos antes de ejecutar herramientas de PostgreSQL. Crea una base de restauración con nombre temporal en el mismo servidor local indicado por `DATABASE_URL`, valida el esquema y los datos restaurados, y la elimina al finalizar. **No lo ejecutes contra una base con datos reales.** Usa credenciales locales de prueba y verifica que `DATABASE_URL` apunte a la base descartable correcta antes de ejecutarlo.
 
+## Respaldo descargable por administración (cifrado)
+
+Administración puede pedir un respaldo completo de la base con `POST /api/v1/admin/backup` (cuerpo `{"passphrase": "..."}`, mínimo 12 caracteres; requiere sesión de administración y token CSRF). La respuesta es un archivo `.ikbk`: JSON comprimido y cifrado con AES-256-GCM, con la clave derivada de la frase por scrypt (N=2^16). **La frase la elige quien descarga y no se guarda en ningún lado: sin ella el archivo no se puede abrir.** Se anota en la auditoría quién lo pidió y los totales por tabla (nunca la frase ni los datos). Límite: 3 pedidos cada 10 minutos.
+
+- **Incluye** todas las tablas de negocio (personas, cuentas, membresías, movimientos, agenda, reservas, asistencia, rutinas, avisos, auditoría y configuración), incluidos los hashes de contraseña, por eso va cifrado.
+- **Excluye** sesiones, claves de recuperación, invitaciones pendientes y contadores de intentos (secretos efímeros). Quienes tengan una invitación pendiente deberán recibir una nueva tras restaurar.
+- Es una foto consistente (transacción de lectura repetible), sin parar el servicio.
+
+Verificar y restaurar (desde `server/`; la frase se pasa por variable de entorno, no por argumento):
+
+```bash
+IKIGAI_BACKUP_PASSPHRASE='...' npx tsx scripts/restore-backup.ts ikigai-respaldo-AAAAMMDD-HHMM.ikbk              # solo verifica y muestra totales
+IKIGAI_BACKUP_PASSPHRASE='...' DATABASE_URL=... npx tsx scripts/restore-backup.ts archivo.ikbk --restaurar       # carga en una base NUEVA
+```
+
+Restaurar exige una base recién migrada (`npm run db:migrate`) y vacía; si alguna tabla tiene datos, se cancela sin tocar nada. La carga es una sola transacción y compara los totales antes de confirmar. Ensayo hecho el 12/10/2026: respaldo de una base de prueba con 25 tablas restaurado en otra base nueva con contenido idéntico.
+
+Guardá el archivo y la frase por separado y en lugares distintos (por ejemplo el archivo en un disco externo y la frase en un gestor de contraseñas). Un respaldo que nunca se probó restaurar no cuenta: repetir el ensayo con un archivo real después de cada cambio de esquema.
+
 ## Controles obligatorios antes de producción
 
 - Activar backups automáticos administrados por el proveedor y definir RPO/RTO aprobados.
