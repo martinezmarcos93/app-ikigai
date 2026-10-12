@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/src/index.js",
+    "start:render": "node dist/scripts/migrate.js && node dist/src/index.js",
     "build": "tsc -p tsconfig.json",
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test test/*.test.ts",
