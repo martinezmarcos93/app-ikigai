@@ -65,11 +65,14 @@ if [ ! -f "$ENVF" ]; then
     echo "GYM_TIMEZONE=America/Argentina/Buenos_Aires"
     # Caddy detras del tunel habla HTTP y acepta cualquier nombre de host.
     echo "SITE_ADDRESS=http://:80"
+    echo "BIND_ADDRESS=127.0.0.1"          # solo esta maquina: lo unico que entra desde afuera es el tunel
     echo "HTTP_PORT=$PUERTO"
     echo "HTTPS_PORT=8443"
   } > "$ENVF"
   chmod 600 "$ENVF"
 fi
+
+grep -q '^BIND_ADDRESS=' "$ENVF" || echo "BIND_ADDRESS=127.0.0.1" >> "$ENVF"
 
 # ---- 2. assetlinks (huella de la clave) antes de construir la imagen web
 SOLO_ASSETLINKS=1 bash "$REPO/apk/build-apk.sh" demo >/dev/null
