@@ -256,6 +256,33 @@
     endRecurringAssignment: assignmentId =>
       request(`/recurring-assignments/${id(assignmentId)}/end`, { method: "POST", body: {} }),
     exportMemberData: memberId => request(`/members/${id(memberId)}/export`),
+    // Respaldo cifrado de toda la base (solo administracion). La respuesta es un archivo binario, no JSON.
+    downloadBackup: async passphrase => {
+      if (typeof passphrase !== "string" || passphrase.length < 12 || passphrase.length > 200) {
+        throw new ApiError(0, "invalid_passphrase", "La frase del respaldo debe tener entre 12 y 200 caracteres.");
+      }
+      if (!baseUrl) throw new ApiError(0, "api_configuration", configurationError || "No se pudo configurar la API.");
+      const headers = { Accept: "application/octet-stream", "Content-Type": "application/json" };
+      if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
+      let response;
+      try {
+        response = await fetch(baseUrl + "/admin/backup", {
+          method: "POST", credentials: "include", headers, cache: "no-store", body: JSON.stringify({ passphrase })
+        });
+      } catch {
+        throw new ApiError(0, "network_error", "No se pudo conectar con la API. Verificá que el backend esté ejecutándose y que la URL de API sea correcta.");
+      }
+      if (!response.ok) {
+        let payload = null;
+        try { payload = JSON.parse(await response.text()); } catch { payload = null; }
+        if (response.status === 401) { currentUser = null; csrfToken = null; }
+        throw new ApiError(response.status, payload && payload.error,
+          response.status === 429 ? "Hiciste demasiados pedidos de respaldo seguidos. Esperá unos minutos." : (payload && payload.message || "No se pudo generar el respaldo."), payload);
+      }
+      const disposition = response.headers.get("content-disposition") || "";
+      const match = /filename="([\w.\-]+)"/.exec(disposition);
+      return { blob: await response.blob(), filename: match ? match[1] : "ikigai-respaldo.ikbk" };
+    },
     anonymizeMember: (memberId, reason) => {
       if (typeof reason !== "string" || reason.trim().length < 5 || reason.length > 200) {
         throw new ApiError(0, "invalid_reason", "Indicá el motivo de la anonimización (entre 5 y 200 caracteres).");

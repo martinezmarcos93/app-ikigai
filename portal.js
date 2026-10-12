@@ -690,7 +690,12 @@
         field("Horarios y observaciones","opening_hours","text",{value:settings.opening_hours || "",maxLength:1000,wide:true,placeholder:"Ingresá únicamente los horarios confirmados"}),
         "Guardar configuración",
         "Los campos vacíos quedan sin configurar. Al guardar, los cambios los ven todas las personas que usan la aplicación.") }
-      <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}.</p>`;
+      <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}.</p>
+      ${form("Respaldo de la base de datos","backup",
+        field("Frase del respaldo (mínimo 12 caracteres)","passphrase","password",{maxLength:200,wide:true,placeholder:"La elegís vos; no se guarda en ningún lado"})+
+        field("Repetí la frase","passphrase2","password",{maxLength:200,wide:true}),
+        "Descargar respaldo cifrado",
+        "Baja un archivo con todos los datos del gimnasio, cifrado con tu frase. Sin la frase no se puede abrir y nadie puede recuperarla: anotala en un lugar seguro y guardá el archivo en otro lugar distinto (por ejemplo un disco externo). Se registra quién lo pidió y cuándo.")}`;
   }
 
   async function renderMyRoutine() {
@@ -959,6 +964,31 @@
     const body = Object.fromEntries(new FormData(formNode).entries());
     const btn = formNode.querySelector('button[type="submit"]');
     const originalLabel = btn ? btn.textContent : "Guardar";
+    if (kind === "backup") {
+      if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+      // Sin recortar espacios: la frase tiene que ser exactamente la que se vuelva a escribir al restaurar.
+      const passphrase = String(new FormData(formNode).get("passphrase") ?? "");
+      if (passphrase.trim().length < 12) { showNotice("La frase debe tener al menos 12 caracteres (sin contar espacios de los costados)."); return; }
+      if (passphrase !== String(new FormData(formNode).get("passphrase2") ?? "")) { showNotice("Las dos frases no coinciden."); return; }
+      if (btn) { btn.disabled = true; btn.textContent = "Generando respaldo…"; }
+      try {
+        const { blob, filename } = await api.downloadBackup(passphrase);
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        formNode.reset();
+        showNotice(`Descargaste el respaldo (${filename}). Guardalo aparte y anotá la frase: sin ella no se puede abrir.`, "success");
+      } catch (error) {
+        showError(error);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+      }
+      return;
+    }
     if (kind === "institution-settings") {
       if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
       if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }

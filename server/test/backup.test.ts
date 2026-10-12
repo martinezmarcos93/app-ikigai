@@ -156,3 +156,17 @@ test("sin CSRF valido o con frase corta o con campos de mas se rechaza", async (
   assert.equal(extra.statusCode, 400);
   await app.close();
 });
+
+test("el portal ofrece el respaldo solo en la configuracion de administracion, con frase repetida y sin guardarla", async () => {
+  const [portal, client] = await Promise.all([
+    readFile(new URL("../../portal.js", import.meta.url), "utf8"),
+    readFile(new URL("../../api-client.js", import.meta.url), "utf8")
+  ]);
+  assert.match(portal, /form\("Respaldo de la base de datos","backup"/);
+  assert.match(portal, /kind === "backup"[\s\S]{0,200}isAdmin\(\)/);
+  assert.match(portal, /Las dos frases no coinciden/);
+  assert.match(portal, /downloadBackup\(passphrase\)/);
+  assert.doesNotMatch(portal, /(localStorage|sessionStorage)[^;\n]*passphrase/);
+  assert.match(client, /downloadBackup: async passphrase/);
+  assert.match(client, /"\/admin\/backup"/);
+});

@@ -481,3 +481,42 @@ test("member data export and anonymization use their contracts and validate loca
   }
   assert.equal(calls.length, 3, "nada se envia si la validacion local falla");
 });
+
+test("admin backup download sends the passphrase with CSRF, returns the binary file and maps errors", async () => {
+  const calls = [];
+  let mode = "ok";
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-backup-token", user: { id: "admin" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    if (mode === "limit") {
+      return new Response(JSON.stringify({ error: "too_many_requests", message: "Rate limit exceeded" }), {
+        status: 429, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(new Uint8Array([73, 75, 66, 75, 1]), {
+      status: 200,
+      headers: { "content-type": "application/octet-stream", "content-disposition": 'attachment; filename="ikigai-respaldo-20261012-1830.ikbk"' }
+    });
+  });
+
+  await api.login("admin@example.test", "password");
+  const result = await api.downloadBackup("frase-larga-de-prueba");
+  const [, call] = calls;
+  assert.match(call.url, /\/admin\/backup$/);
+  assert.equal(call.options.method, "POST");
+  assert.equal(call.options.headers["X-CSRF-Token"], "csrf-backup-token");
+  assert.equal(call.options.cache, "no-store");
+  assert.deepEqual(JSON.parse(call.options.body), { passphrase: "frase-larga-de-prueba" });
+  assert.equal(result.filename, "ikigai-respaldo-20261012-1830.ikbk");
+  assert.equal(result.blob.size, 5);
+
+  await assert.rejects(api.downloadBackup("corta"), error => error.code === "invalid_passphrase");
+  assert.equal(calls.length, 2, "una frase corta no genera ningun pedido (solo el login y el primer respaldo)");
+
+  mode = "limit";
+  await assert.rejects(api.downloadBackup("frase-larga-de-prueba"), error => error.status === 429 && /demasiados pedidos/.test(error.message));
+});
