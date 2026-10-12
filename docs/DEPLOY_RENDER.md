@@ -48,6 +48,11 @@ es el mismo que usa la demo (`deploy/demo-gratis.sh`) y hace que un pedido de re
 Render gratis no da consola. Se crea desde una terminal propia contra Neon, sin dejar la dirección en el historial:
 `cd server && read -rs DATABASE_URL && export DATABASE_URL && npm run admin:create` (pegar la dirección directa, Enter).
 
+### Carga inicial de datos del negocio
+`cd server && read -rsp "DATABASE_URL: " DATABASE_URL && export DATABASE_URL && npm run seed:inicial` carga lo que el dueño respondió en el cuestionario del 12/10/2026:
+nombre, teléfono, dirección y horarios del gimnasio, y las actividades (Kickboxing, Taekwondo, Funcional, Yoga), **sin precios**. No carga personas (profesores ni miembros)
+ni agenda. Es repetible: no pisa la configuración que ya se haya editado ni duplica actividades. El mail de contacto queda vacío a propósito (el dueño no indicó el del gimnasio).
+
 ## 4. Límites del plan gratis
 - Duerme tras 15 minutos sin tráfico y tarda ~1 minuto en despertar; 750 horas por mes compartidas entre todos los servicios del workspace.
 - Neon gratis: 1 GB, restauración de 6 horas: el respaldo cifrado de administración (`docs/OPERATIONS_BACKUP_RESTORE.md`) es la protección real.
