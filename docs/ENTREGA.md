@@ -23,7 +23,7 @@ Regenerar los PDF del instructivo si cambia la interfaz: `bash tools/instructivo
 - [x] **Dominio** `ikigai-training.com`, comprado por Agustin en DonWeb el 12/10/2026 (vence el 12/10/2027). DNS delegado a Cloudflare (`brian.ns.cloudflare.com`, `jule.ns.cloudflare.com`); activación pendiente de verificación de Cloudflare. Titular: **persona física** (Agustin; aclaró que el «persona jurídica» del cuestionario fue un error). DNSSEC **desactivado**, verificado el 12/10/2026 con `dig DS` (sin registros DS en `.com`). La privacidad del registro (WHOIS) **no se contrata** (decisión del 12/10/2026). Los precios y todo lo que implica dinero los resuelve Agustin. Los documentos de `docs/entrega/` (costos, cuestionario, mensaje) son anteriores a la compra y hablan de `.com.ar`.
 - [ ] Definir dónde corre el **servidor** (ADR-001 §6: Neon + Render gratis como dirección elegida; VPS de 2 GB o más con Docker como plan B). Guardar los accesos en un gestor de claves.
 - [ ] Recibir el cuestionario respondido y la planilla completa.
-- [ ] Revisión jurídica de `docs/DATA_PROTECTION.md` y del texto de consentimiento (Fase 8, con la abogada).
+- [x] Revisión jurídica de `docs/DATA_PROTECTION.md` y del texto de consentimiento (Fase 8, con la abogada): informada como realizada y correcta por Marcos el 12/10/2026 (sin constancia escrita en el repo).
 
 ## 2. Servidor y dominio (Fase 7)
 
