@@ -27,18 +27,18 @@ Regenerar los PDF del instructivo si cambia la interfaz: `bash tools/instructivo
 
 ## 2. Servidor y dominio (Fase 7)
 
-- [ ] Delegar el DNS del dominio a Cloudflare (gratis) o apuntar un registro `A` de `app.<dominio>` a la IP del servidor.
-- [ ] Instalar Docker y desplegar `deploy/compose.yaml` (ver `docs/DEPLOYMENT.md`) con `SITE_ADDRESS=app.<dominio>`.
-- [ ] Configurar el adaptador de correo de recuperación (o dejarlo con valores de relleno y usar «Restablecer clave» desde administración).
-- [ ] Crear el **primer administrador** con `ADMIN_MUST_CHANGE_PASSWORD=1` y entregarle la clave en mano.
-- [ ] **Copias de seguridad**: programar `deploy/backup.sh` (cron/systemd) y una copia **fuera del servidor**; ensayar la restauración (`deploy/restore-check.sh`).
-- [ ] Verificar `https://app.<dominio>/healthz` y `/.well-known/assetlinks.json`.
+- [x] DNS delegado a Cloudflare (12/10/2026) y `app.ikigai-training.com` atendido por un Worker (`docs/DEPLOY_WORKER.md`): portal estático + `/api` hacia Render.
+- [x] API en Render gratis + base en Neon (Oregón), según ADR-001 §6 y `docs/DEPLOY_RENDER.md`. (La ruta Docker Compose, `docs/DEPLOYMENT.md`, queda como plan B.)
+- [x] Adaptador de correo de recuperación: con valores de relleno (`…invalid`); las claves se entregan desde administración.
+- [ ] Crear el **primer administrador** con `ADMIN_MUST_CHANGE_PASSWORD=1` (comando en `docs/DEPLOY_RENDER.md` §3) y entregarle la clave en mano.
+- [~] **Copias de seguridad:** hecho el respaldo cifrado descargable por administración (`docs/OPERATIONS_BACKUP_RESTORE.md`). Falta el hábito: bajarlo cada semana, guardarlo **fuera** del servidor y ensayar una restauración con un archivo real. Neon gratis solo restaura 6 horas hacia atrás.
+- [x] Verificado `https://app.ikigai-training.com/healthz` y `/.well-known/assetlinks.json` (Google Digital Asset Links: `linked: true`).
 
 ## 3. APK y landing definitivas
 
-- [ ] `bash apk/build-apk.sh app.<dominio> 1.0.0 <versionCode mayor que el de la demo>` (misma clave de firma: se instala encima de la demo).
-- [ ] **Respaldar `~/.ikigai-signing/`** fuera de esta computadora.
-- [ ] Mover la landing al dominio propio (Cloudflare Pages → Custom domains) y `bash deploy/publicar-landing.sh`.
+- [x] APK 1.0.0 (versionCode 26101219) compilada para `app.ikigai-training.com`, misma clave de firma, firma verificada.
+- [~] **Respaldar `~/.ikigai-signing/`:** copia cifrada hecha con `apk/respaldar-clave.sh`; falta copiarla fuera de la computadora y anotar la frase aparte.
+- [x] Landing en `ikigai-training.com` y `www`, con descarga de la APK 1.0.0 y «Entrar desde el navegador».
 - [ ] Probar la descarga e instalación en **dos teléfonos Android** reales (uno de gama baja) y el alta en un iPhone (Safari → Agregar a inicio). Anotar modelo, Android y Chrome en la hoja de ruta (Fase 6).
 
 ## 4. Carga de datos reales
