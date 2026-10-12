@@ -18,6 +18,7 @@ Documentación relacionada:
 - [Protección de datos personales (exportación, supresión, consentimiento)](docs/DATA_PROTECTION.md)
 - [Documentación de la API](server/README.md)
 - [Inventario de integración del portal y API](docs/PORTAL_API_INVENTORY.md)
+- [Entrega y primer uso: lista de control](docs/ENTREGA.md), [carga de datos](tools/datos/README.md) e [instructivo ilustrado](docs/instructivo/)
 
 ## Acceso principal: portal conectado
 
