@@ -1,11 +1,11 @@
 {
-  "appUrl": "https://towns-however-rfc-painted.trycloudflare.com",
-  "portalUrl": "",
+  "appUrl": "https://app.ikigai-training.com",
+  "portalUrl": "https://app.ikigai-training.com/portal.html",
   "apk": {
     "file": "downloads/ikigai-training.apk",
-    "version": "0.9.0",
+    "version": "1.0.0",
     "sizeMB": 2.6,
-    "sha256": "a6056301e10c478afacbec8345ae2af439f5935c923dc84648968e5f1a9f7761",
-    "date": "11/10/2026"
+    "sha256": "c1287709e485ea790839850fcc69c7bf72f7e521599460a479fa0a04d7324dda",
+    "date": "12/10/2026"
   }
 }
