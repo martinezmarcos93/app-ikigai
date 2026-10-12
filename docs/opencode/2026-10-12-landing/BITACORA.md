@@ -5,3 +5,4 @@
 2 - Tarea hecha
 3 - Tarea hecha
 4 - Tarea hecha
+Correccion: clases CSS inexistentes reemplazadas por button ghost y meta
