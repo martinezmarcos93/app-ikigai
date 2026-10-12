@@ -228,7 +228,7 @@
           <section class="panel"><h2 class="section-title">Servicios disponibles</h2>${serviceRows}</section>
         </div>
         ${results.some(result => result.status === "rejected") ? '<p class="footer-note" role="status">Algunas secciones no están disponibles. Los datos visibles corresponden sólo a las consultas que respondieron correctamente.</p>' : ""}
-        <p class="footer-note">Los indicadores se consultan al servidor. Esta pantalla no lee ni modifica el localStorage de la demo anterior.</p>`;
+      `;
     } else if (isMember() && state.user.memberId) {
       const results = await Promise.allSettled([
         api.getMember(state.user.memberId),
@@ -689,8 +689,8 @@
         field("Dirección","address","text",{value:settings.address || "",maxLength:300,wide:true})+
         field("Horarios y observaciones","opening_hours","text",{value:settings.opening_hours || "",maxLength:1000,wide:true,placeholder:"Ingresá únicamente los horarios confirmados"}),
         "Guardar configuración",
-        "Los campos vacíos quedan como no configurados. Los cambios se guardan en PostgreSQL, no en el navegador.") }
-      <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}. No se precargan teléfonos, direcciones ni horarios ficticios.</p>`;
+        "Los campos vacíos quedan sin configurar. Al guardar, los cambios los ven todas las personas que usan la aplicación.") }
+      <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}.</p>`;
   }
 
   async function renderMyRoutine() {
