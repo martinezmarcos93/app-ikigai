@@ -4,7 +4,7 @@ import { generateTemporaryPassword, initials, usernameCandidates } from "../src/
 
 test("el usuario sale del rol y del nombre, sin tildes ni espacios", () => {
   assert.equal(usernameCandidates("member", "Marcos Martínez")[0], "ikigai-miembro-marcos");
-  assert.equal(usernameCandidates("coach", "Florencia Moyano")[0], "ikigai-profesor-florencia");
+  assert.equal(usernameCandidates("coach", "Florencia Ejemplo")[0], "ikigai-profesor-florencia");
   assert.equal(usernameCandidates("member", "  María José  Ñandú ")[0], "ikigai-miembro-maria");
 });
 

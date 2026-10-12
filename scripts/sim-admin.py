@@ -80,11 +80,11 @@ with sync_playwright() as p:
     # ------------------------------------------------------------------ profesores
     print("Profesores")
     s.ir("coaches")
-    s.enviar("create-coach", full_name="Florencia Moyano", discipline="Yoga", email="florencia@ikigai.example.test")
+    s.enviar("create-coach", full_name="Florencia Ejemplo", discipline="Yoga", email="florencia@ikigai.example.test")
     s.aviso("Profesor creado")
     s.enviar("create-coach", full_name="Diego Ruiz", discipline="Funcional")
     s.aviso("Profesor creado")
-    pg.locator("table tbody tr", has_text="Florencia Moyano").locator('button[data-action="coach-finance"]').click()
+    pg.locator("table tbody tr", has_text="Florencia Ejemplo").locator('button[data-action="coach-finance"]').click()
     pg.wait_for_selector('form[data-form="create-obligation"]')
     s.enviar("create-obligation", agreed_amount="40000")
     s.aviso("Obligación mensual configurada")
@@ -151,7 +151,7 @@ with sync_playwright() as p:
         assert re.fullmatch(r"[A-Z]{2}-Ikigai-[A-Z2-9]{4}-[A-Z2-9]{4}", clave), clave
         estado[clave_estado] = {"usuario": usuario, "temporal": clave, "nombre": nombre}
         return usuario
-    u_flor = crear_acceso("Florencia Moyano", "profesor")
+    u_flor = crear_acceso("Florencia Ejemplo", "profesor")
     u_diego = crear_acceso("Diego Ruiz", "profesor2")
     u_marcos = crear_acceso("Marcos Martinez", "miembro")
     u_marcos2 = crear_acceso("Marcos Gómez", "miembro_homonimo")

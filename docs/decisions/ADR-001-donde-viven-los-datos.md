@@ -6,7 +6,7 @@
 
 ## 1. Qué hizo el proyecto del veterinario (app-vet) y por qué funcionó
 
-| Aspecto | app-vet (Lautaro Tonus) |
+| Aspecto | app-vet (clínica veterinaria) |
 | --- | --- |
 | Arquitectura | **Sin servidor propio**: React PWA que habla directo con Firebase (Auth + Firestore) con **reglas de seguridad** en la base. |
 | Dónde viven los datos | **Firestore, en la nube de Google**, plan Spark (gratis). El teléfono solo guarda un caché para trabajar sin señal. |

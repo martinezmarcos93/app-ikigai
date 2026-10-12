@@ -46,7 +46,7 @@ test("la administracion crea cuentas con usuario y clave temporal que se debe ca
       : "INSERT INTO coach_profiles (full_name,discipline) VALUES ($1,'Yoga') RETURNING id", [name]).then((r) => String(r.rows[0]?.id));
   const marcos = await nuevo(`Marcos${tag} Martinez`, "member_profiles");
   const homonimo = await nuevo(`Marcos${tag} Lopez`, "member_profiles");
-  const florencia = await nuevo(`Florencia${tag} Moyano`, "coach_profiles");
+  const florencia = await nuevo(`Florencia${tag} Ejemplo`, "coach_profiles");
 
   // Solo administracion crea cuentas, y con CSRF.
   assert.equal((await app.inject({ method: "POST", url: "/api/v1/admin/accounts", headers: outsider.headers, payload: { role: "member", memberId: marcos } })).statusCode, 403);
