@@ -21,7 +21,7 @@ La APK abre `app.tudominio.com`. **Esa dirección queda grabada en la APK**, por
 1. Crear la cuenta en <https://dash.cloudflare.com/sign-up> (plan Free). Activar verificación en dos pasos.
 2. Dominio, dos caminos:
    - **Comprarlo en Cloudflare:** *Domain Registration → Register Domains*. Los `.com`, `.net`, `.org`, etc. se venden a precio de costo y el DNS queda en Cloudflare automáticamente. Elegí un nombre corto y definitivo: cambiarlo después obliga a recompilar y redistribuir la APK.
-   - **Ya tenés uno (o querés un `.com.ar`):** Cloudflare no vende `.com.ar`. Se registra en NIC Argentina y después se delegan los servidores de nombres a Cloudflare: *Websites → Add a domain*, elegir Free, y cargar en NIC los dos nameservers que Cloudflare indica. Tarda unas horas en activarse.
+   - **Ya tenés uno (por ejemplo `ikigai-training.com`, comprado en DonWeb el 12/10/2026) o querés un `.com.ar`:** Cloudflare no vende `.com.ar` (se registra en NIC Argentina). En cualquier caso se delegan los servidores de nombres a Cloudflare: *Websites → Add a domain*, elegir Free, y cargar en el registrador (DonWeb: Mis Dominios → Gestionar → Nameservers → Editar) los dos nameservers que Cloudflare indica, sacando `ns1.donweb.com` y `ns2.donweb.com`. Tarda de 1 a 24 horas en activarse. En DonWeb no hace falta crear zona DNS: la administra Cloudflare.
 3. Anotá el dominio elegido: lo necesito para compilar la APK.
 
 ## 2. Publicar la landing

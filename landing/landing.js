@@ -13,9 +13,9 @@
 
   const entrar = $("entrar");
   const notaPortal = $("portalNote");
-  const portalUrl = (config && typeof config.portalUrl === "string" && /^https:\/\//.test(config.portalUrl))
-    ? config.portalUrl
-    : (config && /^https:\/\//.test(config.appUrl || "") ? config.appUrl.replace(/\/+$/, "") + "/portal.html" : "");
+  // Solo la direccion publica del portal (portalUrl) habilita el boton. appUrl es la direccion que abre la APK y puede ser
+  // temporal (el tunel de la demo): no se ofrece a las personas hasta que portalUrl la declare a proposito.
+  const portalUrl = config && typeof config.portalUrl === "string" && /^https:\/\//.test(config.portalUrl) ? config.portalUrl : "";
   if (portalUrl) {
     entrar.href = portalUrl;
     entrar.hidden = false;

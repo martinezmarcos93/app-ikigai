@@ -2,7 +2,7 @@
 
 **Estado:** dirección aceptada por Marcos el 12/10/2026 (sección 6); pendientes de verificar en la sección 6.3. Reemplaza a la recomendación de la sección 4.
 **Contexto:** hoy la app corre en la PC de Marcos con un túnel gratuito de Cloudflare (demo, datos ficticios). Se va a comprar un dominio
-`.com.ar` en NIC Argentina. Falta decidir dónde se guarda la base de datos real, sin pagar un servidor mensual.
+`.com.ar` en NIC Argentina (**actualización 12/10/2026: finalmente se compró `ikigai-training.com` en DonWeb**, ver §5). Falta decidir dónde se guarda la base de datos real, sin pagar un servidor mensual.
 
 ## 1. Qué hizo el proyecto del veterinario (app-vet) y por qué funcionó
 
@@ -55,15 +55,17 @@ consentimiento o cláusulas contractuales. Es una razón fuerte para preferir la
    externo, prueba de restauración y alguien que mire el estado.
 3. Si no hay equipo disponible: B como puente, sabiendo que es más frágil, o pagar el VPS (C).
 
-## 5. Asociar el dominio (NIC → Cloudflare, gratis)
+## 5. Asociar el dominio (registrador → Cloudflare, gratis)
 
-1. Registrar `ikigai….com.ar` en nic.ar (≈ $8.500/año). **El titular debe ser el gimnasio o su dueño**; si lo registra Marcos con su CUIT/CUIL,
-   queda a su nombre y conviene dejar por escrito que se transferirá la titularidad (NIC permite transferirla).
+Estado (12/10/2026): `ikigai-training.com` registrado por Agustin en DonWeb (vence el 12/10/2027, registro no privado). Nameservers ya cambiados a
+`brian.ns.cloudflare.com` y `jule.ns.cloudflare.com` (verificado por `dig`); Cloudflare lo está verificando. Pasos originales, para otros dominios:
+
+1. Registrar el dominio. **El titular debe ser el gimnasio o su dueño**; si lo registra Marcos con su CUIT/CUIL, queda a su nombre y conviene dejar por escrito que se transferirá la titularidad.
 2. Crear la cuenta de Cloudflare (ya existe) → *Add a domain* → plan Free → anotar los dos *nameservers*.
-3. En NIC: *Delegar* el dominio a esos *nameservers* (tarda de minutos a unas horas).
-4. En Cloudflare: la **landing** en Pages → *Custom domains* (`ikigai….com.ar` y `www`); la **app** en `app.ikigai….com.ar` mediante un
+3. En el registrador: reemplazar los nameservers por esos dos (tarda de 1 a 24 horas; en NIC se llama *Delegar*).
+4. En Cloudflare: la **landing** en Pages → *Custom domains* (`ikigai-training.com` y `www`); la **app** en `app.ikigai-training.com` mediante un
    *túnel con nombre* hacia el equipo (opción A) o un registro hacia el servidor (opciones B/C).
-5. Recompilar la APK con `bash apk/build-apk.sh app.ikigai….com.ar 1.0.0 <versionCode mayor>` (misma clave de firma: se instala encima de la demo).
+5. Recompilar la APK con `bash apk/build-apk.sh app.ikigai-training.com 1.0.0 <versionCode mayor>` (misma clave de firma: se instala encima de la demo).
 
 ## 6. Decisión del 12/10/2026 (Marcos)
 
@@ -91,4 +93,4 @@ La opción A (equipo en el gimnasio) queda como plan B si la abogada exige datos
 - Medir cuánto tarda el scrypt en el CPU compartido de Render gratis.
 - Medir el arranque en frío real y decidir si hace falta un chequeo periódico que lo mantenga despierto (sin romper los límites de horas del plan).
 - Revisión de la abogada sobre la transferencia internacional.
-- Confirmar el dominio con el dueño: respondió `ikigai-training.com`, no `.com.ar`.
+- ~~Confirmar el dominio con el dueño~~ Resuelto: es `ikigai-training.com` (DonWeb).

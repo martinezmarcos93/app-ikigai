@@ -105,8 +105,13 @@ SIZE="$(python3 -c "import os,sys;print(round(os.path.getsize(sys.argv[1])/10485
 python3 - "$REPO" "$APP_URL" "$VERSION_NAME" "$SIZE" "$SHA" <<'PY'
 import json, sys, datetime
 repo, app_url, version, size, sha = sys.argv[1:6]
+try:  # portalUrl lo decide quien publica: recompilar la APK no debe borrarlo
+    with open(f"{repo}/landing/app.json", encoding="utf-8") as f:
+        portal_url = json.load(f).get("portalUrl", "")
+except (OSError, ValueError):
+    portal_url = ""
 with open(f"{repo}/landing/app.json", "w", encoding="utf-8") as f:
-    json.dump({"appUrl": app_url, "apk": {"file": "downloads/ikigai-training.apk", "version": version,
+    json.dump({"appUrl": app_url, "portalUrl": portal_url, "apk": {"file": "downloads/ikigai-training.apk", "version": version,
                "sizeMB": float(size), "sha256": sha, "date": datetime.date.today().strftime("%d/%m/%Y")}}, f, indent=2)
     f.write("\n")
 PY
