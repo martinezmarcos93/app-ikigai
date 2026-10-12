@@ -179,6 +179,8 @@
     listAccounts: () => request("/admin/accounts"),
     createAccount: body => request("/admin/accounts", { method: "POST", body }),
     resetAccountPassword: userId => request(`/admin/accounts/${id(userId)}/reset-password`, { method: "POST", body: {} }),
+    disableAccount: userId => request(`/admin/accounts/${id(userId)}/disable`, { method: "POST", body: {} }),
+    enableAccount: userId => request(`/admin/accounts/${id(userId)}/enable`, { method: "POST", body: {} }),
     createInvitation: body => request("/admin/invitations", { method: "POST", body }),
     resendInvitation: invitationId => request(`/admin/invitations/${id(invitationId)}/resend`, { method: "POST", body: {} }),
     revokeInvitation: invitationId => request(`/admin/invitations/${id(invitationId)}/revoke`, { method: "POST", body: {} }),

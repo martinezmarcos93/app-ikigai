@@ -137,13 +137,18 @@
     $("#accountEmail").textContent = user.username || user.email;
     $("#accountRole").textContent = (user.roles || []).map(r => ({ admin:"Administración", coach:"Profesor", member:"Miembro" }[r] || r)).join(" · ");
     $("#connectionLabel").textContent = "Sesión activa";
-    $("#apiBaseLabel").textContent = api.baseUrl;
+    const apiLabel = $("#apiBaseLabel");   // solo existe en localhost (data-dev-only se elimina en el resto)
+    if (apiLabel) apiLabel.textContent = api.baseUrl;
     applyRoleNavigation();
   }
   function setUnauthenticated() {
     state.user = null;
     state.mustChange = false;
     state.lastCredentials = "";
+    // Al cerrar sesion no queda nada de la persona anterior: ni en memoria ni en el DOM (clave temporal recien creada,
+    // tablas de miembros, cuenta corriente) para quien use el mismo aparato despues.
+    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0 });
+    $("#pageContent").replaceChildren();
     if (window.IkigaiTour) window.IkigaiTour.stop();
     $("#portalPanel").classList.remove("password-pending");
     $("#loginPanel").hidden = false;
@@ -223,7 +228,7 @@
           <section class="panel"><h2 class="section-title">Servicios disponibles</h2>${serviceRows}</section>
         </div>
         ${results.some(result => result.status === "rejected") ? '<p class="footer-note" role="status">Algunas secciones no están disponibles. Los datos visibles corresponden sólo a las consultas que respondieron correctamente.</p>' : ""}
-        <p class="footer-note">Los indicadores se consultan al servidor. Esta pantalla no lee ni modifica el localStorage de la demo anterior.</p>`;
+      `;
     } else if (isMember() && state.user.memberId) {
       const results = await Promise.allSettled([
         api.getMember(state.user.memberId),
@@ -488,11 +493,13 @@
     await loadCoaches();
     const { accounts } = await api.listAccounts();
     const accessState = item => !item.user_id ? '<span class="badge warn">Sin acceso</span>'
-      : item.account_status !== "active" ? '<span class="badge warn">Deshabilitado</span>'
+      : item.account_status === "suspended" ? '<span class="badge warn">Acceso deshabilitado</span>'
+      : item.account_status !== "active" ? '<span class="badge warn">Sin activar</span>'
       : item.must_change_password ? '<span class="badge warn">Debe cambiar la clave</span>' : '<span class="badge success">Activo</span>';
     const accessAction = item => !item.user_id
       ? `<button class="button primary small" type="button" data-action="create-account" data-role-kind="${esc(item.role)}" data-profile="${esc(item.profile_id)}" data-name="${esc(item.full_name)}">Crear acceso</button>`
-      : item.username ? `<button class="button ghost small" type="button" data-action="reset-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Restablecer clave</button>` : "";
+      : item.account_status === "suspended" ? `<button class="button primary small" type="button" data-action="enable-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Habilitar acceso</button>`
+      : item.username ? `<button class="button ghost small" type="button" data-action="reset-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Restablecer clave</button> <button class="button danger small" type="button" data-action="disable-account" data-user="${esc(item.user_id)}" data-name="${esc(item.full_name)}">Deshabilitar acceso</button>` : "";
     const section = (role, title) => {
       const items = accounts.filter(item => item.role === role);
       return `<section class="panel" data-tour="access-${role}"><h2 class="section-title">${title}</h2>${table(["Nombre", "Usuario", "Estado", ""], items.map(item =>
@@ -682,8 +689,8 @@
         field("Dirección","address","text",{value:settings.address || "",maxLength:300,wide:true})+
         field("Horarios y observaciones","opening_hours","text",{value:settings.opening_hours || "",maxLength:1000,wide:true,placeholder:"Ingresá únicamente los horarios confirmados"}),
         "Guardar configuración",
-        "Los campos vacíos quedan como no configurados. Los cambios se guardan en PostgreSQL, no en el navegador.") }
-      <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}. No se precargan teléfonos, direcciones ni horarios ficticios.</p>`;
+        "Los campos vacíos quedan sin configurar. Al guardar, los cambios los ven todas las personas que usan la aplicación.") }
+      <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}.</p>`;
   }
 
   async function renderMyRoutine() {
@@ -1294,6 +1301,17 @@
         await renderAccess();
         showCredentials("Clave restablecida", action.dataset.name, result.username, result.temporaryPassword);
       }
+      else if (action.dataset.action === "disable-account") {
+        if (!window.confirm(`¿Deshabilitar el acceso de ${action.dataset.name}? Se cierran sus sesiones y no podrá entrar hasta que lo habilites de nuevo. No se borra nada de su historial.`)) return;
+        await api.disableAccount(action.dataset.user);
+        await renderAccess();
+        showNotice(`Acceso de ${action.dataset.name} deshabilitado.`, "success");
+      }
+      else if (action.dataset.action === "enable-account") {
+        await api.enableAccount(action.dataset.user);
+        await renderAccess();
+        showNotice(`Acceso de ${action.dataset.name} habilitado.`, "success");
+      }
       else if (action.dataset.action === "read-announcement") {
         await api.markAnnouncementRead(action.dataset.id);
         await renderAnnouncements();
@@ -1415,6 +1433,8 @@
     setTimeout(() => splash.remove(), 400);
   }
   async function boot() {
+    // Textos de desarrollo (URL de la API local): solo se muestran en localhost, nunca a quien usa la app instalada.
+    if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) document.querySelectorAll("[data-dev-only]").forEach(el => el.remove());
     try { await bootSession(); } finally { hideBootSplash(); }
   }
   async function bootSession() {

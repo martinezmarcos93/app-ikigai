@@ -119,7 +119,7 @@ export function registerAccountRoutes(
         await tx.query("INSERT INTO user_roles (user_id, role, granted_by) VALUES ($1,$2,$3)", [userId, role, actor.userId]);
         await tx.query(
           "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,'user.account_created','user',$2,$3,$4::jsonb)",
-          [actor.userId, userId, request.id, JSON.stringify({ role, username, profileId })]
+          [actor.userId, userId, request.id, JSON.stringify({ role, profileId })]
         );
         return { userId, username, role, fullName: row.full_name, temporaryPassword };
       });
@@ -169,4 +169,50 @@ export function registerAccountRoutes(
       return sendAccountError(reply, error);
     }
   });
+
+  // Deshabilitar / habilitar el acceso de un miembro o profesor (sin anonimizar: conserva su historial). Quien se va
+  // o se suspende deja de poder entrar y sus sesiones se cierran al instante; se puede volver a habilitar.
+  for (const [action, from, to, audit] of [
+    ["disable", "active", "suspended", "user.access_disabled"],
+    ["enable", "suspended", "active", "user.access_enabled"]
+  ] as const) {
+    app.post<{ Params: UserParams }>(`/api/v1/admin/accounts/:id/${action}`, {
+      schema: { params: { type: "object", required: ["id"], additionalProperties: false, properties: { id: { type: "string", format: "uuid" } } } },
+      config: { rateLimit: { max: 20, timeWindow: "1 minute" } }
+    }, async (request, reply) => {
+      const actor = await requireAdmin(request, reply);
+      if (!actor) return;
+      try {
+        const result = await transactionalDb.transaction(async (tx) => {
+          const found = await tx.query<{ id: string } & Record<string, unknown>>(
+            `SELECT u.id FROM users u
+              WHERE u.id=$1 AND u.status=$2 AND u.auth_provider='local'
+                AND EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.revoked_at IS NULL AND r.role IN ('member','coach'))
+                AND NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.revoked_at IS NULL AND r.role='admin')
+              FOR UPDATE OF u`,
+            [request.params.id, from]
+          );
+          if (!found.rows[0]) {
+            throw new AccountError(404, "account_not_found", action === "disable"
+              ? "No active member or coach account was found (administrator accounts cannot be disabled here)."
+              : "No disabled member or coach account was found.");
+          }
+          await tx.query("UPDATE users SET status=$2, updated_at=now() WHERE id=$1", [request.params.id, to]);
+          let revoked = 0;
+          if (action === "disable") {
+            const sessions = await tx.query("UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", [request.params.id]);
+            revoked = sessions.rowCount ?? 0;
+          }
+          await tx.query(
+            "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,$2,'user',$3,$4,$5::jsonb)",
+            [actor.userId, audit, request.params.id, request.id, JSON.stringify({ status: to, revokedSessions: revoked })]
+          );
+          return { status: to };
+        });
+        return reply.send({ userId: request.params.id, accountStatus: result.status });
+      } catch (error) {
+        return sendAccountError(reply, error);
+      }
+    });
+  }
 }

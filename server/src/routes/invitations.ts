@@ -4,7 +4,7 @@ import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
 import { resolveActor } from "../security/actor.js";
 import { requireAllowedOrigin, requireCsrf } from "../security/csrf.js";
-import { hashPassword } from "../security/password.js";
+import { hashPassword, isWeakPassword } from "../security/password.js";
 
 interface CreateInvitationBody {
   email: string;
@@ -245,6 +245,17 @@ export function registerInvitationRoutes(
   }, async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     if (!requireAllowedOrigin(request, reply, config)) return;
+    // Mismo criterio que el reseteo: sin invitacion vigente no se paga el scrypt.
+    const candidate = await db.query(
+      "SELECT 1 FROM user_invitations WHERE token_hash=$1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now() LIMIT 1",
+      [tokenHash(request.body.token)]
+    );
+    if (candidate.rows.length === 0) {
+      return reply.code(400).send({ error: "invitation_invalid", message: "The invitation is invalid, expired, or already used." });
+    }
+    if (isWeakPassword(request.body.password)) {
+      return reply.code(400).send({ error: "weak_password", message: "That password is too easy to guess. Use a longer, less predictable one." });
+    }
     const passwordHash = await hashPassword(request.body.password);
     try {
       const result = await transactionalDb.transaction(async (tx) => {

@@ -1,20 +1,21 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-AR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#080808">
 <meta name="msapplication-TileColor" content="#000000">
-<meta name="color-scheme" content="dark">
+<meta name="google" content="notranslate">
+  <meta name="color-scheme" content="dark">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="48x48" href="./assets/pwa/favicon-48.png">
 <link rel="apple-touch-icon" sizes="180x180" href="./assets/pwa/apple-touch-icon.png">
-<meta name="description" content="Portal conectado de Ikigai Training para operaciones de miembros, membresías, cuentas y profesores.">
+<meta name="description" content="Ikigai Training: reservas, rutinas y cuenta de miembros, profesores y administración.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Ikigai Training — Portal">
 <meta property="og:description" content="Portal de gestión de miembros, membresías, cuentas y profesores.">
 <meta property="og:image" content="./assets/social/og-image.png">
-<title>Ikigai Training — Portal conectado</title>
+<title>Ikigai Training</title>
 <link rel="stylesheet" href="./assets/fonts/fonts.css">
 <link rel="stylesheet" href="./assets/brand/tokens.css">
 <link rel="stylesheet" href="portal.css">
@@ -35,11 +36,11 @@
 
   <section id="loginPanel" class="login-layout">
     <div class="login-intro">
-      <p class="eyebrow">OPERACIÓN CON DATOS DEL SERVIDOR</p>
-      <h1>El gimnasio.<br><span>Conectado.</span></h1>
-      <p>Accedé con una cuenta real de la API. Esta vista no utiliza el selector de roles ni el almacenamiento local de la demo.</p>
+      <p class="eyebrow">BIENVENIDO</p>
+      <h1>Tu gimnasio,<br><span>en el bolsillo.</span></h1>
+      <p>Ingresá con el usuario y la clave que te dio el gimnasio. Si todavía no los tenés, pedilos en recepción.</p>
       <img class="state-illustration welcome-illustration" src="./assets/illustrations/welcome.svg" alt="" aria-hidden="true">
-      <div class="security-note"><span class="security-icon">↳</span><div><strong>Sesión protegida</strong><small>Cookie HttpOnly · CSRF en memoria · permisos del servidor</small></div></div>
+      <div class="security-note"><span class="security-icon">↳</span><div><strong>Tu acceso es personal</strong><small>No compartas tu clave. Si usás un aparato que no es tuyo, cerrá la sesión al terminar.</small></div></div>
     </div>
     <form id="loginForm" class="panel login-card">
       <p class="eyebrow">ACCESO</p>
@@ -49,7 +50,7 @@
       <label for="loginPassword">Contraseña</label>
       <input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128" placeholder="Tu contraseña">
       <button class="button primary full" type="submit">Ingresar <span aria-hidden="true">↗</span></button>
-      <p class="form-help">Si el backend no está desplegado, configurá la URL local en <code>?apiBase=http://localhost:3001/api/v1</code>.</p>
+      <p class="form-help" data-dev-only>Si el backend no está desplegado, configurá la URL local en <code>?apiBase=http://localhost:3001/api/v1</code>.</p>
       <p class="form-help"><a href="./reset-password.html">¿Olvidaste tu contraseña?</a></p>
     </form>
   </section>
@@ -75,7 +76,7 @@
         <button class="nav-link" type="button" data-view="my-password"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#shield"></use></svg></span>Mi contraseña</button>
         <button class="nav-link" type="button" data-action="start-tour" data-role="admin"><span><svg aria-hidden="true"><use href="./assets/icons/ikigai-symbols.svg#dashboard"></use></svg></span>Guía de primer uso</button>
       </nav>
-      <div class="sidebar-foot"><small>PORTAL EN DESARROLLO</small><span id="apiBaseLabel"></span></div>
+      <div class="sidebar-foot" data-dev-only><small>PORTAL EN DESARROLLO</small><span id="apiBaseLabel"></span></div>
     </aside>
     <section class="portal-content">
       <div class="page-heading">
@@ -88,8 +89,8 @@
 </main>
 
 <footer class="portal-footer">
-  <span>IKIGAI TRAINING · PORTAL CONECTADO</span>
-  <span>NO USA DATOS DE LA DEMO LOCAL</span>
+  <span>IKIGAI TRAINING</span>
+  <span>¿Dudas? Consultá en recepción</span>
 </footer>
 
 <script src="api-client.js"></script>

@@ -6,3 +6,16 @@ server/dist/
 *.log
 __pycache__/
 *.db
+
+# APK compilada y llaves de firma: nunca al repositorio
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Datos personales y claves de la carga de datos: nunca al repositorio (solo las plantillas)
+*.xlsx
+!tools/datos/plantillas/*.xlsx
+accesos-*.jsonl
+accesos-*.html
+Ikigai-accesos/

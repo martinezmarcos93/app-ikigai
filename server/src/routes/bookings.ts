@@ -111,6 +111,12 @@ export function registerBookingRoutes(
           message: "The end of the date range must be later than its start."
         });
       }
+      if (from.getUTCFullYear() < 2000 || to.getUTCFullYear() > 2100) {
+        return reply.code(400).send({
+          error: "invalid_date_range",
+          message: "Dates must fall between the years 2000 and 2100."
+        });
+      }
       if (to.getTime() - from.getTime() > 90 * 24 * 60 * 60 * 1000) {
         return reply.code(400).send({
           error: "date_range_too_large",
@@ -227,8 +233,10 @@ export function registerBookingRoutes(
             "SELECT status FROM member_profiles WHERE id = $1 FOR UPDATE",
             [actor.memberId]
           );
-          if (memberResult.rows[0]?.status !== "active") {
-            throw new BookingRuleError(403, "member_not_active", "Only active members can book a class.");
+          // Misma regla que la reserva de turnos fijos y la promocion de la lista de espera: pueden tomar un lugar
+          // los miembros en prueba o activos; deudores, suspendidos y dados de baja no.
+          if (!["trial", "active"].includes(memberResult.rows[0]?.status ?? "")) {
+            throw new BookingRuleError(403, "member_not_active", "Only trial or active members can book a class.");
           }
 
           const existing = await tx.query<{ id: string } & Record<string, unknown>>(
@@ -394,11 +402,12 @@ export function registerBookingRoutes(
               waitingCount
             })) {
               const next = await tx.query<{ id: string; member_id: string } & Record<string, unknown>>(
-                `SELECT id, member_id FROM bookings
-                  WHERE session_id = $1 AND status = 'waitlist'
-                  ORDER BY created_at ASC, id ASC
+                `SELECT b.id, b.member_id FROM bookings b
+                   JOIN member_profiles mp ON mp.id = b.member_id
+                  WHERE b.session_id = $1 AND b.status = 'waitlist' AND mp.status IN ('trial', 'active')
+                  ORDER BY b.created_at ASC, b.id ASC
                   LIMIT 1
-                  FOR UPDATE SKIP LOCKED`,
+                  FOR UPDATE OF b SKIP LOCKED`,
                 [session.id]
               );
               const candidate = next.rows[0];

@@ -76,7 +76,8 @@ code { overflow-wrap:anywhere; color:#f4b4ba; }
 .page-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px; }
 .page-heading h1 { font-family:"Bebas Neue",sans-serif; font-weight:400; font-size:clamp(32px,4vw,46px); margin:3px 0 0; letter-spacing:.7px; }
 .page-heading .eyebrow { font-size:10px; }
-.content-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+/* Dos columnas solo si cada una mide 560 px o mas (las tablas tienen 520 px de minimo): en un notebook se apilan y no se cortan. */
+.content-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr)); gap:16px; }
 .stats-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
 .stat-card { padding:17px; border:1px solid var(--line); background:var(--panel); border-radius:9px; min-width:0; }
 .stat-card small { display:block; color:var(--muted); text-transform:uppercase; letter-spacing:1.2px; font-size:11px; }
@@ -109,7 +110,7 @@ td strong { display:block; }
 .inline-form .field { flex:1 1 160px; }
 .token-box { padding:14px; border:1px dashed #6b383d; background:#1d1012; border-radius:8px; overflow-wrap:anywhere; }
 .token-box code { display:block; margin:8px 0; font-size:13px; user-select:all; }
-.two-col { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; }
+.two-col { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr)); gap:16px; }
 .footer-note { color:var(--muted); font-size:12px; margin-top:16px; line-height:1.4; }
 .portal-footer { display:flex; justify-content:space-between; gap:12px; padding:16px clamp(16px,4vw,44px); border-top:1px solid var(--line); color:#77777f; font-size:10px; letter-spacing:1.2px; }
 .loading { color:var(--muted); padding:28px; text-align:center; }
@@ -215,6 +216,8 @@ button, .button, .nav-link, input[type="checkbox"], input[type="radio"] { touch-
 .password-pending .nav-link[data-view="my-password"] { pointer-events: auto; opacity: 1; }
 .panel.narrow { max-width: 520px; }
 .credentials-panel { border-color: var(--red); margin-top: 16px; }
+/* El usuario y la clave temporal son lo que se le entrega a la persona: grandes, legibles y se seleccionan de un toque. */
+.credentials-panel .token-box code { display:block; margin:4px 0 16px; font-size:22px; font-weight:700; letter-spacing:.5px; color:var(--text); user-select:all; overflow-wrap:anywhere; }
 .tour-bubble.tour-centered { top: 50%; left: 50%; transform: translate(-50%, -50%); bottom: auto; right: auto; }
 
 /* ---- Avisos y rutinas ---- */

@@ -61,7 +61,7 @@
 - [x] Validar configuración por entorno y documentar secretos del proveedor de recuperación; no se agregan secretos reales al repositorio.
 - [x] Añadir un ensayo automatizado de backup/restore PostgreSQL que comprueba esquema, historial de migraciones y datos restaurados en una base descartable.
 - [~] Ensayo de backup/restore ejecutado localmente sobre PostgreSQL 16 en contenedores (`deploy/restore-check.sh`: migraciones, tablas, usuarios y auditoría restaurados); falta CI verde y el procedimiento sobre el proveedor de producción. Se agregó un guard que rechaza `DATABASE_URL` remotas antes de invocar herramientas PostgreSQL y un test negativo en el workflow; el PR #16 se fusionó, pero CI falló antes de asignar runners (`runner_id: 0`, `steps: []`), por lo que el guard aún no tiene ejecución automatizada demostrada.
-- [ ] Completar revisión de autorización y seguridad independiente antes de datos reales. No se considera realizada por esta revisión de código; requiere auditoría independiente y resolución de hallazgos.
+- [~] Revisión adversarial de seguridad (11/10/2026) hecha por un agente de IA que partió de cero, sin el contexto de las revisiones anteriores: ver «Revisión adversarial» al final. **No es una auditoría independiente humana**: sigue pendiente una revisión externa antes de datos reales, pero ya no parte de un código sin revisar.
 - **Criterio de cierre:** pruebas de autorización y recuperación aprobadas; límites operativos documentados; restauración demostrada; revisión independiente y riesgos pendientes explícitos.
 
 ### Fase 4 — Conectar progresivamente el portal con la API
@@ -102,10 +102,10 @@
 
 ### Fase 6 — PWA y experiencia Android
 - [x] Revisar responsive a 320, 360, 390, 412 y 480 px (auditoría automatizada `scripts/audit-mobile.py`, 0 incumplimientos); tablet y escritorio verificados visualmente en 1280 px.
-- [ ] Verificar áreas seguras, orientación, zoom/texto ampliado, teclado virtual y scroll de tablas dentro de sus contenedores.
+- [x] Texto ampliado del sistema (1,3× y 1,6×), teclado virtual y scroll de tablas verificados en Chrome Android del emulador con `scripts/audit-android.py` (0 incumplimientos en 12 pantallas por escala). Áreas seguras: `viewport-fit=cover` y protecciones CSS presentes; la prueba con muesca/barra de gestos reales queda para el dispositivo físico.
 - [x] Objetivos táctiles de al menos 44×44 px y etiquetas de campos comprobados automáticamente; foco, contraste y movimiento reducido siguen para revisión manual.
-- [~] Service worker, caché, modo sin conexión, recuperación y limpieza de versiones anteriores validados en navegador (`e2e-pwa.py`); falta la instalación como app y la actualización en un dispositivo real.
-- [ ] Probar Chrome Android en un dispositivo de gama baja y otro de gama media/alta, además de emulación.
+- [~] Service worker, caché, modo sin conexión, recuperación y limpieza de versiones anteriores validados en Chromium (`e2e-pwa.py`) y en Chrome Android del emulador (`audit-android.py`: manifiesto, íconos, service worker activo, shell sin red, actualización v15→v16 con una sola caché). Falta la instalación como app («Agregar a pantalla de inicio»/TWA) en un dispositivo real.
+- [~] Emulación hecha: AVD Android 14, 1,5 GB de RAM y 2 núcleos (gama baja), Chrome 113 (versión antigua, mínimo conservador). **Pendiente (requiere tus teléfonos):** un dispositivo físico de gama baja y otro de media/alta; se corre `scripts/audit-android.py` por depuración USB y se anotan las diferencias.
 - [x] La interfaz no presenta una escritura sin conexión como hecha: sin red las operaciones fallan con el aviso de desconexión y no quedan guardadas (`e2e-pwa.py`).
 - **Criterio de cierre:** checklist móvil verificada y evidencias registradas; problemas específicos de dispositivo documentados.
 
@@ -139,7 +139,7 @@
 | Backend | Auth, sesiones, reservas, ledger, asistencia, rutinas y obligaciones iniciales documentadas | Pruebas de autorización, recuperación y seguridad |
 | CI | Workflow de sintaxis, reglas de producto, TypeScript, tests, build y migraciones | Lockfile, instalación reproducible y ejecución verde |
 | Marca | Logo JPG existente; paleta oscura/roja con diferencias entre CSS | Inspección visual del original y tokens medidos |
-| Android real | No hay evidencia de prueba en dispositivo físico en este registro | Validación en dos dispositivos |
+| Android real | Emulador (Android 14, gama baja, Chrome 113) aprobado con `audit-android.py`; sin prueba en dispositivo físico | Validación en dos dispositivos |
 | Producción | No aprobada para datos reales | Seguridad, infraestructura y restauración verificadas |
 
 ## Protocolo de cada barrido
@@ -237,3 +237,49 @@ Revisión propia —**no sustituye a la auditoría independiente** de la Fase 3�
 - **Hallazgo corregido:** el costo de scrypt era N=2¹⁴, p=1, por debajo del mínimo recomendado por OWASP. Ahora es N=2¹⁶, p=2, con los parámetros dentro del hash (una contraseña vieja sigue valiendo y se actualiza al iniciar sesión), una lista cerrada de parámetros aceptables (un hash hostil no puede agotar la memoria) y `mem_limit` en el contenedor.
 - **Hallazgo corregido:** los esquemas descartaban en silencio los campos desconocidos en vez de rechazarlos (ver arriba).
 - **Dependencias:** `npm audit` sin vulnerabilidades.
+
+
+### Fase 6 en Chrome Android y limpieza del portal (11/10/2026)
+
+- **Entorno de prueba:** emulador de `~/Android` (AVD `ikigai_phone`) con `adb reverse` de los puertos 8000 y 3001 y Playwright conectado por CDP al Chrome del dispositivo. Nota: el disco del proyecto es NTFS (`fuseblk`) y no deja ejecutar binarios de `node_modules`, así que la API de desarrollo corre desde una copia en `~/src/ikigai-run/server` (rsync del código, `npm ci` allí).
+- **Hallazgos corregidos:** el texto de desarrollo «configurá la URL local en `?apiBase=…`» y «PORTAL EN DESARROLLO · URL de la API» eran visibles para cualquier usuario; ahora solo se muestran en `localhost`. `portal.html` pasó a `lang="es-AR"` con `notranslate` (Chrome ofrecía traducir la página). Caché del shell `ikigai-shell-v16`.
+- **Resultado en Chrome Android:** 0 fallos (instalación/manifiesto, service worker, texto ampliado, teclado virtual, sin conexión, actualización de caché). `audit-mobile.py` sigue en 0 incumplimientos y `e2e-pwa.py` pasa.
+- **Sigue pendiente:** los dos dispositivos físicos y la instalación real como app. El límite de intentos de login (429) protege también las corridas de prueba: tras ~5 logins seguidos hay que vaciar `rate_limit_buckets` de la base de desarrollo.
+
+
+### Revisión adversarial de seguridad (11/10/2026)
+
+Un agente de IA sin contexto previo leyó todo `server/src`, el portal, el service worker y `deploy/`, y atacó la API local con cuentas de administración, dos miembros y dos profesores. **Sin hallazgos críticos ni altos**: ningún acceso cruzado entre miembros, profesores y administración, sin escalada de privilegios (los esquemas rechazan campos de más), sin inyección SQL, sin XSS (las ~230 interpolaciones del portal escapan) y el service worker no cachea datos de usuario. Idempotencia del libro de cuentas y reservas concurrentes comprobadas con solicitudes simultáneas.
+
+**Corregido, con prueba (`test/hardening.integration.test.ts`, 107/107 tests del servidor en verde):**
+
+| Hallazgo | Corrección |
+| --- | --- |
+| M1 · el límite de intentos era solo por IP y contaba los logins exitosos (la WiFi del gimnasio, con una sola IP pública, se bloquearía sola; y quien probaba claves desde muchas IPs no tenía tope) | Tope **por cuenta** (10 fallos en 15 min, con HMAC del usuario, también para cuentas inexistentes para no revelar cuáles existen; se limpia al ingresar bien); límite por IP subido a 20/min; IPv6 agrupadas por /64 |
+| M2 · el `scrypt` (64 MiB, 0,3 s) se ejecutaba antes de validar el token de reseteo/invitación: un anónimo podía agotar CPU y memoria | Se valida el token antes de hashear la clave |
+| B1 · `/auth/%6cogin` llegaba al login sin pasar por el limitador compartido | La ruta se decodifica antes de elegir la política |
+| B2 · el nombre de usuario quedaba en la auditoría de un miembro anonimizado | Ya no se guarda (queda el `userId`); el texto libre del motivo y de las descripciones del libro sigue siendo riesgo aceptado y documentado en `DATA_PROTECTION.md` |
+| B3 · cualquier clave de 12 caracteres valía («aaaaaaaaaaaa») | Rechazo de claves obvias (pocos caracteres distintos, secuencias, lista corta común, igual a la cuenta) sin dependencias |
+| B4 · `demo.html` y `app.js` (HTML armado con datos locales) se publicaban en el mismo origen de la sesión | Ya no entran a la imagen web |
+| B6 · al cerrar sesión el DOM conservaba la clave temporal recién creada y las tablas | Se vacían la pantalla y el estado en memoria |
+| S1 · el evento «noop» del reseteo llevaba el correo escrito por un anónimo hacia el adaptador (posible relevo de correo) | El evento ya no lleva destinatario |
+| Informativos | `OPTIONS` de un origen ajeno daba 500 (ahora responde sin cabeceras CORS); `class-sessions` con año 0000 daba 500 (ahora 400, años 2000–2100) |
+| Producción | `tour.js` faltaba en la imagen web: el service worker no se instalaba. `scripts/check-deploy-files.py` lo detecta |
+
+**Pendiente (decisión de Marcos o infraestructura):**
+
+- ~~S2 · cuentas que se van~~ **Resuelto (11/10/2026):** «Accesos» tiene «Deshabilitar acceso» / «Habilitar acceso» (estado `suspended`, migración `0011`; sesiones cerradas al instante; sin anonimizar). Un profesor con `active = false` en su perfil sigue siendo independiente del acceso: para sacarle el login se usa este botón.
+- ~~S3 · reglas de reserva~~ **Resuelto (11/10/2026), decisión tomada con el criterio de una sola regla en todos los caminos:** toman lugar `trial` y `active`; `debtor`, `suspended` y `exited` no (reserva propia, turnos fijos y promoción de la lista de espera, que se salta a quien no es elegible sin sacarlo de la lista). No se exige membresía vigente. Los pagos sin tope siguen siendo intencionales (saldos a favor). Ver `DATA_MODEL.md`.
+- ~~Exportación con notas internas~~ **Decidido:** se mantiene tal cual (las notas no contienen opiniones sobre terceros).
+- **B5 · rol de base de datos.** La API corre con el usuario dueño de la base, que puede desactivar los triggers que hacen inmutables el libro de cuentas y la auditoría. Separar un rol de migraciones y otro de ejecución sin `UPDATE/DELETE` sobre esas tablas (Fase 7).
+- **Despliegue (Fase 7):** Caddy como root sin `read_only`/`cap_drop`; `migrate` recibe secretos que no usa; `Cache-Control: no-store` en `/api/*` como red de seguridad; `NODE_ENV` queda en `development` si se ejecuta fuera de Docker; las claves temporales no vencen (limitadas por intentos y por el cambio obligatorio).
+- No evaluado: Caddy y compose en ejecución, CVE de dependencias, el adaptador de correo real, XSS en navegador con cargas sembradas.
+
+
+### Entrega y primer uso (11/10/2026)
+
+- **Carga de datos reales sin tipear:** `tools/datos/` con la planilla Excel para el gimnasio (con desplegables y validaciones), un importador que valida todo antes de escribir, se apoya en la API (todo queda auditado), es repetible sin duplicar y puede **crear los accesos de todos y armar una hoja imprimible con una tarjeta por persona**. Probado de punta a punta contra la API real (16 miembros, 3 profesores, 16 horarios, 48 clases, 18 accesos; la segunda corrida no duplica). Dependencias (`openpyxl 3.1.5`, `defusedxml 0.7.1`) auditadas y aisladas de la API.
+- **Instructivo ilustrado** (`docs/instructivo/`, HTML y PDF): guía de administración con el capítulo de Accesos paso a paso (crear, entregar, restablecer, deshabilitar/habilitar) y hojas para profesores y miembros. Las 39 capturas salen de la app real y se regeneran con `tools/instructivo/`.
+- **Pulido de la interfaz hallado al preparar el instructivo:** en notebook, «Accesos» cortaba los botones «Restablecer clave» y «Deshabilitar acceso» y «Resumen» cortaba columnas (las dos columnas ahora se apilan si no entran con 560 px cada una); se quitaron textos técnicos que veía cualquier usuario («cuenta real de la API», «Cookie HttpOnly · CSRF», «guardan en PostgreSQL», «localStorage de la demo», «portal conectado»); la pantalla de ingreso habla de la persona y no del sistema; usuario y clave temporal se muestran grandes y se seleccionan de un toque.
+- **Para el dueño:** cuestionario de puesta en marcha y hoja de costos en pesos (`docs/entrega/`), con el mensaje listo para WhatsApp. Lista de control completa en [`ENTREGA.md`](ENTREGA.md).
+- **Pendiente:** dominio y servidor definitivos (Fase 7), planilla y cuestionario respondidos por el dueño, revisión jurídica (Fase 8), prueba en dos teléfonos Android reales y auditoría de seguridad externa humana.

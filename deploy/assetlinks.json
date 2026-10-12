@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ar.com.ikigaitraining.app",
+      "sha256_cert_fingerprints": [
+        "06:BC:B6:0C:29:3B:AB:D0:E9:32:47:97:CC:89:D5:D2:9A:BF:FD:AB:5D:38:34:F6:3E:76:8B:96:49:A1:74:57"
+      ]
+    }
+  }
+]

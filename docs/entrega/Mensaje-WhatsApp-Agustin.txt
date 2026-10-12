@@ -1,0 +1,80 @@
+*IKIGAI TRAINING · Puesta en marcha*
+
+*Para pagar hoy:* dominio .com.ar → *$8.500* por año (se registra en nic.ar con tu CUIT y Clave Fiscal, así queda a nombre del gimnasio).
+
+*Después, cada mes:* servidor → entre $24.000 y $29.000 (depende del dólar y los impuestos de la tarjeta).
+*Primer año completo:* entre $296.000 y $356.000.
+
+Son estimaciones con la cotización del 11/10/2026; el monto final se confirma al pagar y se rinde al peso.
+
+*Cuestionario* (respondé por escrito o audio, en cualquier orden):
+
+*1. Datos del gimnasio*
+  1. Nombre comercial exacto (cómo querés que figure en la app).
+  2. Razón social y CUIT (los pide el dominio y se usan en los documentos legales).
+  3. Dirección completa, localidad y cómo llegar (si hay algún dato útil).
+  4. Teléfono / WhatsApp de contacto y correo del gimnasio.
+  5. Instagram u otras redes que quieras mostrar.
+  6. Horarios de atención al público (de la oficina o recepción, no de las clases).
+  7. Logo: ¿tenés el archivo original (vectorial, .ai / .svg / .pdf / .eps) o quién lo diseñó? El que tenemos es una imagen con fondo negro.
+
+*2. Dominio y cuentas*
+  1. Dos o tres nombres de dominio que te gusten, en orden de preferencia (cortos, sin guiones).
+  2. El dominio tiene que quedar a nombre del gimnasio o tuyo: ¿lo registrás vos con tu CUIT y Clave Fiscal (nivel 2 o más) o querés que lo haga otra persona a tu nombre?
+  3. Un correo del gimnasio (mejor uno propio, no personal) para las cuentas de la app y para que lleguen los avisos del sistema.
+  4. ¿Quién más, además de vos, va a administrar la app? (nombre y correo de cada persona).
+
+*3. Servicios y precios*
+  1. Lista de disciplinas / servicios (Kick Boxing, Tae Kwon Do, Funcional…) y el precio mensual de lista de cada una.
+  2. ¿Hay planes combinados o por cantidad de clases por semana (2 veces, 3 veces, pase libre)? ¿Con qué precios?
+  3. ¿Hay descuentos (familiar, estudiantes, pago adelantado, pareja)? ¿Cuáles y de cuánto?
+  4. ¿Cuál es el día de vencimiento de la cuota y qué pasa si alguien se atrasa?
+  5. Medios de pago que aceptás (efectivo, transferencia, Mercado Pago, tarjeta…). ¿Querés registrar con cuál pagó cada persona?
+  6. ¿Ofrecés clase de prueba? ¿Es gratis? ¿Cuántas?
+  7. ¿Cobrás matrícula o inscripción?
+
+*4. Profesores*
+  1. Nombre completo, disciplina, teléfono y correo de cada profesor.
+  2. La app lleva la cuenta de lo que cada profesor le debe al gimnasio por usar el espacio (monto mensual fijo, independiente de las reservas). ¿Cuál es el monto de cada uno? ¿Cómo y cuándo se paga?
+  3. ¿Algún profesor da más de una disciplina?
+  4. ¿Quién da clase como suplente cuando falta alguien?
+
+*5. Horarios y cupos*
+  1. Grilla semanal completa: por cada clase, día, hora de inicio, duración, disciplina, profesor y cupo máximo.
+  2. ¿Qué días son feriados o no hay clases y cómo avisás hoy?
+  3. ¿Hay clases solo para ciertos grupos (niños, adultos, avanzados)? ¿Cómo se identifican?
+  4. ¿Los cupos se respetan siempre o a veces entra gente de más?
+
+*6. Reglas de reserva y asistencia*
+  1. Una persona puede cancelar su reserva hasta 40 minutos antes de la clase. ¿Está bien ese tiempo?
+  2. Si la clase está llena, la persona entra a una lista de espera y el sistema la promueve solo si se libera un lugar. ¿Querés eso?
+  3. Los alumnos en estado «Deudor» o «Suspendido» no pueden reservar clases nuevas (conservan las que ya tenían). ¿Está bien?
+  4. No hay multas automáticas por faltar o llegar tarde; los alumnos solo avisan. ¿Querés alguna regla, aunque sea manual?
+  5. ¿Quién toma la asistencia: cada profesor desde su celular o la recepción?
+
+*7. Alumnos*
+  1. Planilla completa con todos los alumnos activos: nombre y apellido, DNI (si lo tenés), teléfono, correo y estado (Activo, En prueba, Deudor, Suspendido).
+  2. ¿Tenés alumnos menores de edad? ¿Cómo guardás hoy la autorización de los padres? (hay que definir cómo se maneja en la app).
+  3. ¿Pedís apto médico? ¿Dónde lo guardás hoy? (la app no lo guarda por ahora).
+  4. Si hay deudas o saldos a favor de alumnos, quién debe cuánto el día que arrancamos (hoja «Saldos iniciales»).
+  5. ¿Qué alumnos tienen un turno fijo (siempre el mismo horario)?
+  6. ¿Los alumnos ya firmaron o aceptaron por escrito que el gimnasio guarde sus datos? (Por ahora esa constancia se guarda fuera de la app, en papel o en un archivo del gimnasio.)
+
+*8. Cómo se va a usar en el día a día*
+  1. ¿Qué celulares usan tus alumnos y profesores: Android o iPhone? (en Android se instala el archivo de la app; en iPhone se usa desde el navegador y se agrega a la pantalla de inicio).
+  2. ¿Quién va a cargar las reservas y cobros en recepción, y desde qué dispositivo (celular, computadora, tablet)?
+  3. ¿Hay internet estable en el gimnasio? ¿Y wifi para los alumnos?
+  4. ¿Cómo les avisás hoy a los alumnos las novedades (grupos de WhatsApp, Instagram, cartel)? La app tiene avisos dentro de la aplicación, pero no manda notificaciones al celular todavía.
+  5. ¿Querés que si alguien olvida su clave le llegue un mail para elegir otra? Para eso hace falta una casilla de correo de envío; si no, la clave se restablece desde administración.
+
+*9. Privacidad y legales*
+  1. ¿El gimnasio está inscripto en el Registro Nacional de Bases de Datos Personales (AAIP)?
+  2. ¿Quién es la persona responsable de los datos (nombre, DNI, domicilio)?
+  3. Te pasamos redactado un texto de consentimiento para que lo revisen con la abogada y lo firmen los alumnos al inscribirse. ¿Cómo querés juntar y guardar esas firmas (papel, foto, archivo)?
+  4. ¿Hay algún dato que NO quieras que quede en la app aunque sea posible?
+
+*10. Fechas y puesta en marcha*
+  1. ¿Para qué fecha querés empezar a usar la app?
+  2. Primero conviene un piloto con pocas personas (el gimnasio, 2 o 3 profesores y unos 10 alumnos de confianza) durante una o dos semanas. ¿Estás de acuerdo? ¿A quiénes sumarías?
+  3. ¿Quién es la persona de contacto para dudas durante las primeras semanas?
+  4. ¿Cómo querés pagar los servicios (dominio y servidor)? Ver hoja de costos.

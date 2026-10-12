@@ -74,6 +74,8 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `GET /api/v1/admin/accounts` | Administración | Miembros y profesores con su usuario y estado de acceso (nunca claves) | No | `accounts.integration.test.ts` |
 | `POST /api/v1/admin/accounts` | Administración | Crea el usuario y una clave temporal aleatoria de un solo uso visible; exige cambio en el primer ingreso; un perfil, una cuenta | CSRF + transacción + rate limit + auditoría (sin la clave) | `accounts.integration.test.ts` |
 | `POST /api/v1/admin/accounts/:id/reset-password` | Administración | Sólo cuentas de miembro/profesor, nunca administradores; cierra sus sesiones y exige nuevo cambio | CSRF + transacción + rate limit + auditoría | `accounts.integration.test.ts` |
+| `POST /api/v1/admin/accounts/:id/disable` | Administración | Sólo cuentas de miembro/profesor activas, nunca administradores; pasa a `suspended`, cierra sus sesiones al instante y no puede volver a entrar; no borra ni anonimiza nada | CSRF + transacción + rate limit + auditoría | `access-control.integration.test.ts` |
+| `POST /api/v1/admin/accounts/:id/enable` | Administración | Sólo cuentas `suspended` de miembro/profesor; vuelven a entrar con su clave de siempre | CSRF + transacción + rate limit + auditoría | `access-control.integration.test.ts` |
 
 ## Controles transversales
 

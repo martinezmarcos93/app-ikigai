@@ -2,8 +2,9 @@ import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
-import { hashPassword, needsRehash, verifyPassword } from "../security/password.js";
+import { hashPassword, isWeakPassword, needsRehash, verifyPassword } from "../security/password.js";
 import { csrfTokenFor, requireAllowedOrigin, requireCsrf } from "../security/csrf.js";
+import { ACCOUNT_WINDOW_SECONDS, accountIsLocked, clearAccountFailures, recordAccountFailure } from "../security/throttle.js";
 
 const SESSION_COOKIE = "ikigai_session";
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -101,7 +102,7 @@ export function registerAuthRoutes(
   app.post<{ Body: LoginBody }>(
     "/api/v1/auth/login",
     {
-      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
@@ -122,6 +123,15 @@ export function registerAuthRoutes(
       const login = (request.body.login ?? request.body.email ?? "").trim().toLowerCase();
       const password = request.body.password;
 
+      // Tope por cuenta (ademas del de IP): frena a quien prueba claves desde muchas direcciones.
+      if (await accountIsLocked(db, config.sessionSecret, login)) {
+        reply.header("Retry-After", String(ACCOUNT_WINDOW_SECONDS));
+        return reply.code(429).send({
+          error: "too_many_attempts",
+          message: "Too many failed sign-in attempts for this account. Try again in a few minutes."
+        });
+      }
+
       const result = await db.query<UserRow>(
         `SELECT u.id, u.email, u.username, u.must_change_password, u.tour_completed_at, u.password_hash, mp.id AS member_id, cp.id AS coach_id
            FROM users u
@@ -135,6 +145,7 @@ export function registerAuthRoutes(
       const user = result.rows[0];
       if (!user) {
         await verifyPassword(password, await dummyPasswordHash);
+        await recordAccountFailure(db, config.sessionSecret, login);
         return reply.code(401).send({
           error: "invalid_credentials",
           message: "Username/email or password is incorrect."
@@ -143,11 +154,14 @@ export function registerAuthRoutes(
 
       const passwordMatches = await verifyPassword(password, user.password_hash);
       if (!passwordMatches) {
+        await recordAccountFailure(db, config.sessionSecret, login);
         return reply.code(401).send({
           error: "invalid_credentials",
           message: "Username/email or password is incorrect."
         });
       }
+
+      await clearAccountFailures(db, config.sessionSecret, login);
 
       // La contrasena es correcta: si se guardo con un costo menor al actual, se vuelve a guardar con el actual.
       // Mejora de seguridad, no condicion del login: si falla no se interrumpe la entrada. La condicion
@@ -257,7 +271,6 @@ export function registerAuthRoutes(
             })()
           : {
               type: "ikigai.password_reset_noop",
-              to: email,
               requestId: request.id
             };
         try {
@@ -307,6 +320,19 @@ export function registerAuthRoutes(
       if (!requireAllowedOrigin(request, reply, config)) return;
       if (!transactionalDb) {
         return reply.code(503).send({ error: "reset_unavailable", message: "Password reset is temporarily unavailable." });
+      }
+      // El scrypt cuesta ~64 MiB y 0,3 s: no se paga por un token que no existe (un anonimo podria agotar el servidor).
+      const candidate = await db.query(
+        `SELECT 1 FROM password_reset_tokens pr JOIN users u ON u.id=pr.user_id
+          WHERE pr.token_hash=$1 AND pr.used_at IS NULL AND pr.revoked_at IS NULL
+            AND pr.expires_at > now() AND u.status='active' AND u.auth_provider='local' LIMIT 1`,
+        [tokenHash(request.body.token)]
+      );
+      if (candidate.rows.length === 0) {
+        return reply.code(400).send({ error: "invalid_reset_token", message: "The password reset link is invalid or expired." });
+      }
+      if (isWeakPassword(request.body.password)) {
+        return reply.code(400).send({ error: "weak_password", message: "That password is too easy to guess. Use a longer, less predictable one." });
       }
       const passwordHash = await hashPassword(request.body.password);
       try {
@@ -378,7 +404,7 @@ export function registerAuthRoutes(
   app.post<{ Body: { currentPassword: string; newPassword: string } }>(
     "/api/v1/auth/change-password",
     {
-      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
@@ -410,6 +436,9 @@ export function registerAuthRoutes(
       }
       if (currentPassword === newPassword) {
         return reply.code(400).send({ error: "password_unchanged", message: "The new password must be different from the current one." });
+      }
+      if (isWeakPassword(newPassword, session.row.username, session.row.email)) {
+        return reply.code(400).send({ error: "weak_password", message: "That password is too easy to guess. Use a longer, less predictable one." });
       }
       const newHash = await hashPassword(newPassword);
       await db.query("UPDATE users SET password_hash = $2, must_change_password = false, updated_at = now() WHERE id = $1", [session.row.id, newHash]);
