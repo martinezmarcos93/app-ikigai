@@ -23,6 +23,7 @@ import { registerAdminRoleRoutes } from "./routes/admin-roles.js";
 import { registerScheduleRoutes } from "./routes/schedule.js";
 import { registerNoticeRoutes } from "./routes/notices.js";
 import { registerDataProtectionRoutes } from "./routes/data-protection.js";
+import { registerBackupRoutes } from "./routes/backup.js";
 import { createHmac } from "node:crypto";
 import { resolveActor } from "./security/actor.js";
 
@@ -208,6 +209,7 @@ export async function buildApp(
     registerAdminSecurityRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerInstitutionalSettingsRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAdminRoleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerBackupRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
   }
 
   app.setNotFoundHandler((_request, reply) => {
