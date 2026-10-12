@@ -43,6 +43,8 @@ logo = source.copy()
 logo.thumbnail((680, 610), Image.Resampling.LANCZOS)
 canvas.alpha_composite(logo, ((1200 - logo.width) // 2, (630 - logo.height) // 2))
 canvas.convert("RGB").save(SOCIAL / "og-image.png", format="PNG", optimize=True)
+# Misma imagen en JPEG: WhatsApp y otras redes descartan vistas previas de mas de ~300 KB y el PNG las supera.
+canvas.convert("RGB").save(SOCIAL / "og-image.jpg", format="JPEG", quality=88, optimize=True)
 
 print("Generated PWA assets from", SOURCE.relative_to(ROOT), "source size", source.size)
 for path in sorted(OUT.glob("*.png")):
