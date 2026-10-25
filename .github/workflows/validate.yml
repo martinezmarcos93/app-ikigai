@@ -80,7 +80,9 @@ jobs:
             ...['accept-invitation.html', 'accept-invitation.js'].filter(v => !sw.includes(v)).map(v => 'service worker: ' + v)
           ];
           if (missing.length) { console.error('Invitation contract missing:', missing.join(', ')); process.exit(1); }
-          if (!portal.includes('link.hash = new URLSearchParams({ token: result.invitationToken }).toString();')) {
+          // Desde las credenciales creadas por administración (0009) el portal ya no arma links de invitación;
+          // si vuelve a armarlos, el token tiene que ir en el fragmento.
+          if (portal.includes('invitationToken') && !portal.includes('link.hash = new URLSearchParams({ token: result.invitationToken }).toString();')) {
             console.error('Invitation tokens must be shared in the URL fragment.'); process.exit(1);
           }
           if (/searchParams\.set\(["']token["']/.test(portal)) { console.error('Invitation token found in a URL query.'); process.exit(1); }
@@ -215,7 +217,11 @@ jobs:
             exit 1
           fi
       - name: Install PostgreSQL client tools for backup verification
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        # Las herramientas tienen que ser de la misma versión que el servidor (16): el pg_dump 17 del runner
+        # emite SET transaction_timeout, que Postgres 16 rechaza al restaurar.
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client-16
+          echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
       - name: Verify PostgreSQL backup and restore in an isolated database
         run: bash scripts/backup-restore-check.sh
       - name: Assert PostgreSQL integration tests are enabled
