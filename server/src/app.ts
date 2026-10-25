@@ -160,10 +160,13 @@ export async function buildApp(
   }
 
   app.get("/healthz", async () => ({ status: "ok" }));
+  // commit: lo define Render en cada despliegue; el workflow de publicacion del Worker lo usa para esperar a que la API nueva este arriba.
+  const deployedCommit = /^[0-9a-f]{7,40}$/.test(process.env.RENDER_GIT_COMMIT ?? "") ? process.env.RENDER_GIT_COMMIT : null;
   app.get("/api/v1/health", async () => ({
     status: "ok",
     service: "ikigai-api",
-    version: "v1"
+    version: "v1",
+    commit: deployedCommit
   }));
 
   const appDb = dependencies.db ?? dependencies.transactionalDb;
