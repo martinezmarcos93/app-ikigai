@@ -8,10 +8,18 @@ import {
 import { resolveActor } from "../security/actor.js";
 import { requireCsrf } from "../security/csrf.js";
 
-// La zona horaria es una constante del código (no viene del pedido): se puede escribir en el SQL.
-const TZ = `'${GYM_TIME_ZONE}'`;
-const WEEK_START_NOW = `date_trunc('week', now() AT TIME ZONE ${TZ})::date`;
-const TODAY = `(now() AT TIME ZONE ${TZ})::date`;
+// La zona horaria sale de la configuración (GYM_TIMEZONE, validada como IANA al arrancar), nunca del pedido.
+// Se escribe en el SQL solo después de comprobar que tiene la forma de un nombre de zona.
+let TZ = `'${GYM_TIME_ZONE}'`;
+let WEEK_START_NOW = "";
+let TODAY = "";
+function useTimeZone(zone: string) {
+  if (!/^[A-Za-z0-9_+\-]+(\/[A-Za-z0-9_+\-]+)*$/.test(zone)) throw new Error("GYM_TIMEZONE has an unexpected format.");
+  TZ = `'${zone}'`;
+  WEEK_START_NOW = `date_trunc('week', now() AT TIME ZONE ${TZ})::date`;
+  TODAY = `(now() AT TIME ZONE ${TZ})::date`;
+}
+useTimeZone(GYM_TIME_ZONE);
 
 interface SettingsRow extends Record<string, unknown> {
   reward_name: string;
@@ -117,6 +125,7 @@ export function registerGameRoutes(
   transactionalDb: TransactionalDatabase,
   config: AppConfig
 ): void {
+  useTimeZone(config.gymTimezone || GYM_TIME_ZONE);
   // Todo lo que necesita la pantalla del juego: reglas, saldo propio y ranking de la semana.
   app.get("/api/v1/game/summary", async (request, reply) => {
     reply.header("Cache-Control", "no-store");

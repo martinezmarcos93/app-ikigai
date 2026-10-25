@@ -34,9 +34,9 @@
     const x = canvas.getContext("2d");
     x.imageSmoothingEnabled = false;
     const el = name => root.querySelector(`[data-ip="${name}"]`);
-    let running = false, starting = false, over = false, destroyed = false;
+    let running = false, starting = false, finishing = false, over = false, destroyed = false;
     let score = 0, reps = 0, perfectReps = 0, best = Number(hooks.best || 0), left = GAME_SECONDS;
-    let last = performance.now(), bar = 0, barDir = 1, pose = 0, flash = 0, lastRepAt = -Infinity, raf = 0, resultText = "";
+    let last = performance.now(), endsAt = 0, bar = 0, barDir = 1, pose = 0, flash = 0, lastRepAt = -Infinity, raf = 0, resultText = "";
 
     const rect = (a, b, w, h, col) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
     const txt = (s, a, b, size, col = "#f3f3f5") => { x.fillStyle = col; x.font = `bold ${size}px monospace`; x.textAlign = "center"; x.fillText(s, a, b); };
@@ -98,7 +98,7 @@
     function hud() { el("score").textContent = pad(score, 4); el("reps").textContent = pad(reps, 2); el("best").textContent = pad(best, 4); }
 
     async function start() {
-      if (starting || running || destroyed) return;
+      if (starting || running || finishing || destroyed) return;
       starting = true; over = false; resultText = ""; draw();
       try {
         if (hooks.onStart) await hooks.onStart();
@@ -111,12 +111,15 @@
       starting = false;
       score = 0; reps = 0; perfectReps = 0; left = GAME_SECONDS; running = true; pose = 0; flash = 0; lastRepAt = -Infinity;
       last = performance.now();
+      endsAt = last + GAME_SECONDS * 1000;   // reloj real: un teléfono lento no alarga la partida
       el("start").textContent = "EN JUEGO…"; el("start").disabled = true;
       setHelp("<b>EN JUEGO:</b> tocá <b>LEVANTAR</b> para cada repetición. En la zona roja del centro sumás puntos extra. ¡No pares!");
       hud(); draw();
     }
     function lift() {
-      if (!running) { if (!starting) start(); return; }
+      // Antes de la primera partida, LEVANTAR también arranca; al terminar no (los toques de último segundo
+      // no tienen que empezar otra partida sin querer): para jugar de nuevo está «OTRA PARTIDA».
+      if (!running) { if (!starting && !finishing && !over) start(); return; }
       const now = performance.now();
       if (now - lastRepAt < REP_COOLDOWN_MS) return;   // la barra todavía está bajando
       lastRepAt = now;
@@ -127,7 +130,7 @@
       setTimeout(() => { pose = 0; flash = 0; if (running && !destroyed) draw(); }, 230);
     }
     async function finish() {
-      running = false; over = true;
+      running = false; over = true; finishing = true;
       el("start").disabled = true; el("start").textContent = "REGISTRANDO…";
       setHelp("<b>ENTRENAMIENTO COMPLETADO.</b> Registrando tu resultado…");
       draw();
@@ -143,6 +146,7 @@
         resultText = "NO SE REGISTRÓ";
         setHelp(`<b>NO SE PUDO REGISTRAR.</b> ${escapeHtml(error?.message || "Revisá la conexión.")}`);
       }
+      finishing = false;
       if (destroyed) return;
       el("start").disabled = false; el("start").textContent = "▶ OTRA PARTIDA";
       hud(); draw();
@@ -151,7 +155,7 @@
       if (destroyed) return;
       const dt = Math.min((t - last) / 1000, 0.05); last = t;
       if (running) {
-        left -= dt;
+        left = Math.max(0, (endsAt - t) / 1000);
         bar += barDir * dt * BAR_SPEED;
         if (bar > 0.98) { bar = 0.98; barDir = -1; }
         if (bar < 0.02) { bar = 0.02; barDir = 1; }

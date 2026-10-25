@@ -175,6 +175,7 @@
     updateInstitutionSettings: body => request("/admin/institution-settings", { method: "PATCH", body }),
     linkCoachToAdmin: body => request("/admin/users/link-coach", { method: "POST", body }),
     markTourCompleted: () => request("/auth/tour-completed", { method: "POST", body: {} }),
+    markReleaseNotesSeen: version => request("/auth/release-notes-seen", { method: "POST", body: { version } }),
     changePassword: (currentPassword, newPassword) => request("/auth/change-password", { method: "POST", body: { currentPassword, newPassword } }),
     listAccounts: () => request("/admin/accounts"),
     createAccount: body => request("/admin/accounts", { method: "POST", body }),

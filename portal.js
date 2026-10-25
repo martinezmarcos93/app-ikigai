@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [] };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [], releaseNotesSeen: null };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -147,7 +147,7 @@
     state.lastCredentials = "";
     // Al cerrar sesion no queda nada de la persona anterior: ni en memoria ni en el DOM (clave temporal recien creada,
     // tablas de miembros, cuenta corriente) para quien use el mismo aparato despues.
-    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [] });
+    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [], releaseNotesSeen: null });
     $("#pageContent").replaceChildren();
     if (window.IkigaiTour) window.IkigaiTour.stop();
     $("#portalPanel").classList.remove("password-pending");
@@ -1047,7 +1047,7 @@
           field("Tope de puntos por día", "dailyPointsCap", "number", { value: s.dailyPointsCap, required: true, min: 0, max: 100000, step: 1 }) +
           selectField("Premio semanal", "weeklyPrizeEnabled", [{ value: "true", label: "Activado" }, { value: "false", label: "Desactivado" }], String(s.weeklyPrizeEnabled)),
           "Guardar reglas",
-          "Una partida muy buena da entre 500 y 800 puntos. El tope diario evita que alguien junte premios en una sola tarde.")}
+          "Una partida muy buena da alrededor de 1.000 puntos. El tope diario evita que alguien junte premios en una sola tarde: con los valores de fábrica (5.000 por premio, 1.000 por día) hacen falta al menos 5 días de juego.")}
       </div>
       <section class="panel" style="margin-top:16px"><h2 class="section-title">Últimos canjes</h2>${redemptions}</section>`;
   }
@@ -1710,10 +1710,12 @@
       const result = await api.login(valueOf(formNode,"login"),new FormData(formNode).get("password"));
       state.mustChange = result.mustChangePassword === true;
       state.tourDone = result.tourCompleted === true;
+      state.releaseNotesSeen = result.releaseNotesSeen || null;
       setAuthenticated(result.user);
       await renderView("dashboard");
       refreshUnread();
       maybeStartTour();
+      maybeShowReleaseNotes();
     } catch (error) { showError(error); }
     finally { button.disabled=false; button.innerHTML='Ingresar <span aria-hidden="true">↗</span>'; }
   });
@@ -1746,12 +1748,50 @@
   function markTourDone() {
     state.tourDone = true;
     api.markTourCompleted().catch(() => { /* si falla, la guia se ofrece otra vez en el proximo ingreso: no es grave */ });
+    setTimeout(maybeShowReleaseNotes, 300);
   }
   function startTour() {
     if (!window.IkigaiTour || !isAdmin() || state.mustChange) return;
     window.IkigaiTour.start(TOUR_STEPS, { navigate: view => renderView(view), onClose: markTourDone });
   }
   function maybeStartTour() { if (isAdmin() && !state.mustChange && !state.tourDone) startTour(); }
+
+
+  // ---- Novedades de la versión (globos que cada persona ve una sola vez) ----
+  // Para anunciar otra actualización: cambiar RELEASE_NOTES_VERSION y los pasos. Quien ya cerró la anterior ve la nueva.
+  const RELEASE_NOTES_VERSION = "2026-10-25";
+  function releaseNoteSteps() {
+    const steps = [{ view: null, target: ".portal-brand", title: "¡Hay novedades en Ikigai!", text: "Sumamos cosas nuevas a la app. Te las mostramos en un minuto." }];
+    const game = isAdmin()
+      ? "Iron Pixel: un juego de pesas en pixel art para todos. Los miembros suman puntos para canjear por una barra de cereal, y el mejor puntaje de cada semana se lleva una de regalo."
+      : isCoach() && !isMember()
+        ? "Iron Pixel: un juego de pesas en pixel art. Podés jugar y ver el ranking; los puntos y premios son para los miembros."
+        : "Iron Pixel: levantá la barra en 30 segundos y sumá puntos. Juntando puntos te llevás una barra de cereal, y el mejor puntaje de la semana gana una de regalo.";
+    steps.push({ view: null, target: ".nav-link[data-view='game']", title: "Nuevo: Iron Pixel", text: game });
+    if (isAdmin()) steps.push({ view: null, target: ".nav-link[data-view='rewards']", title: "Nuevo: Premios", text: "Acá ves los puntos de cada miembro, entregás la barrita cuando la retiran (descuenta los puntos solo) y registrás el premio de la semana. También definís cuántos puntos vale cada premio." });
+    steps.push({
+      view: null, target: ".nav-link[data-view='catalog']", title: "Nuevo: Productos",
+      text: isAdmin()
+        ? "Cargá lo que vende el gimnasio (proteína, creatina, barras…) con precio y stock. Los miembros reservan desde la app y vos marcás la entrega cuando pagan y retiran."
+        : isMember() && !isCoach()
+          ? "Mirá lo que vende el gimnasio (proteína, creatina, barras y más) y reservá lo que quieras. Lo pagás y lo retirás en recepción."
+          : "Ahora podés ver el catálogo de productos que vende el gimnasio."
+    });
+    if (isAdmin() || isCoach()) steps.push({ view: null, target: ".nav-link[data-view='routines']", title: "Rutinas: ahora también los profes", text: "Los profesores pueden cargar ejercicios, armar rutinas y crear versiones nuevas, además de asignarlas a sus alumnos." });
+    return steps;
+  }
+  function maybeShowReleaseNotes() {
+    if (!window.IkigaiTour || state.mustChange || !state.user || state.releaseNotesSeen === RELEASE_NOTES_VERSION) return;
+    if (isAdmin() && !state.tourDone) return;   // una administración nueva primero hace la guía de primer uso
+    const markSeen = () => {
+      state.releaseNotesSeen = RELEASE_NOTES_VERSION;
+      api.markReleaseNotesSeen(RELEASE_NOTES_VERSION).catch(() => { /* si falla, las novedades vuelven a aparecer en el próximo ingreso */ });
+    };
+    window.IkigaiTour.start(releaseNoteSteps(), {
+      navigate: async view => { if (view && view !== state.currentView) await renderView(view); },
+      onClose: markSeen, label: "Novedades", counterLabel: "Novedad", skipLabel: "Cerrar", finishLabel: "¡Entendido!"
+    });
+  }
 
   function hideBootSplash() {
     const splash = $("#bootSplash");
@@ -1774,10 +1814,12 @@
       const result = await api.me();
       state.mustChange = result.mustChangePassword === true;
       state.tourDone = result.tourCompleted === true;
+      state.releaseNotesSeen = result.releaseNotesSeen || null;
       setAuthenticated(result.user);
       await renderView("dashboard");
       refreshUnread();
       maybeStartTour();
+      maybeShowReleaseNotes();
     } catch (error) {
       setUnauthenticated();
       if (error.status !== 401) showError(error);

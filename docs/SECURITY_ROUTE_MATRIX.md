@@ -16,6 +16,7 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `GET /api/v1/auth/me` | Sesión válida | Sesión vigente y usuario activo | No | `auth.test.ts` |
 | `POST /api/v1/auth/logout` | Sesión válida o cierre idempotente sin sesión | CSRF + Origin cuando hay sesión; Origin si no la hay | Revocación de sesión | `auth.test.ts` |
 | `POST /api/v1/auth/tour-completed` | Sesión válida | Solo marca la propia guía de primer uso como vista | CSRF | `accounts.integration.test.ts` |
+| `POST /api/v1/auth/release-notes-seen` | Cualquier sesión | Solo marca la propia cuenta; versión con formato acotado | CSRF | `release-notes.integration.test.ts` |
 | `POST /api/v1/auth/change-password` | Sesión válida (también con clave temporal pendiente) | Exige la clave actual; la nueva ≥ 12 caracteres y distinta; cierra las demás sesiones | CSRF + rate limit + auditoría | `accounts.integration.test.ts` |
 | `GET /api/v1/members` | Administración | Paginación acotada | No | `members.test.ts` |
 | `GET /api/v1/members/:id` | Administración, miembro propio o profesor asignado | Alcance comprobado en servidor; campos minimizados | No | `members.test.ts` |
