@@ -25,6 +25,7 @@ import { registerNoticeRoutes } from "./routes/notices.js";
 import { registerDataProtectionRoutes } from "./routes/data-protection.js";
 import { registerBackupRoutes } from "./routes/backup.js";
 import { registerGameRoutes } from "./routes/game.js";
+import { registerCatalogRoutes } from "./routes/catalog.js";
 import { createHmac } from "node:crypto";
 import { resolveActor } from "./security/actor.js";
 
@@ -212,6 +213,7 @@ export async function buildApp(
     registerAdminRoleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerBackupRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerGameRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    registerCatalogRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
   }
 
   app.setNotFoundHandler((_request, reply) => {

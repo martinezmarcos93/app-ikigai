@@ -132,6 +132,8 @@ export const BACKUP_TABLES = [
   "game_runs",
   "reward_points",
   "weekly_prizes",
+  "products",
+  "product_reservations",
   "audit_events"
 ] as const;
 

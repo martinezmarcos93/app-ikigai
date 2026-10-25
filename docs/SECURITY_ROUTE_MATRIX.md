@@ -61,6 +61,13 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/admin/rewards/redeem` | Administración | Saldo esperado obligatorio (evita doble canje); saldo suficiente | CSRF + transacción + auditoría | `game.integration.test.ts` |
 | `POST /api/v1/admin/rewards/weekly-prizes` | Administración | Solo semanas cerradas; ganador calculado por el servidor; una entrega por semana | CSRF + transacción + auditoría | `game.integration.test.ts` |
 | `PATCH /api/v1/admin/rewards/settings` | Administración | Límites de puntos por premio y tope diario | CSRF + transacción + auditoría | `game.integration.test.ts` |
+| `GET /api/v1/products` | Cualquier sesión | Miembros y profesores ven solo productos activos | No | `catalog.integration.test.ts` |
+| `POST /api/v1/admin/products` | Administración | Esquema de producto; precio opcional | CSRF + transacción + auditoría | `catalog.integration.test.ts` |
+| `PATCH /api/v1/admin/products/:id` | Administración | Solo cambia los campos enviados | CSRF + transacción + auditoría (antes/después) | `catalog.integration.test.ts` |
+| `POST /api/v1/products/:id/reservations` | Miembro | Producto activo y con stock; máximo 5 reservas pendientes | CSRF + transacción | `catalog.integration.test.ts` |
+| `GET /api/v1/reservations` | Miembro (las propias) o administración (todas) | Un miembro no ve reservas ajenas | No | `catalog.integration.test.ts` |
+| `POST /api/v1/reservations/:id/cancel` | Miembro dueño o administración | Reserva ajena responde 404; solo pendientes | CSRF + transacción + auditoría | `catalog.integration.test.ts` |
+| `POST /api/v1/admin/reservations/:id/deliver` | Administración | Solo pendientes | CSRF + transacción + auditoría | `catalog.integration.test.ts` |
 | `GET /api/v1/services` | Cualquier usuario autenticado | Servicios inactivos sólo visibles para administración | No | `memberships.integration.test.ts` |
 | `POST /api/v1/services` | Administración | Esquema y precio exacto | CSRF + transacción + auditoría | `memberships.integration.test.ts` |
 | `PATCH /api/v1/services/:id` | Administración | Cambios actuales no reescriben precios históricos | CSRF + transacción + auditoría minimizada | `memberships.integration.test.ts` |

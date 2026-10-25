@@ -211,6 +211,14 @@
     redeemReward: (memberId, expectedBalance) => request("/admin/rewards/redeem", { method: "POST", body: { memberId, expectedBalance } }),
     deliverWeeklyPrize: weekStart => request("/admin/rewards/weekly-prizes", { method: "POST", body: { weekStart } }),
     updateRewardSettings: body => request("/admin/rewards/settings", { method: "PATCH", body }),
+    // Catálogo de productos y reservas (sin pagos: se cobra y retira en el mostrador).
+    listProducts: () => request("/products"),
+    createProduct: body => request("/admin/products", { method: "POST", body }),
+    updateProduct: (productId, body) => request(`/admin/products/${id(productId)}`, { method: "PATCH", body }),
+    reserveProduct: (productId, body) => request(`/products/${id(productId)}/reservations`, { method: "POST", body }),
+    listReservations: () => request("/reservations"),
+    cancelReservation: reservationId => request(`/reservations/${id(reservationId)}/cancel`, { method: "POST", body: {} }),
+    deliverReservation: reservationId => request(`/admin/reservations/${id(reservationId)}/deliver`, { method: "POST", body: {} }),
     listClassSessions: (filters = {}) => {
       const limit = filters.limit === undefined ? 50 : Number(filters.limit);
       const offset = filters.offset === undefined ? 0 : Number(filters.offset);

@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0 };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [] };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases", game:"Iron Pixel", rewards:"Premios" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases", game:"Iron Pixel", rewards:"Premios", catalog:"Productos" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -147,7 +147,7 @@
     state.lastCredentials = "";
     // Al cerrar sesion no queda nada de la persona anterior: ni en memoria ni en el DOM (clave temporal recien creada,
     // tablas de miembros, cuenta corriente) para quien use el mismo aparato despues.
-    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0 });
+    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [] });
     $("#pageContent").replaceChildren();
     if (window.IkigaiTour) window.IkigaiTour.stop();
     $("#portalPanel").classList.remove("password-pending");
@@ -1052,6 +1052,85 @@
       <section class="panel" style="margin-top:16px"><h2 class="section-title">Últimos canjes</h2>${redemptions}</section>`;
   }
 
+
+  // ---------------- Catálogo de productos ----------------
+  const CATALOG_ERRORS = {
+    product_unavailable: "Ese producto no tiene stock en este momento.",
+    too_many_reservations: "Ya tenés 5 reservas pendientes. Retirá o cancelá alguna antes de hacer otra.",
+    reservation_closed: "Esa reserva ya estaba cerrada."
+  };
+  const catalogError = error => {
+    const text = CATALOG_ERRORS[error?.code];
+    return text ? Object.assign(new Error(text), { status: error.status }) : error;
+  };
+  const RESERVATION_STATUS = { pending: "Pendiente", delivered: "Entregada", cancelled: "Cancelada" };
+  const priceLabel = price => price === null || price === undefined ? "Consultar precio" : money(price);
+  const CATEGORY_SUGGESTIONS = ["Proteínas", "Creatina", "Barras", "Bebidas", "Suplementos", "Accesorios", "Indumentaria"];
+
+  function productCard(p, canReserve) {
+    const stock = p.available ? `<span class="badge success">Disponible</span>` : `<span class="badge warn">Sin stock</span>`;
+    const reserve = canReserve && p.available ? `<form class="product-reserve" data-form="reserve-product"><input type="hidden" name="productId" value="${esc(p.id)}">
+        <label>Cantidad <select name="quantity">${[1,2,3,4,5].map(n => `<option value="${n}">${n}</option>`).join("")}</select></label>
+        <label class="grow">Nota (opcional) <input name="note" type="text" maxlength="200" placeholder="Ej. sabor vainilla, lo retiro el jueves"></label>
+        <button class="button primary small" type="submit">Reservar</button></form>` : "";
+    return `<article class="panel product-card"><div class="section-title"><span>${esc(p.name)}</span>${stock}</div>
+      <p class="muted">${esc(p.category)}</p>${p.description ? `<p>${esc(p.description)}</p>` : ""}
+      <p class="product-price">${esc(priceLabel(p.price))}</p>${reserve}</article>`;
+  }
+  function reservationTable(items, { admin = false, own = false } = {}) {
+    const headers = ["Fecha", ...(admin ? ["Miembro"] : []), "Producto", "Cant.", "Precio ref.", "Nota", "Estado", ...(admin || own ? ["Acción"] : [])];
+    return table(headers, items.map(r => row([
+      esc(new Date(r.created_at).toLocaleDateString("es-AR")),
+      ...(admin ? [esc(r.member_name)] : []),
+      esc(r.product_name), esc(r.quantity), esc(priceLabel(r.unit_price_snapshot)), esc(r.note || "—"),
+      esc(RESERVATION_STATUS[r.status] || r.status),
+      ...(admin || own ? [r.status !== "pending" ? "—" : `${admin ? `<button class="button primary small" type="button" data-action="deliver-reservation" data-id="${esc(r.id)}" data-name="${esc(r.member_name)}">Entregada</button> ` : ""}<button class="button ghost small" type="button" data-action="cancel-reservation" data-id="${esc(r.id)}">Cancelar</button>`] : [])
+    ])));
+  }
+  async function renderCatalog() {
+    setPage("Productos");
+    setLoading("Consultando el catálogo…");
+    const [catalog, reservations] = await Promise.all([api.listProducts(), api.listReservations()]);
+    state.products = catalog.products || [];
+    const active = state.products.filter(p => p.active);
+    const byCategory = new Map();
+    for (const p of active) { if (!byCategory.has(p.category)) byCategory.set(p.category, []); byCategory.get(p.category).push(p); }
+    const vitrine = active.length
+      ? [...byCategory.entries()].map(([category, items]) => `<h2 class="section-title" style="margin-top:8px">${esc(category)}</h2><div class="product-grid">${items.map(p => productCard(p, catalog.canReserve)).join("")}</div>`).join("")
+      : empty(isAdmin() ? "Todavía no cargaste productos. Usá el formulario de abajo." : "Todavía no hay productos cargados.");
+    let extra = "";
+    if (catalog.canReserve && !isAdmin()) {
+      extra = `<section class="panel" style="margin-top:16px"><h2 class="section-title">Mis reservas</h2>
+        <p class="muted">Reservás desde acá y pagás y retirás en recepción.</p>
+        ${reservationTable([...(reservations.pending || []), ...(reservations.recent || [])], { own: true })}</section>`;
+    }
+    if (isAdmin()) {
+      const datalist = `<datalist id="productCategories">${[...new Set([...CATEGORY_SUGGESTIONS, ...state.products.map(p => p.category)])].map(c => `<option value="${esc(c)}">`).join("")}</datalist>`;
+      const manage = table(["Producto", "Categoría", "Precio", "Stock", "Estado", "Acciones"], state.products.map(p => row([
+        esc(p.name), esc(p.category), esc(priceLabel(p.price)),
+        p.available ? "Disponible" : "Sin stock",
+        p.active ? `<span class="badge success">Visible</span>` : `<span class="badge">Oculto</span>`,
+        `<button class="button ghost small" type="button" data-action="edit-product" data-id="${esc(p.id)}">Editar</button>
+         <button class="button ghost small" type="button" data-action="toggle-product-stock" data-id="${esc(p.id)}" data-value="${p.available ? "false" : "true"}">${p.available ? "Marcar sin stock" : "Hay stock"}</button>
+         <button class="button ghost small" type="button" data-action="toggle-product-active" data-id="${esc(p.id)}" data-value="${p.active ? "false" : "true"}">${p.active ? "Ocultar" : "Mostrar"}</button>`
+      ])));
+      extra = `<section class="panel" style="margin-top:16px"><h2 class="section-title">Reservas pendientes (${(reservations.pending || []).length})</h2>
+          ${reservationTable(reservations.pending || [], { admin: true })}</section>
+        <div class="two-col" style="margin-top:16px">
+          ${form("Nuevo producto", "create-product",
+            field("Nombre", "name", "text", { required: true, maxLength: 120, placeholder: "Ej. Whey protein 1 kg" }) +
+            `<div class="field"><label for="f-category">Categoría</label><input id="f-category" name="category" list="productCategories" required maxlength="60" placeholder="Ej. Proteínas">${datalist}</div>` +
+            field("Precio (vacío = consultar)", "price", "number", { min: 0, step: "0.01" }) +
+            selectField("Stock", "available", [{ value: "true", label: "Disponible" }, { value: "false", label: "Sin stock" }], "true") +
+            textareaField("Descripción", "description", { rows: 3, maxLength: 1000 }), "Agregar producto",
+            "Los miembros ven el catálogo y reservan; el cobro y la entrega se hacen en el mostrador.")}
+          <section class="panel"><h2 class="section-title">Productos (${state.products.length})</h2>${manage}</section>
+        </div><div id="productEditor"></div>
+        <section class="panel" style="margin-top:16px"><h2 class="section-title">Últimas reservas resueltas</h2>${reservationTable(reservations.recent || [], { admin: true })}</section>`;
+    }
+    $("#pageContent").innerHTML = `${vitrine}${extra}`;
+  }
+
   async function renderView(view = state.currentView) {
     if (state.mustChange) view = "my-password";   // con la clave temporal pendiente no hay otra pantalla
     state.currentView = view;
@@ -1076,6 +1155,7 @@
       else if (view === "institution-settings") await renderInstitutionSettings();
       else if (view === "game") await renderGame();
       else if (view === "rewards") await renderRewards();
+      else if (view === "catalog") await renderCatalog();
       else renderDenied("No disponible","Esta sección todavía no está conectada.");
     } catch (error) {
       if (error?.status === 401) { setUnauthenticated(); showNotice("La sesión venció. Iniciá sesión otra vez."); return; }
@@ -1277,6 +1357,34 @@
         await api.publishAnnouncement({ title: v("title"), body: v("body"), audience: v("audience") });
         await renderAnnouncements();
         showNotice("Aviso publicado.", "success");
+        return;
+      }
+      if (kind === "create-product") {
+        const payload = { name: v("name"), category: v("category"), available: v("available") === "true" };
+        if (v("price") !== "") payload.price = Number(v("price"));
+        if (v("description")) payload.description = v("description");
+        await api.createProduct(payload);
+        await renderCatalog();
+        showNotice("Producto agregado.", "success");
+        return;
+      }
+      if (kind === "edit-product") {
+        await api.updateProduct(v("productId"), {
+          name: v("name"), category: v("category"),
+          price: v("price") === "" ? null : Number(v("price")),
+          description: v("description") || null
+        });
+        await renderCatalog();
+        showNotice("Producto actualizado.", "success");
+        return;
+      }
+      if (kind === "reserve-product") {
+        const payload = { quantity: Number(v("quantity")) };
+        if (v("note")) payload.note = v("note");
+        try { await api.reserveProduct(v("productId"), payload); }
+        catch (error) { throw catalogError(error); }
+        await renderCatalog();
+        showNotice("¡Reservado! Pagalo y retiralo en recepción.", "success");
         return;
       }
       if (kind === "reward-settings") {
@@ -1533,6 +1641,41 @@
         catch (error) { throw gameError(error); }
         await renderRewards();
         showNotice("Premio semanal registrado.", "success");
+      }
+      else if (action.dataset.action === "edit-product") {
+        const p = (state.products || []).find(item => item.id === action.dataset.id);
+        if (!p) return;
+        const editor = $("#productEditor");
+        editor.innerHTML = `<section class="panel" style="margin-top:16px"><h2 class="section-title">Editar «${esc(p.name)}»</h2>
+          <form data-form="edit-product"><input type="hidden" name="productId" value="${esc(p.id)}"><div class="form-grid">
+          ${field("Nombre", "name", "text", { required: true, maxLength: 120, value: p.name })}
+          ${field("Categoría", "category", "text", { required: true, maxLength: 60, value: p.category })}
+          ${field("Precio (vacío = consultar)", "price", "number", { min: 0, step: "0.01", value: p.price ?? "" })}
+          <div class="field full-span"><label for="f-edit-description">Descripción</label><textarea id="f-edit-description" name="description" rows="3" maxlength="1000">${esc(p.description || "")}</textarea></div>
+          </div><div class="form-actions"><button class="button primary" type="submit">Guardar cambios</button></div>
+          <p class="footer-note">Las reservas ya hechas conservan el precio de cuando se reservaron.</p></form></section>`;
+        editor.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      else if (action.dataset.action === "toggle-product-stock" || action.dataset.action === "toggle-product-active") {
+        const key = action.dataset.action === "toggle-product-stock" ? "available" : "active";
+        action.disabled = true;
+        await api.updateProduct(action.dataset.id, { [key]: action.dataset.value === "true" });
+        await renderCatalog();
+      }
+      else if (action.dataset.action === "deliver-reservation") {
+        action.disabled = true;
+        try { await api.deliverReservation(action.dataset.id); }
+        catch (error) { throw catalogError(error); }
+        await renderCatalog();
+        showNotice(`Reserva de ${action.dataset.name} marcada como entregada.`, "success");
+      }
+      else if (action.dataset.action === "cancel-reservation") {
+        if (!window.confirm("¿Cancelar esta reserva?")) return;
+        action.disabled = true;
+        try { await api.cancelReservation(action.dataset.id); }
+        catch (error) { throw catalogError(error); }
+        await renderCatalog();
+        showNotice("Reserva cancelada.", "success");
       }
       else if (action.dataset.action === "start-tour") { startTour(); }
     } catch (error) { showError(error); }
