@@ -635,8 +635,8 @@
         ${routineTable(routine.exercises || [])}
         <div class="form-actions">
           <button class="button primary small" type="button" data-action="pick-routine" data-version="${esc(routine.version_id)}">Asignar a un miembro</button>
-          ${isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-routine" data-id="${esc(routine.id)}">Nueva versión</button>` : ""}
-        </div></article>`).join("") : empty(isAdmin() ? "Todavía no hay rutinas. Creá ejercicios y armá la primera." : "Todavía no hay rutinas creadas por administración.");
+          <button class="button ghost small" type="button" data-action="edit-routine" data-id="${esc(routine.id)}">Nueva versión</button>
+        </div></article>`).join("") : empty("Todavía no hay rutinas. Creá ejercicios y armá la primera.");
     const routineOpts = state.routines.map(r => ({ value: r.version_id, label: `${r.name} · versión ${r.version_number}` }));
     const memberOpts = state.assignable.map(m => ({ value: m.id, label: m.full_name }));
     const assign = routineOpts.length && memberOpts.length
@@ -651,7 +651,8 @@
     const viewer = memberOpts.length ? `<section class="panel"><h2 class="section-title">Rutinas de un miembro</h2>
         <form data-form="select-routine-member"><div class="form-grid">${selectField("Miembro", "memberId", memberOpts, state.routineMember)}</div><div class="form-actions"><button class="button" type="submit">Ver rutinas asignadas</button></div></form>
         <div id="routineAssignments" style="margin-top:12px"></div></section>` : "";
-    const adminForms = isAdmin() ? `
+    // Administración y profesores cargan ejercicios y arman rutinas.
+    const adminForms = `
       <div class="two-col" style="margin-top:16px">
         ${form("Nuevo ejercicio", "create-exercise",
           field("Nombre", "name", "text", { required: true, maxLength: 120, wide: true }) +
@@ -665,7 +666,7 @@
           ${field("Nombre", "name", "text", { required: true, maxLength: 120 })}${field("Disciplina", "discipline", "text", { required: true, maxLength: 120 })}${field("Nivel", "level", "text", { required: true, maxLength: 80, placeholder: "Ej. Inicial" })}${field("Notas de la rutina", "notes", "text", { maxLength: 2000 })}
         </div>${routineBuilder([])}<div class="form-actions"><button class="button primary" type="submit">Crear rutina</button></div></form>` : empty("Primero creá al menos un ejercicio.")}
       </section>
-      <div id="routineEditor"></div>` : "";
+      <div id="routineEditor"></div>`;
     $("#pageContent").innerHTML = `<div data-tour="routine-library">${library}</div><div class="two-col" style="margin-top:16px">${assign}${viewer}</div>${adminForms}`;
   }
   function renderAssignmentList(assignments) {

@@ -64,6 +64,9 @@ function sendError(reply: FastifyReply, error: unknown) {
   });
   throw error;
 }
+// Administracion y profesores arman la biblioteca de ejercicios y rutinas (pedido del gimnasio, 22/10/2026).
+// Las versiones son inmutables: una version nueva no cambia lo que ya tiene asignado un miembro.
+const isStaff = (roles: string[]) => roles.includes("admin") || roles.includes("coach");
 function validateExercises(exercises: RoutineExerciseInput[]) {
   if (exercises.some((item) => !item.sets.trim() || (!item.reps?.trim() && item.durationSeconds === undefined))) {
     throw new RoutineError(400, "invalid_routine_exercise", "Each exercise needs sets and either repetitions or duration.");
@@ -126,7 +129,7 @@ export function registerRoutineRoutes(
     reply.header("Cache-Control", "no-store");
     const actor = await resolveActor(request, db);
     if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
-    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Only administration can create exercises." });
+    if (!isStaff(actor.roles)) return reply.code(403).send({ error: "forbidden", message: "Only administration and coaches can create exercises." });
     if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
     const name = request.body.name.trim();
     if (!name) return reply.code(400).send({ error: "invalid_exercise", message: "Exercise name cannot be empty." });
@@ -174,7 +177,7 @@ export function registerRoutineRoutes(
     reply.header("Cache-Control", "no-store");
     const actor = await resolveActor(request, db);
     if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
-    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Only administration can create routines." });
+    if (!isStaff(actor.roles)) return reply.code(403).send({ error: "forbidden", message: "Only administration and coaches can create routines." });
     if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
     const name = request.body.name.trim();
     const discipline = request.body.discipline.trim();
@@ -217,7 +220,7 @@ export function registerRoutineRoutes(
     reply.header("Cache-Control", "no-store");
     const actor = await resolveActor(request, db);
     if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
-    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Only administration can create routine versions." });
+    if (!isStaff(actor.roles)) return reply.code(403).send({ error: "forbidden", message: "Only administration and coaches can create routine versions." });
     if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
     try {
       const version = await transactionalDb.transaction(async (tx) => {

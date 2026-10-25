@@ -21,7 +21,7 @@ Convertir el prototipo navegable en una aplicación de gestión de gimnasio fiab
 - Reservas y cancelaciones respetan el corte de 40 minutos acordado. La lista de espera debe promover al siguiente socio cuando se libera un cupo y registrar el cambio.
 - Ausencias y llegadas tarde se registran sin sanciones automáticas por defecto.
 - Cada profesor cobra directamente a sus alumnos y mantiene con Agustín una obligación mensual fija por uso del espacio, independiente de la asistencia. No calcular porcentajes sobre reservas.
-- Sólo administración crea ejercicios y rutinas; los profesores pueden asignar o combinar rutinas dentro de su alcance. Los miembros sólo consultan sus propios datos.
+- Administración y profesores crean ejercicios y rutinas (pedido del gimnasio, 22/10/2026); los profesores asignan rutinas solo dentro de su alcance. Los miembros sólo consultan sus propios datos.
 - Los permisos deben validarse en el servidor, no sólo ocultando botones en el cliente.
 
 ## Fases de implementación
