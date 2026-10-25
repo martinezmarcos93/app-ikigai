@@ -15,7 +15,7 @@ test("health endpoints expose status only and include security headers", async (
   const versioned = await app.inject({ method: "GET", url: "/api/v1/health" });
   assert.equal(versioned.statusCode, 200);
   assert.deepEqual(versioned.json(), {
-    status: "ok", service: "ikigai-api", version: "v1"
+    status: "ok", service: "ikigai-api", version: "v1", commit: null
   });
 });
 
