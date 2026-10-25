@@ -198,6 +198,19 @@
     createRoutineVersion: (routineId, body) => request(`/routines/${id(routineId)}/versions`, { method: "POST", body }),
     listRoutineAssignments: memberId => request(`/members/${id(memberId)}/routine-assignments`),
     assignRoutine: (memberId, body) => request(`/members/${id(memberId)}/routine-assignments`, { method: "POST", body }),
+    // Juego Iron Pixel y premios: el puntaje lo calcula el servidor a partir de las repeticiones.
+    getGameSummary: () => request("/game/summary"),
+    startGameRun: () => request("/game/runs", { method: "POST", body: {} }),
+    finishGameRun: (runId, reps, perfectReps) => {
+      if (![reps, perfectReps].every(n => Number.isSafeInteger(n) && n >= 0 && n <= 1000)) {
+        throw new ApiError(0, "invalid_game_result", "El resultado de la partida no es válido.");
+      }
+      return request(`/game/runs/${id(runId)}/finish`, { method: "POST", body: { reps, perfectReps } });
+    },
+    getRewardsOverview: () => request("/admin/rewards"),
+    redeemReward: (memberId, expectedBalance) => request("/admin/rewards/redeem", { method: "POST", body: { memberId, expectedBalance } }),
+    deliverWeeklyPrize: weekStart => request("/admin/rewards/weekly-prizes", { method: "POST", body: { weekStart } }),
+    updateRewardSettings: body => request("/admin/rewards/settings", { method: "PATCH", body }),
     listClassSessions: (filters = {}) => {
       const limit = filters.limit === undefined ? 50 : Number(filters.limit);
       const offset = filters.offset === undefined ? 0 : Number(filters.offset);

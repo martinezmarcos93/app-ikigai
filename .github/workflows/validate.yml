@@ -32,6 +32,7 @@ jobs:
           node --check app.js
           node --check api-client.js
           node --check portal.js
+          node --check iron-pixel.js
           node --check reset-password.js
       - name: Test portal API client contracts
         run: node scripts/test-api-client.mjs

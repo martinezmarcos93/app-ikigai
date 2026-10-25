@@ -48,12 +48,19 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `PUT /api/v1/class-sessions/:id/attendance` | Administración o profesor asignado a esa clase | Cada reserva pertenece a la instancia; IDs duplicados rechazados | CSRF + transacción + auditoría | `attendance.integration.test.ts` |
 | `GET /api/v1/members/:id/attendance` | Administración o miembro propio | Historial limitado al miembro | No | `attendance.integration.test.ts` |
 | `GET /api/v1/exercises` | Administración o profesor | Miembro no accede al catálogo de edición | No | `routines.integration.test.ts` |
-| `POST /api/v1/exercises` | Administración | Esquema de ejercicio | CSRF + transacción + auditoría | `routines.integration.test.ts` |
+| `POST /api/v1/exercises` | Administración o profesor | Esquema de ejercicio | CSRF + transacción + auditoría | `routines.integration.test.ts` |
 | `GET /api/v1/routines` | Administración o profesor | Miembro usa la ruta de asignaciones propias | No | `routines.integration.test.ts` |
-| `POST /api/v1/routines` | Administración | Versión inicial validada | CSRF + transacción + auditoría | `routines.integration.test.ts` |
-| `POST /api/v1/routines/:id/versions` | Administración | Versiones históricas inmutables | CSRF + transacción + auditoría | `routines.integration.test.ts` |
+| `POST /api/v1/routines` | Administración o profesor | Versión inicial validada | CSRF + transacción + auditoría | `routines.integration.test.ts` |
+| `POST /api/v1/routines/:id/versions` | Administración o profesor | Versiones históricas inmutables | CSRF + transacción + auditoría | `routines.integration.test.ts` |
 | `GET /api/v1/members/:id/routine-assignments` | Administración, miembro propio o profesor asignado | Alcance por asignación/clase | No | `routines.integration.test.ts` |
 | `POST /api/v1/members/:id/routine-assignments` | Administración o profesor asignado | Profesor no puede asignar a un miembro fuera de su alcance | CSRF + transacción + auditoría | `routines.integration.test.ts` |
+| `GET /api/v1/game/summary` | Cualquier sesión | Del resto de los miembros solo se ve nombre + inicial y mejor puntaje semanal | No | `game.integration.test.ts` |
+| `POST /api/v1/game/runs` | Cualquier sesión | Máximo 60 partidas por día; una partida abierta por persona; solo miembros sin rol de staff compiten | CSRF + transacción | `game.integration.test.ts` |
+| `POST /api/v1/game/runs/:id/finish` | Dueño de la partida | El servidor valida duración y repeticiones posibles y calcula puntaje y puntos (tope diario) | CSRF + transacción + libro de puntos solo-agregar | `game.integration.test.ts` |
+| `GET /api/v1/admin/rewards` | Administración | Saldos, canjes y ganadores semanales | No | `game.integration.test.ts` |
+| `POST /api/v1/admin/rewards/redeem` | Administración | Saldo esperado obligatorio (evita doble canje); saldo suficiente | CSRF + transacción + auditoría | `game.integration.test.ts` |
+| `POST /api/v1/admin/rewards/weekly-prizes` | Administración | Solo semanas cerradas; ganador calculado por el servidor; una entrega por semana | CSRF + transacción + auditoría | `game.integration.test.ts` |
+| `PATCH /api/v1/admin/rewards/settings` | Administración | Límites de puntos por premio y tope diario | CSRF + transacción + auditoría | `game.integration.test.ts` |
 | `GET /api/v1/services` | Cualquier usuario autenticado | Servicios inactivos sólo visibles para administración | No | `memberships.integration.test.ts` |
 | `POST /api/v1/services` | Administración | Esquema y precio exacto | CSRF + transacción + auditoría | `memberships.integration.test.ts` |
 | `PATCH /api/v1/services/:id` | Administración | Cambios actuales no reescriben precios históricos | CSRF + transacción + auditoría minimizada | `memberships.integration.test.ts` |

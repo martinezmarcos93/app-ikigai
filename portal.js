@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases", game:"Iron Pixel", rewards:"Premios" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -929,9 +929,133 @@
     $("#pageContent").innerHTML = empty(message);
   }
 
+
+  // ---------------- Iron Pixel (juego) y premios ----------------
+  // Mensajes en castellano para los errores propios del juego (el servidor responde códigos estables).
+  const GAME_ERRORS = {
+    daily_run_limit: "Llegaste al máximo de partidas de hoy. ¡Volvé mañana!",
+    run_closed: "Esa partida ya estaba cerrada.",
+    run_rejected: "No se pudo validar el resultado de la partida, así que no suma puntos.",
+    insufficient_points: "No le alcanzan los puntos para el canje.",
+    balance_changed: "El saldo cambió mientras mirabas la pantalla. Actualizá y volvé a intentar.",
+    week_not_closed: "Esa semana todavía no terminó.",
+    already_delivered: "El premio de esa semana ya se había entregado.",
+    no_winner: "Nadie jugó esa semana."
+  };
+  const gameError = error => {
+    const text = GAME_ERRORS[error?.code] || GAME_ERRORS[error?.details?.error];
+    return text ? Object.assign(new Error(text), { status: error.status }) : error;
+  };
+  const points = n => new Intl.NumberFormat("es-AR").format(Number(n) || 0);
+  const weekLabel = start => {
+    if (!start) return "";
+    const from = new Date(`${start}T12:00:00`);
+    const to = new Date(from.getTime() + 6 * 86400000);
+    const f = d => d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+    return `${f(from)} al ${f(to)}`;
+  };
+  let activeGame = null;
+  function stopGame() { if (activeGame) { activeGame.destroy(); activeGame = null; } }
+
+  function rankingList(items, emptyText) {
+    if (!items.length) return empty(emptyText);
+    return `<ol class="ranking">${items.map(r => `<li class="${r.me ? "me" : ""}"><span class="pos">${esc(r.position)}</span><span class="who">${esc(r.name)}${r.me ? " (vos)" : ""}</span><span class="pts">${esc(points(r.score))}</span></li>`).join("")}</ol>`;
+  }
+  function gameSidePanel(summary) {
+    const s = summary.settings;
+    const me = summary.me;
+    let pointsPanel;
+    if (summary.competes) {
+      const progress = Math.min(100, Math.round(((me.balance % s.pointsPerReward) / s.pointsPerReward) * 100));
+      const available = Math.floor(me.balance / s.pointsPerReward);
+      const leftToday = Math.max(0, s.dailyPointsCap - me.earnedToday);
+      pointsPanel = `<section class="panel"><h2 class="section-title">Mis puntos</h2>
+        <div class="stats-grid"><div class="stat-card"><small>Saldo</small><strong>${esc(points(me.balance))}</strong></div>
+        <div class="stat-card"><small>Para canjear</small><strong>${esc(available)}</strong></div>
+        <div class="stat-card"><small>Hoy podés sumar</small><strong>${esc(points(leftToday))}</strong></div></div>
+        <p>Cada <b>${esc(points(s.pointsPerReward))}</b> puntos te llevás una <b>${esc(s.rewardName)}</b>. Pedila en recepción.</p>
+        <div class="progress" aria-label="Avance hacia el próximo premio"><span style="width:${progress}%"></span></div>
+        <p class="footer-note">Se pueden sumar hasta ${esc(points(s.dailyPointsCap))} puntos por día. Tu mejor partida de la semana compite en el ranking.</p></section>`;
+    } else {
+      pointsPanel = `<section class="panel"><h2 class="section-title">Modo libre</h2><p>Como parte del equipo podés jugar y ver el ranking, pero tus partidas no suman puntos canjeables ni compiten por el premio: eso es para los miembros.</p>
+        <p class="muted">Tu récord: ${esc(points(me.personalBest))}</p></section>`;
+    }
+    const last = summary.lastWeek;
+    const lastBlock = s.weeklyPrizeEnabled ? `<section class="panel" style="margin-top:16px"><h2 class="section-title">Semana pasada</h2>
+      ${last.winner ? `<p>🏆 <b>${esc(last.winner.name)}</b>${last.winner.me ? " (¡vos!)" : ""} ganó con ${esc(points(last.winner.score))} puntos.${last.delivered ? " Premio entregado." : last.winner.me ? ` Pasá por recepción a buscar tu ${esc(s.rewardName.toLowerCase())}.` : ""}</p>` : `<p class="muted">Nadie jugó la semana pasada.</p>`}</section>` : "";
+    return `${pointsPanel}
+      <section class="panel" style="margin-top:16px"><h2 class="section-title">Ranking de la semana</h2>
+        <p class="muted">${esc(weekLabel(summary.week.start))}${s.weeklyPrizeEnabled ? ` · El primero se lleva una ${esc(s.rewardName.toLowerCase())}.` : ""}</p>
+        ${rankingList(summary.week.ranking, "Todavía nadie jugó esta semana. ¡Estrená el ranking!")}</section>${lastBlock}`;
+  }
+  async function renderGame() {
+    setPage("Iron Pixel");
+    setLoading("Preparando el juego…");
+    const summary = await api.getGameSummary();
+    $("#pageContent").innerHTML = `<div class="game-layout"><div id="ironPixel"></div><div id="gameSide">${gameSidePanel(summary)}</div></div>`;
+    let runId = null;
+    activeGame = window.IkigaiIronPixel.mount($("#ironPixel"), {
+      best: summary.me.personalBest,
+      onStart: async () => {
+        try { runId = (await api.startGameRun()).run.id; }
+        catch (error) { throw gameError(error); }
+      },
+      onFinish: async ({ reps, perfectReps }) => {
+        let result;
+        try { result = await api.finishGameRun(runId, reps, perfectReps); }
+        catch (error) { throw gameError(error); }
+        finally { runId = null; }
+        // Refresca saldo y ranking sin reiniciar el juego.
+        api.getGameSummary().then(next => { const side = $("#gameSide"); if (side && state.currentView === "game") side.innerHTML = gameSidePanel(next); }).catch(() => {});
+        let message;
+        if (!result.competes) message = `<b>${esc(points(result.score))} PUNTOS.</b> Modo libre: no suma puntos canjeables.`;
+        else if (result.pointsAwarded > 0) message = `<b>+${esc(points(result.pointsAwarded))} PUNTOS.</b> Saldo: ${esc(points(result.balance))}.${result.pointsAwarded < result.score ? " Llegaste al tope de hoy: el resto no suma, pero el puntaje cuenta para el ranking." : ""}`;
+        else message = `<b>${esc(points(result.score))} PUNTOS.</b> Ya llegaste al tope de puntos de hoy; la partida igual cuenta para el ranking.`;
+        return { score: result.score, headline: result.competes && result.pointsAwarded > 0 ? `+${result.pointsAwarded} AL SALDO` : "PULSÁ INICIAR PARA OTRA", message };
+      }
+    });
+  }
+
+  async function renderRewards() {
+    if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+    setPage("Premios");
+    setLoading("Consultando puntos y premios…");
+    const data = await api.getRewardsOverview();
+    const s = data.settings;
+    const balances = table(["Miembro", "Puntos", "Premios disponibles", "Acción"], data.balances.map(b => row([
+      esc(b.name), esc(points(b.balance)), esc(b.rewardsAvailable),
+      b.rewardsAvailable > 0 ? `<button class="button primary small" type="button" data-action="redeem-reward" data-id="${esc(b.memberId)}" data-balance="${esc(b.balance)}" data-name="${esc(b.name)}">Entregar ${esc(s.rewardName.toLowerCase())}</button>` : "—"
+    ])));
+    const prizes = table(["Semana", "Ganador", "Puntaje", "Estado"], data.weeklyPrizes.map(p => row([
+      esc(weekLabel(p.weekStart)),
+      p.delivered ? esc(p.delivered.name) : p.winner ? esc(p.winner.name) : "—",
+      p.winner ? esc(points(p.winner.score)) : "—",
+      p.delivered ? `<span class="badge success">Entregado</span>` : p.winner ? `<button class="button small" type="button" data-action="deliver-prize" data-week="${esc(p.weekStart)}" data-name="${esc(p.winner.name)}">Marcar entregado</button>` : "Sin partidas"
+    ])));
+    const redemptions = table(["Fecha", "Miembro", "Premio", "Puntos", "Registró"], (data.redemptions || []).map(r => row([
+      esc(new Date(r.created_at).toLocaleString("es-AR")), esc(r.full_name), esc(r.note || "—"), esc(points(r.delta)), esc(r.by_username || r.by_email || "—")
+    ])));
+    $("#pageContent").innerHTML = `
+      <section class="panel"><h2 class="section-title">Puntos de los miembros</h2>
+        <p class="muted">Cuando alguien retira su premio en el mostrador, tocá «Entregar» para descontarle ${esc(points(s.pointsPerReward))} puntos.</p>${balances}</section>
+      <div class="two-col" style="margin-top:16px">
+        <section class="panel"><h2 class="section-title">Premio semanal</h2>
+          <p class="muted">Gana la mejor partida de cada semana (lunes a domingo). El servidor calcula el ganador; marcalo cuando le entregues el premio.</p>${prizes}</section>
+        ${form("Reglas del programa", "reward-settings",
+          field("Premio", "rewardName", "text", { value: s.rewardName, required: true, maxLength: 80 }) +
+          field("Puntos por premio", "pointsPerReward", "number", { value: s.pointsPerReward, required: true, min: 100, max: 1000000, step: 1 }) +
+          field("Tope de puntos por día", "dailyPointsCap", "number", { value: s.dailyPointsCap, required: true, min: 0, max: 100000, step: 1 }) +
+          selectField("Premio semanal", "weeklyPrizeEnabled", [{ value: "true", label: "Activado" }, { value: "false", label: "Desactivado" }], String(s.weeklyPrizeEnabled)),
+          "Guardar reglas",
+          "Una partida muy buena da entre 500 y 800 puntos. El tope diario evita que alguien junte premios en una sola tarde.")}
+      </div>
+      <section class="panel" style="margin-top:16px"><h2 class="section-title">Últimos canjes</h2>${redemptions}</section>`;
+  }
+
   async function renderView(view = state.currentView) {
     if (state.mustChange) view = "my-password";   // con la clave temporal pendiente no hay otra pantalla
     state.currentView = view;
+    stopGame();
     hideNotice();
     document.querySelectorAll(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.view === view));
     try {
@@ -950,6 +1074,8 @@
       else if (view === "routines") await renderRoutines();
       else if (view === "announcements") await renderAnnouncements();
       else if (view === "institution-settings") await renderInstitutionSettings();
+      else if (view === "game") await renderGame();
+      else if (view === "rewards") await renderRewards();
       else renderDenied("No disponible","Esta sección todavía no está conectada.");
     } catch (error) {
       if (error?.status === 401) { setUnauthenticated(); showNotice("La sesión venció. Iniciá sesión otra vez."); return; }
@@ -1151,6 +1277,17 @@
         await api.publishAnnouncement({ title: v("title"), body: v("body"), audience: v("audience") });
         await renderAnnouncements();
         showNotice("Aviso publicado.", "success");
+        return;
+      }
+      if (kind === "reward-settings") {
+        await api.updateRewardSettings({
+          rewardName: v("rewardName"),
+          pointsPerReward: Number(v("pointsPerReward")),
+          dailyPointsCap: Number(v("dailyPointsCap")),
+          weeklyPrizeEnabled: v("weeklyPrizeEnabled") === "true"
+        });
+        await renderRewards();
+        showNotice("Reglas guardadas.", "success");
         return;
       }
       if (kind === "create-exercise") {
@@ -1380,6 +1517,22 @@
           <div class="form-actions"><button class="button primary" type="submit">Crear versión ${esc(Number(routine.version_number) + 1)}</button></div>
           <p class="footer-note">Las rutinas ya asignadas conservan la versión que recibieron; la nueva se asigna aparte.</p></form></section>`;
         editor.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      else if (action.dataset.action === "redeem-reward") {
+        if (!window.confirm(`¿Entregar el premio a ${action.dataset.name}? Se descuentan los puntos de su saldo.`)) return;
+        action.disabled = true;
+        try { await api.redeemReward(action.dataset.id, Number(action.dataset.balance)); }
+        catch (error) { throw gameError(error); }
+        await renderRewards();
+        showNotice(`Premio entregado a ${action.dataset.name}.`, "success");
+      }
+      else if (action.dataset.action === "deliver-prize") {
+        if (!window.confirm(`¿Registrar que ${action.dataset.name} recibió el premio semanal?`)) return;
+        action.disabled = true;
+        try { await api.deliverWeeklyPrize(action.dataset.week); }
+        catch (error) { throw gameError(error); }
+        await renderRewards();
+        showNotice("Premio semanal registrado.", "success");
       }
       else if (action.dataset.action === "start-tour") { startTour(); }
     } catch (error) { showError(error); }

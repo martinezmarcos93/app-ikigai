@@ -29,7 +29,7 @@
 
 	handle {
 		root * /srv
-		@revalidate path /sw.js /sw-register.js /index.html /portal.html /manifest.webmanifest /api-client.js /portal.js /portal.css
+		@revalidate path /sw.js /sw-register.js /index.html /portal.html /manifest.webmanifest /api-client.js /portal.js /iron-pixel.js /portal.css
 		header @revalidate Cache-Control "no-cache"
 		@assets path /assets/*
 		header @assets Cache-Control "public, max-age=86400"

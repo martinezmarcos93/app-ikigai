@@ -10,7 +10,7 @@ import { BACKUP_TABLES, decryptBackup, parseBackupPayload } from "../src/domain/
 // Restaurar exige una base recien migrada y VACIA (npm run db:migrate): nunca pisa datos existentes.
 
 // Tablas que las migraciones ya siembran con una fila por defecto: la del respaldo la reemplaza.
-const SEEDED_BY_MIGRATIONS = new Set<string>(["institutional_settings"]);
+const SEEDED_BY_MIGRATIONS = new Set<string>(["institutional_settings", "reward_settings"]);
 
 const [file, ...flags] = process.argv.slice(2);
 const passphrase = process.env.IKIGAI_BACKUP_PASSPHRASE;
@@ -58,6 +58,8 @@ try {
     `SELECT setval(pg_get_serial_sequence('audit_events', 'id'), GREATEST((SELECT coalesce(max(id), 1) FROM audit_events), 1))`
   );
   for (const table of BACKUP_TABLES) {
+    // Un respaldo anterior a una tabla sembrada no la trae: queda la fila por defecto de la migracion.
+    if (SEEDED_BY_MIGRATIONS.has(table) && !(payload.tables[table] ?? []).length) continue;
     const { rows } = await client.query(`SELECT count(*)::int AS n FROM ${table}`);
     if (Number(rows[0]?.n) !== (payload.counts[table] ?? 0)) throw new Error(`Cantidad distinta en ${table}: se cancela.`);
   }

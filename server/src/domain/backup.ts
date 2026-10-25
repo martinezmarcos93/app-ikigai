@@ -128,6 +128,10 @@ export const BACKUP_TABLES = [
   "routine_assignments",
   "announcements",
   "announcement_reads",
+  "reward_settings",
+  "game_runs",
+  "reward_points",
+  "weekly_prizes",
   "audit_events"
 ] as const;
 
