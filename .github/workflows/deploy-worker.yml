@@ -1,0 +1,70 @@
+name: Publish Worker (app.ikigai-training.com)
+
+# Cada push a main publica el portal (Worker de Cloudflare). La API la publica Render sola desde la misma rama;
+# si el push toca server/, primero se espera a que Render tenga ese commit arriba para que el portal nuevo
+# no llame a una API vieja.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-worker
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Portal and Worker tests
+        run: |
+          node --check portal.js
+          node --check api-client.js
+          node --check sw.js
+          node scripts/test-api-client.mjs
+          node scripts/test-first-run.mjs
+          node --test deploy/worker/test/worker.test.mjs
+      - name: Wait for Render when the API changed
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ -n "${BEFORE:-}" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+             && ! git diff --name-only "$BEFORE" "$GITHUB_SHA" | grep -q '^server/'; then
+            echo "El push no toca server/: se publica sin esperar a Render."
+            exit 0
+          fi
+          echo "Esperando a que Render tenga $GITHUB_SHA (hasta 20 min)..."
+          for i in $(seq 1 80); do
+            commit="$(curl -fsS --max-time 90 https://app.ikigai-training.com/api/v1/health | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")' || true)"
+            # Vale el mismo commit o uno posterior (si entraron dos pushes seguidos Render puede saltear el primero).
+            if [ -n "$commit" ] && git merge-base --is-ancestor "$GITHUB_SHA" "$commit" 2>/dev/null; then echo "Render ya está en $commit."; exit 0; fi
+            echo "  Render en: ${commit:-desconocido}"
+            sleep 15
+          done
+          echo "Render no publicó $GITHUB_SHA en 20 minutos (¿Auto-Deploy apagado o build fallido?). No se publica el portal." >&2
+          exit 1
+      - name: Build public/ and deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: deploy/worker
+        run: |
+          # Sin la clave todavía cargada no se publica, pero tampoco se marca en rojo: queda el aviso y se publica a mano.
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::warning::Falta el secreto CLOUDFLARE_API_TOKEN: el portal no se publicó solo. Publicar con bash deploy/worker/publicar.sh (ver docs/DEPLOY_WORKER.md)."
+            exit 0
+          fi
+          node build.mjs
+          npx --yes wrangler@4.149.0 deploy
