@@ -220,9 +220,16 @@ jobs:
       - name: Install PostgreSQL client tools for backup verification
         # Las herramientas tienen que ser de la misma versión que el servidor (16): el pg_dump 17 del runner
         # emite SET transaction_timeout, que Postgres 16 rechaza al restaurar.
+        # Se usan las de la imagen postgres:16 (no dependen de la versión de Ubuntu del runner).
         run: |
-          sudo apt-get update && sudo apt-get install -y postgresql-client-16
-          echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
+          docker pull -q postgres:16
+          mkdir -p "$RUNNER_TEMP/pg16"
+          for tool in pg_dump pg_restore psql; do
+            printf '#!/bin/sh\nexec docker run --rm -i --network host -v /tmp:/tmp -v "$RUNNER_TEMP:$RUNNER_TEMP" postgres:16 %s "$@"\n' "$tool" > "$RUNNER_TEMP/pg16/$tool"
+            chmod +x "$RUNNER_TEMP/pg16/$tool"
+          done
+          echo "$RUNNER_TEMP/pg16" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/pg16/pg_dump" --version
       - name: Verify PostgreSQL backup and restore in an isolated database
         run: bash scripts/backup-restore-check.sh
       - name: Assert PostgreSQL integration tests are enabled
