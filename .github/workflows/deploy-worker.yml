@@ -61,6 +61,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         working-directory: deploy/worker
         run: |
-          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Falta el secreto CLOUDFLARE_API_TOKEN (ver docs/DEPLOY_WORKER.md)." >&2; exit 1; }
+          # Sin la clave todavía cargada no se publica, pero tampoco se marca en rojo: queda el aviso y se publica a mano.
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::warning::Falta el secreto CLOUDFLARE_API_TOKEN: el portal no se publicó solo. Publicar con bash deploy/worker/publicar.sh (ver docs/DEPLOY_WORKER.md)."
+            exit 0
+          fi
           node build.mjs
           npx --yes wrangler@4.149.0 deploy
