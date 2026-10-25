@@ -22,6 +22,8 @@
   Cache-Control: no-cache
 /portal.js
   Cache-Control: no-cache
+/iron-pixel.js
+  Cache-Control: no-cache
 /portal.css
   Cache-Control: no-cache
 /assets/*

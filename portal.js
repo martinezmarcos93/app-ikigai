@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0 };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [], releaseNotesSeen: null };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases", game:"Iron Pixel", rewards:"Premios", catalog:"Productos" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -147,7 +147,7 @@
     state.lastCredentials = "";
     // Al cerrar sesion no queda nada de la persona anterior: ni en memoria ni en el DOM (clave temporal recien creada,
     // tablas de miembros, cuenta corriente) para quien use el mismo aparato despues.
-    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0 });
+    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [], releaseNotesSeen: null });
     $("#pageContent").replaceChildren();
     if (window.IkigaiTour) window.IkigaiTour.stop();
     $("#portalPanel").classList.remove("password-pending");
@@ -635,8 +635,8 @@
         ${routineTable(routine.exercises || [])}
         <div class="form-actions">
           <button class="button primary small" type="button" data-action="pick-routine" data-version="${esc(routine.version_id)}">Asignar a un miembro</button>
-          ${isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-routine" data-id="${esc(routine.id)}">Nueva versión</button>` : ""}
-        </div></article>`).join("") : empty(isAdmin() ? "Todavía no hay rutinas. Creá ejercicios y armá la primera." : "Todavía no hay rutinas creadas por administración.");
+          <button class="button ghost small" type="button" data-action="edit-routine" data-id="${esc(routine.id)}">Nueva versión</button>
+        </div></article>`).join("") : empty("Todavía no hay rutinas. Creá ejercicios y armá la primera.");
     const routineOpts = state.routines.map(r => ({ value: r.version_id, label: `${r.name} · versión ${r.version_number}` }));
     const memberOpts = state.assignable.map(m => ({ value: m.id, label: m.full_name }));
     const assign = routineOpts.length && memberOpts.length
@@ -651,7 +651,8 @@
     const viewer = memberOpts.length ? `<section class="panel"><h2 class="section-title">Rutinas de un miembro</h2>
         <form data-form="select-routine-member"><div class="form-grid">${selectField("Miembro", "memberId", memberOpts, state.routineMember)}</div><div class="form-actions"><button class="button" type="submit">Ver rutinas asignadas</button></div></form>
         <div id="routineAssignments" style="margin-top:12px"></div></section>` : "";
-    const adminForms = isAdmin() ? `
+    // Administración y profesores cargan ejercicios y arman rutinas.
+    const adminForms = `
       <div class="two-col" style="margin-top:16px">
         ${form("Nuevo ejercicio", "create-exercise",
           field("Nombre", "name", "text", { required: true, maxLength: 120, wide: true }) +
@@ -665,7 +666,7 @@
           ${field("Nombre", "name", "text", { required: true, maxLength: 120 })}${field("Disciplina", "discipline", "text", { required: true, maxLength: 120 })}${field("Nivel", "level", "text", { required: true, maxLength: 80, placeholder: "Ej. Inicial" })}${field("Notas de la rutina", "notes", "text", { maxLength: 2000 })}
         </div>${routineBuilder([])}<div class="form-actions"><button class="button primary" type="submit">Crear rutina</button></div></form>` : empty("Primero creá al menos un ejercicio.")}
       </section>
-      <div id="routineEditor"></div>` : "";
+      <div id="routineEditor"></div>`;
     $("#pageContent").innerHTML = `<div data-tour="routine-library">${library}</div><div class="two-col" style="margin-top:16px">${assign}${viewer}</div>${adminForms}`;
   }
   function renderAssignmentList(assignments) {
@@ -928,9 +929,212 @@
     $("#pageContent").innerHTML = empty(message);
   }
 
+
+  // ---------------- Iron Pixel (juego) y premios ----------------
+  // Mensajes en castellano para los errores propios del juego (el servidor responde códigos estables).
+  const GAME_ERRORS = {
+    daily_run_limit: "Llegaste al máximo de partidas de hoy. ¡Volvé mañana!",
+    run_closed: "Esa partida ya estaba cerrada.",
+    run_rejected: "No se pudo validar el resultado de la partida, así que no suma puntos.",
+    insufficient_points: "No le alcanzan los puntos para el canje.",
+    balance_changed: "El saldo cambió mientras mirabas la pantalla. Actualizá y volvé a intentar.",
+    week_not_closed: "Esa semana todavía no terminó.",
+    already_delivered: "El premio de esa semana ya se había entregado.",
+    no_winner: "Nadie jugó esa semana."
+  };
+  const gameError = error => {
+    const text = GAME_ERRORS[error?.code] || GAME_ERRORS[error?.details?.error];
+    return text ? Object.assign(new Error(text), { status: error.status }) : error;
+  };
+  const points = n => new Intl.NumberFormat("es-AR").format(Number(n) || 0);
+  const weekLabel = start => {
+    if (!start) return "";
+    const from = new Date(`${start}T12:00:00`);
+    const to = new Date(from.getTime() + 6 * 86400000);
+    const f = d => d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+    return `${f(from)} al ${f(to)}`;
+  };
+  let activeGame = null;
+  function stopGame() { if (activeGame) { activeGame.destroy(); activeGame = null; } }
+
+  function rankingList(items, emptyText) {
+    if (!items.length) return empty(emptyText);
+    return `<ol class="ranking">${items.map(r => `<li class="${r.me ? "me" : ""}"><span class="pos">${esc(r.position)}</span><span class="who">${esc(r.name)}${r.me ? " (vos)" : ""}</span><span class="pts">${esc(points(r.score))}</span></li>`).join("")}</ol>`;
+  }
+  function gameSidePanel(summary) {
+    const s = summary.settings;
+    const me = summary.me;
+    let pointsPanel;
+    if (summary.competes) {
+      const progress = Math.min(100, Math.round(((me.balance % s.pointsPerReward) / s.pointsPerReward) * 100));
+      const available = Math.floor(me.balance / s.pointsPerReward);
+      const leftToday = Math.max(0, s.dailyPointsCap - me.earnedToday);
+      pointsPanel = `<section class="panel"><h2 class="section-title">Mis puntos</h2>
+        <div class="stats-grid"><div class="stat-card"><small>Saldo</small><strong>${esc(points(me.balance))}</strong></div>
+        <div class="stat-card"><small>Para canjear</small><strong>${esc(available)}</strong></div>
+        <div class="stat-card"><small>Hoy podés sumar</small><strong>${esc(points(leftToday))}</strong></div></div>
+        <p>Cada <b>${esc(points(s.pointsPerReward))}</b> puntos te llevás una <b>${esc(s.rewardName)}</b>. Pedila en recepción.</p>
+        <div class="progress" aria-label="Avance hacia el próximo premio"><span style="width:${progress}%"></span></div>
+        <p class="footer-note">Se pueden sumar hasta ${esc(points(s.dailyPointsCap))} puntos por día. Tu mejor partida de la semana compite en el ranking.</p></section>`;
+    } else {
+      pointsPanel = `<section class="panel"><h2 class="section-title">Modo libre</h2><p>Como parte del equipo podés jugar y ver el ranking, pero tus partidas no suman puntos canjeables ni compiten por el premio: eso es para los miembros.</p>
+        <p class="muted">Tu récord: ${esc(points(me.personalBest))}</p></section>`;
+    }
+    const last = summary.lastWeek;
+    const lastBlock = s.weeklyPrizeEnabled ? `<section class="panel" style="margin-top:16px"><h2 class="section-title">Semana pasada</h2>
+      ${last.winner ? `<p>🏆 <b>${esc(last.winner.name)}</b>${last.winner.me ? " (¡vos!)" : ""} ganó con ${esc(points(last.winner.score))} puntos.${last.delivered ? " Premio entregado." : last.winner.me ? ` Pasá por recepción a buscar tu ${esc(s.rewardName.toLowerCase())}.` : ""}</p>` : `<p class="muted">Nadie jugó la semana pasada.</p>`}</section>` : "";
+    return `${pointsPanel}
+      <section class="panel" style="margin-top:16px"><h2 class="section-title">Ranking de la semana</h2>
+        <p class="muted">${esc(weekLabel(summary.week.start))}${s.weeklyPrizeEnabled ? ` · El primero se lleva una ${esc(s.rewardName.toLowerCase())}.` : ""}</p>
+        ${rankingList(summary.week.ranking, "Todavía nadie jugó esta semana. ¡Estrená el ranking!")}</section>${lastBlock}`;
+  }
+  async function renderGame() {
+    setPage("Iron Pixel");
+    setLoading("Preparando el juego…");
+    const summary = await api.getGameSummary();
+    $("#pageContent").innerHTML = `<div class="game-layout"><div id="ironPixel"></div><div id="gameSide">${gameSidePanel(summary)}</div></div>`;
+    let runId = null;
+    activeGame = window.IkigaiIronPixel.mount($("#ironPixel"), {
+      best: summary.me.personalBest,
+      onStart: async () => {
+        try { runId = (await api.startGameRun()).run.id; }
+        catch (error) { throw gameError(error); }
+      },
+      onFinish: async ({ reps, perfectReps }) => {
+        let result;
+        try { result = await api.finishGameRun(runId, reps, perfectReps); }
+        catch (error) { throw gameError(error); }
+        finally { runId = null; }
+        // Refresca saldo y ranking sin reiniciar el juego.
+        api.getGameSummary().then(next => { const side = $("#gameSide"); if (side && state.currentView === "game") side.innerHTML = gameSidePanel(next); }).catch(() => {});
+        let message;
+        if (!result.competes) message = `<b>${esc(points(result.score))} PUNTOS.</b> Modo libre: no suma puntos canjeables.`;
+        else if (result.pointsAwarded > 0) message = `<b>+${esc(points(result.pointsAwarded))} PUNTOS.</b> Saldo: ${esc(points(result.balance))}.${result.pointsAwarded < result.score ? " Llegaste al tope de hoy: el resto no suma, pero el puntaje cuenta para el ranking." : ""}`;
+        else message = `<b>${esc(points(result.score))} PUNTOS.</b> Ya llegaste al tope de puntos de hoy; la partida igual cuenta para el ranking.`;
+        return { score: result.score, headline: result.competes && result.pointsAwarded > 0 ? `+${result.pointsAwarded} AL SALDO` : "PULSÁ INICIAR PARA OTRA", message };
+      }
+    });
+  }
+
+  async function renderRewards() {
+    if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+    setPage("Premios");
+    setLoading("Consultando puntos y premios…");
+    const data = await api.getRewardsOverview();
+    const s = data.settings;
+    const balances = table(["Miembro", "Puntos", "Premios disponibles", "Acción"], data.balances.map(b => row([
+      esc(b.name), esc(points(b.balance)), esc(b.rewardsAvailable),
+      b.rewardsAvailable > 0 ? `<button class="button primary small" type="button" data-action="redeem-reward" data-id="${esc(b.memberId)}" data-balance="${esc(b.balance)}" data-name="${esc(b.name)}">Entregar ${esc(s.rewardName.toLowerCase())}</button>` : "—"
+    ])));
+    const prizes = table(["Semana", "Ganador", "Puntaje", "Estado"], data.weeklyPrizes.map(p => row([
+      esc(weekLabel(p.weekStart)),
+      p.delivered ? esc(p.delivered.name) : p.winner ? esc(p.winner.name) : "—",
+      p.winner ? esc(points(p.winner.score)) : "—",
+      p.delivered ? `<span class="badge success">Entregado</span>` : p.winner ? `<button class="button small" type="button" data-action="deliver-prize" data-week="${esc(p.weekStart)}" data-name="${esc(p.winner.name)}">Marcar entregado</button>` : "Sin partidas"
+    ])));
+    const redemptions = table(["Fecha", "Miembro", "Premio", "Puntos", "Registró"], (data.redemptions || []).map(r => row([
+      esc(new Date(r.created_at).toLocaleString("es-AR")), esc(r.full_name), esc(r.note || "—"), esc(points(r.delta)), esc(r.by_username || r.by_email || "—")
+    ])));
+    $("#pageContent").innerHTML = `
+      <section class="panel"><h2 class="section-title">Puntos de los miembros</h2>
+        <p class="muted">Cuando alguien retira su premio en el mostrador, tocá «Entregar» para descontarle ${esc(points(s.pointsPerReward))} puntos.</p>${balances}</section>
+      <div class="two-col" style="margin-top:16px">
+        <section class="panel"><h2 class="section-title">Premio semanal</h2>
+          <p class="muted">Gana la mejor partida de cada semana (lunes a domingo). El servidor calcula el ganador; marcalo cuando le entregues el premio.</p>${prizes}</section>
+        ${form("Reglas del programa", "reward-settings",
+          field("Premio", "rewardName", "text", { value: s.rewardName, required: true, maxLength: 80 }) +
+          field("Puntos por premio", "pointsPerReward", "number", { value: s.pointsPerReward, required: true, min: 100, max: 1000000, step: 1 }) +
+          field("Tope de puntos por día", "dailyPointsCap", "number", { value: s.dailyPointsCap, required: true, min: 0, max: 100000, step: 1 }) +
+          selectField("Premio semanal", "weeklyPrizeEnabled", [{ value: "true", label: "Activado" }, { value: "false", label: "Desactivado" }], String(s.weeklyPrizeEnabled)),
+          "Guardar reglas",
+          "Una partida muy buena da alrededor de 1.000 puntos. El tope diario evita que alguien junte premios en una sola tarde: con los valores de fábrica (5.000 por premio, 1.000 por día) hacen falta al menos 5 días de juego.")}
+      </div>
+      <section class="panel" style="margin-top:16px"><h2 class="section-title">Últimos canjes</h2>${redemptions}</section>`;
+  }
+
+
+  // ---------------- Catálogo de productos ----------------
+  const CATALOG_ERRORS = {
+    product_unavailable: "Ese producto no tiene stock en este momento.",
+    too_many_reservations: "Ya tenés 5 reservas pendientes. Retirá o cancelá alguna antes de hacer otra.",
+    reservation_closed: "Esa reserva ya estaba cerrada."
+  };
+  const catalogError = error => {
+    const text = CATALOG_ERRORS[error?.code];
+    return text ? Object.assign(new Error(text), { status: error.status }) : error;
+  };
+  const RESERVATION_STATUS = { pending: "Pendiente", delivered: "Entregada", cancelled: "Cancelada" };
+  const priceLabel = price => price === null || price === undefined ? "Consultar precio" : money(price);
+  const CATEGORY_SUGGESTIONS = ["Proteínas", "Creatina", "Barras", "Bebidas", "Suplementos", "Accesorios", "Indumentaria"];
+
+  function productCard(p, canReserve) {
+    const stock = p.available ? `<span class="badge success">Disponible</span>` : `<span class="badge warn">Sin stock</span>`;
+    const reserve = canReserve && p.available ? `<form class="product-reserve" data-form="reserve-product"><input type="hidden" name="productId" value="${esc(p.id)}">
+        <label>Cantidad <select name="quantity">${[1,2,3,4,5].map(n => `<option value="${n}">${n}</option>`).join("")}</select></label>
+        <label class="grow">Nota (opcional) <input name="note" type="text" maxlength="200" placeholder="Ej. sabor vainilla, lo retiro el jueves"></label>
+        <button class="button primary small" type="submit">Reservar</button></form>` : "";
+    return `<article class="panel product-card"><div class="section-title"><span>${esc(p.name)}</span>${stock}</div>
+      <p class="muted">${esc(p.category)}</p>${p.description ? `<p>${esc(p.description)}</p>` : ""}
+      <p class="product-price">${esc(priceLabel(p.price))}</p>${reserve}</article>`;
+  }
+  function reservationTable(items, { admin = false, own = false } = {}) {
+    const headers = ["Fecha", ...(admin ? ["Miembro"] : []), "Producto", "Cant.", "Precio ref.", "Nota", "Estado", ...(admin || own ? ["Acción"] : [])];
+    return table(headers, items.map(r => row([
+      esc(new Date(r.created_at).toLocaleDateString("es-AR")),
+      ...(admin ? [esc(r.member_name)] : []),
+      esc(r.product_name), esc(r.quantity), esc(priceLabel(r.unit_price_snapshot)), esc(r.note || "—"),
+      esc(RESERVATION_STATUS[r.status] || r.status),
+      ...(admin || own ? [r.status !== "pending" ? "—" : `${admin ? `<button class="button primary small" type="button" data-action="deliver-reservation" data-id="${esc(r.id)}" data-name="${esc(r.member_name)}">Entregada</button> ` : ""}<button class="button ghost small" type="button" data-action="cancel-reservation" data-id="${esc(r.id)}">Cancelar</button>`] : [])
+    ])));
+  }
+  async function renderCatalog() {
+    setPage("Productos");
+    setLoading("Consultando el catálogo…");
+    const [catalog, reservations] = await Promise.all([api.listProducts(), api.listReservations()]);
+    state.products = catalog.products || [];
+    const active = state.products.filter(p => p.active);
+    const byCategory = new Map();
+    for (const p of active) { if (!byCategory.has(p.category)) byCategory.set(p.category, []); byCategory.get(p.category).push(p); }
+    const vitrine = active.length
+      ? [...byCategory.entries()].map(([category, items]) => `<h2 class="section-title" style="margin-top:8px">${esc(category)}</h2><div class="product-grid">${items.map(p => productCard(p, catalog.canReserve)).join("")}</div>`).join("")
+      : empty(isAdmin() ? "Todavía no cargaste productos. Usá el formulario de abajo." : "Todavía no hay productos cargados.");
+    let extra = "";
+    if (catalog.canReserve && !isAdmin()) {
+      extra = `<section class="panel" style="margin-top:16px"><h2 class="section-title">Mis reservas</h2>
+        <p class="muted">Reservás desde acá y pagás y retirás en recepción.</p>
+        ${reservationTable([...(reservations.pending || []), ...(reservations.recent || [])], { own: true })}</section>`;
+    }
+    if (isAdmin()) {
+      const datalist = `<datalist id="productCategories">${[...new Set([...CATEGORY_SUGGESTIONS, ...state.products.map(p => p.category)])].map(c => `<option value="${esc(c)}">`).join("")}</datalist>`;
+      const manage = table(["Producto", "Categoría", "Precio", "Stock", "Estado", "Acciones"], state.products.map(p => row([
+        esc(p.name), esc(p.category), esc(priceLabel(p.price)),
+        p.available ? "Disponible" : "Sin stock",
+        p.active ? `<span class="badge success">Visible</span>` : `<span class="badge">Oculto</span>`,
+        `<button class="button ghost small" type="button" data-action="edit-product" data-id="${esc(p.id)}">Editar</button>
+         <button class="button ghost small" type="button" data-action="toggle-product-stock" data-id="${esc(p.id)}" data-value="${p.available ? "false" : "true"}">${p.available ? "Marcar sin stock" : "Hay stock"}</button>
+         <button class="button ghost small" type="button" data-action="toggle-product-active" data-id="${esc(p.id)}" data-value="${p.active ? "false" : "true"}">${p.active ? "Ocultar" : "Mostrar"}</button>`
+      ])));
+      extra = `<section class="panel" style="margin-top:16px"><h2 class="section-title">Reservas pendientes (${(reservations.pending || []).length})</h2>
+          ${reservationTable(reservations.pending || [], { admin: true })}</section>
+        <div class="two-col" style="margin-top:16px">
+          ${form("Nuevo producto", "create-product",
+            field("Nombre", "name", "text", { required: true, maxLength: 120, placeholder: "Ej. Whey protein 1 kg" }) +
+            `<div class="field"><label for="f-category">Categoría</label><input id="f-category" name="category" list="productCategories" required maxlength="60" placeholder="Ej. Proteínas">${datalist}</div>` +
+            field("Precio (vacío = consultar)", "price", "number", { min: 0, step: "0.01" }) +
+            selectField("Stock", "available", [{ value: "true", label: "Disponible" }, { value: "false", label: "Sin stock" }], "true") +
+            textareaField("Descripción", "description", { rows: 3, maxLength: 1000 }), "Agregar producto",
+            "Los miembros ven el catálogo y reservan; el cobro y la entrega se hacen en el mostrador.")}
+          <section class="panel"><h2 class="section-title">Productos (${state.products.length})</h2>${manage}</section>
+        </div><div id="productEditor"></div>
+        <section class="panel" style="margin-top:16px"><h2 class="section-title">Últimas reservas resueltas</h2>${reservationTable(reservations.recent || [], { admin: true })}</section>`;
+    }
+    $("#pageContent").innerHTML = `${vitrine}${extra}`;
+  }
+
   async function renderView(view = state.currentView) {
     if (state.mustChange) view = "my-password";   // con la clave temporal pendiente no hay otra pantalla
     state.currentView = view;
+    stopGame();
     hideNotice();
     document.querySelectorAll(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.view === view));
     try {
@@ -949,6 +1153,9 @@
       else if (view === "routines") await renderRoutines();
       else if (view === "announcements") await renderAnnouncements();
       else if (view === "institution-settings") await renderInstitutionSettings();
+      else if (view === "game") await renderGame();
+      else if (view === "rewards") await renderRewards();
+      else if (view === "catalog") await renderCatalog();
       else renderDenied("No disponible","Esta sección todavía no está conectada.");
     } catch (error) {
       if (error?.status === 401) { setUnauthenticated(); showNotice("La sesión venció. Iniciá sesión otra vez."); return; }
@@ -1150,6 +1357,45 @@
         await api.publishAnnouncement({ title: v("title"), body: v("body"), audience: v("audience") });
         await renderAnnouncements();
         showNotice("Aviso publicado.", "success");
+        return;
+      }
+      if (kind === "create-product") {
+        const payload = { name: v("name"), category: v("category"), available: v("available") === "true" };
+        if (v("price") !== "") payload.price = Number(v("price"));
+        if (v("description")) payload.description = v("description");
+        await api.createProduct(payload);
+        await renderCatalog();
+        showNotice("Producto agregado.", "success");
+        return;
+      }
+      if (kind === "edit-product") {
+        await api.updateProduct(v("productId"), {
+          name: v("name"), category: v("category"),
+          price: v("price") === "" ? null : Number(v("price")),
+          description: v("description") || null
+        });
+        await renderCatalog();
+        showNotice("Producto actualizado.", "success");
+        return;
+      }
+      if (kind === "reserve-product") {
+        const payload = { quantity: Number(v("quantity")) };
+        if (v("note")) payload.note = v("note");
+        try { await api.reserveProduct(v("productId"), payload); }
+        catch (error) { throw catalogError(error); }
+        await renderCatalog();
+        showNotice("¡Reservado! Pagalo y retiralo en recepción.", "success");
+        return;
+      }
+      if (kind === "reward-settings") {
+        await api.updateRewardSettings({
+          rewardName: v("rewardName"),
+          pointsPerReward: Number(v("pointsPerReward")),
+          dailyPointsCap: Number(v("dailyPointsCap")),
+          weeklyPrizeEnabled: v("weeklyPrizeEnabled") === "true"
+        });
+        await renderRewards();
+        showNotice("Reglas guardadas.", "success");
         return;
       }
       if (kind === "create-exercise") {
@@ -1380,6 +1626,57 @@
           <p class="footer-note">Las rutinas ya asignadas conservan la versión que recibieron; la nueva se asigna aparte.</p></form></section>`;
         editor.scrollIntoView({ behavior: "smooth", block: "start" });
       }
+      else if (action.dataset.action === "redeem-reward") {
+        if (!window.confirm(`¿Entregar el premio a ${action.dataset.name}? Se descuentan los puntos de su saldo.`)) return;
+        action.disabled = true;
+        try { await api.redeemReward(action.dataset.id, Number(action.dataset.balance)); }
+        catch (error) { throw gameError(error); }
+        await renderRewards();
+        showNotice(`Premio entregado a ${action.dataset.name}.`, "success");
+      }
+      else if (action.dataset.action === "deliver-prize") {
+        if (!window.confirm(`¿Registrar que ${action.dataset.name} recibió el premio semanal?`)) return;
+        action.disabled = true;
+        try { await api.deliverWeeklyPrize(action.dataset.week); }
+        catch (error) { throw gameError(error); }
+        await renderRewards();
+        showNotice("Premio semanal registrado.", "success");
+      }
+      else if (action.dataset.action === "edit-product") {
+        const p = (state.products || []).find(item => item.id === action.dataset.id);
+        if (!p) return;
+        const editor = $("#productEditor");
+        editor.innerHTML = `<section class="panel" style="margin-top:16px"><h2 class="section-title">Editar «${esc(p.name)}»</h2>
+          <form data-form="edit-product"><input type="hidden" name="productId" value="${esc(p.id)}"><div class="form-grid">
+          ${field("Nombre", "name", "text", { required: true, maxLength: 120, value: p.name })}
+          ${field("Categoría", "category", "text", { required: true, maxLength: 60, value: p.category })}
+          ${field("Precio (vacío = consultar)", "price", "number", { min: 0, step: "0.01", value: p.price ?? "" })}
+          <div class="field full-span"><label for="f-edit-description">Descripción</label><textarea id="f-edit-description" name="description" rows="3" maxlength="1000">${esc(p.description || "")}</textarea></div>
+          </div><div class="form-actions"><button class="button primary" type="submit">Guardar cambios</button></div>
+          <p class="footer-note">Las reservas ya hechas conservan el precio de cuando se reservaron.</p></form></section>`;
+        editor.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      else if (action.dataset.action === "toggle-product-stock" || action.dataset.action === "toggle-product-active") {
+        const key = action.dataset.action === "toggle-product-stock" ? "available" : "active";
+        action.disabled = true;
+        await api.updateProduct(action.dataset.id, { [key]: action.dataset.value === "true" });
+        await renderCatalog();
+      }
+      else if (action.dataset.action === "deliver-reservation") {
+        action.disabled = true;
+        try { await api.deliverReservation(action.dataset.id); }
+        catch (error) { throw catalogError(error); }
+        await renderCatalog();
+        showNotice(`Reserva de ${action.dataset.name} marcada como entregada.`, "success");
+      }
+      else if (action.dataset.action === "cancel-reservation") {
+        if (!window.confirm("¿Cancelar esta reserva?")) return;
+        action.disabled = true;
+        try { await api.cancelReservation(action.dataset.id); }
+        catch (error) { throw catalogError(error); }
+        await renderCatalog();
+        showNotice("Reserva cancelada.", "success");
+      }
       else if (action.dataset.action === "start-tour") { startTour(); }
     } catch (error) { showError(error); }
   });
@@ -1413,10 +1710,12 @@
       const result = await api.login(valueOf(formNode,"login"),new FormData(formNode).get("password"));
       state.mustChange = result.mustChangePassword === true;
       state.tourDone = result.tourCompleted === true;
+      state.releaseNotesSeen = result.releaseNotesSeen || null;
       setAuthenticated(result.user);
       await renderView("dashboard");
       refreshUnread();
       maybeStartTour();
+      maybeShowReleaseNotes();
     } catch (error) { showError(error); }
     finally { button.disabled=false; button.innerHTML='Ingresar <span aria-hidden="true">↗</span>'; }
   });
@@ -1449,12 +1748,50 @@
   function markTourDone() {
     state.tourDone = true;
     api.markTourCompleted().catch(() => { /* si falla, la guia se ofrece otra vez en el proximo ingreso: no es grave */ });
+    setTimeout(maybeShowReleaseNotes, 300);
   }
   function startTour() {
     if (!window.IkigaiTour || !isAdmin() || state.mustChange) return;
     window.IkigaiTour.start(TOUR_STEPS, { navigate: view => renderView(view), onClose: markTourDone });
   }
   function maybeStartTour() { if (isAdmin() && !state.mustChange && !state.tourDone) startTour(); }
+
+
+  // ---- Novedades de la versión (globos que cada persona ve una sola vez) ----
+  // Para anunciar otra actualización: cambiar RELEASE_NOTES_VERSION y los pasos. Quien ya cerró la anterior ve la nueva.
+  const RELEASE_NOTES_VERSION = "2026-10-25";
+  function releaseNoteSteps() {
+    const steps = [{ view: null, target: ".portal-brand", title: "¡Hay novedades en Ikigai!", text: "Sumamos cosas nuevas a la app. Te las mostramos en un minuto." }];
+    const game = isAdmin()
+      ? "Iron Pixel: un juego de pesas en pixel art para todos. Los miembros suman puntos para canjear por una barra de cereal, y el mejor puntaje de cada semana se lleva una de regalo."
+      : isCoach() && !isMember()
+        ? "Iron Pixel: un juego de pesas en pixel art. Podés jugar y ver el ranking; los puntos y premios son para los miembros."
+        : "Iron Pixel: levantá la barra en 30 segundos y sumá puntos. Juntando puntos te llevás una barra de cereal, y el mejor puntaje de la semana gana una de regalo.";
+    steps.push({ view: null, target: ".nav-link[data-view='game']", title: "Nuevo: Iron Pixel", text: game });
+    if (isAdmin()) steps.push({ view: null, target: ".nav-link[data-view='rewards']", title: "Nuevo: Premios", text: "Acá ves los puntos de cada miembro, entregás la barrita cuando la retiran (descuenta los puntos solo) y registrás el premio de la semana. También definís cuántos puntos vale cada premio." });
+    steps.push({
+      view: null, target: ".nav-link[data-view='catalog']", title: "Nuevo: Productos",
+      text: isAdmin()
+        ? "Cargá lo que vende el gimnasio (proteína, creatina, barras…) con precio y stock. Los miembros reservan desde la app y vos marcás la entrega cuando pagan y retiran."
+        : isMember() && !isCoach()
+          ? "Mirá lo que vende el gimnasio (proteína, creatina, barras y más) y reservá lo que quieras. Lo pagás y lo retirás en recepción."
+          : "Ahora podés ver el catálogo de productos que vende el gimnasio."
+    });
+    if (isAdmin() || isCoach()) steps.push({ view: null, target: ".nav-link[data-view='routines']", title: "Rutinas: ahora también los profes", text: "Los profesores pueden cargar ejercicios, armar rutinas y crear versiones nuevas, además de asignarlas a sus alumnos." });
+    return steps;
+  }
+  function maybeShowReleaseNotes() {
+    if (!window.IkigaiTour || state.mustChange || !state.user || state.releaseNotesSeen === RELEASE_NOTES_VERSION) return;
+    if (isAdmin() && !state.tourDone) return;   // una administración nueva primero hace la guía de primer uso
+    const markSeen = () => {
+      state.releaseNotesSeen = RELEASE_NOTES_VERSION;
+      api.markReleaseNotesSeen(RELEASE_NOTES_VERSION).catch(() => { /* si falla, las novedades vuelven a aparecer en el próximo ingreso */ });
+    };
+    window.IkigaiTour.start(releaseNoteSteps(), {
+      navigate: async view => { if (view && view !== state.currentView) await renderView(view); },
+      onClose: markSeen, label: "Novedades", counterLabel: "Novedad", skipLabel: "Cerrar", finishLabel: "¡Entendido!"
+    });
+  }
 
   function hideBootSplash() {
     const splash = $("#bootSplash");
@@ -1477,10 +1814,12 @@
       const result = await api.me();
       state.mustChange = result.mustChangePassword === true;
       state.tourDone = result.tourCompleted === true;
+      state.releaseNotesSeen = result.releaseNotesSeen || null;
       setAuthenticated(result.user);
       await renderView("dashboard");
       refreshUnread();
       maybeStartTour();
+      maybeShowReleaseNotes();
     } catch (error) {
       setUnauthenticated();
       if (error.status !== 401) showError(error);

@@ -1,5 +1,6 @@
 /* Guia de primer uso: globos de texto que recorren la aplicacion paso a paso.
- * Sin dependencias ni estilos en linea (la CSP del portal solo admite recursos propios). */
+ * Sin dependencias ni estilos en linea (la CSP del portal solo admite recursos propios).
+ * Tambien la usan las novedades de cada version: options.label, counterLabel, skipLabel y finishLabel cambian los textos. */
 (() => {
   "use strict";
   let bubble = null;
@@ -68,10 +69,10 @@
     bubble.className = "tour-bubble";
     bubble.setAttribute("role", "dialog");
     bubble.setAttribute("aria-live", "polite");
-    bubble.setAttribute("aria-label", "Guía de primer uso");
+    bubble.setAttribute("aria-label", options.label || "Guía de primer uso");
     const counter = document.createElement("p");
     counter.className = "tour-count";
-    counter.textContent = `Paso ${index + 1} de ${steps.length}`;
+    counter.textContent = steps.length > 1 ? `${options.counterLabel || "Paso"} ${index + 1} de ${steps.length}` : (options.counterLabel || "");
     const title = document.createElement("h3");
     title.textContent = step.title;
     const text = document.createElement("p");
@@ -86,10 +87,10 @@
       node.addEventListener("click", handler);
       return node;
     };
-    actions.append(button(last ? "" : "Saltar guía", "ghost", () => finish(false)));
+    actions.append(button(last ? "" : (options.skipLabel || "Saltar guía"), "ghost", () => finish(false)));
     if (last) actions.firstChild.remove();
     if (index > 0) actions.append(button("Anterior", "ghost", () => show(index - 1)));
-    const next = button(last ? "Terminar" : "Siguiente", "primary", () => (last ? finish(true) : show(index + 1)));
+    const next = button(last ? (options.finishLabel || "Terminar") : "Siguiente", "primary", () => (last ? finish(true) : show(index + 1)));
     actions.append(next);
     bubble.append(counter, title, text, actions);
     document.body.append(bubble);

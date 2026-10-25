@@ -49,7 +49,7 @@ export function registerDataProtectionRoutes(
            FROM member_profiles WHERE id = $1`, [memberId]
       );
       if (!member.rows[0]) return notFound(reply);
-      const [account, memberships, ledger, bookings, notices, attendance, routines] = await Promise.all([
+      const [account, memberships, ledger, bookings, notices, attendance, routines, gameRuns, rewardPoints, reservations] = await Promise.all([
         db.query(
           `SELECT u.email, u.status, u.created_at FROM users u JOIN member_profiles mp ON mp.user_id = u.id WHERE mp.id = $1`, [memberId]),
         db.query(
@@ -76,7 +76,15 @@ export function registerDataProtectionRoutes(
         db.query(
           `SELECT r.name AS routine, ra.starts_on, ra.ends_on, ra.notes
              FROM routine_assignments ra JOIN routine_versions rv ON rv.id = ra.routine_version_id
-             JOIN routines r ON r.id = rv.routine_id WHERE ra.member_id = $1 ORDER BY ra.starts_on, ra.id`, [memberId])
+             JOIN routines r ON r.id = rv.routine_id WHERE ra.member_id = $1 ORDER BY ra.starts_on, ra.id`, [memberId]),
+        db.query(
+          `SELECT status, started_at, finished_at, reps, perfect_reps, score, points_awarded
+             FROM game_runs WHERE member_id = $1 ORDER BY started_at, id`, [memberId]),
+        db.query(
+          `SELECT delta, kind, note, created_at FROM reward_points WHERE member_id = $1 ORDER BY created_at, id`, [memberId]),
+        db.query(
+          `SELECT p.name AS product, r.quantity, r.note, r.unit_price_snapshot, r.status, r.created_at, r.handled_at
+             FROM product_reservations r JOIN products p ON p.id = r.product_id WHERE r.member_id = $1 ORDER BY r.created_at, r.id`, [memberId])
       ]);
       // La exportacion es un acceso a datos personales: queda registrada (sin su contenido).
       await db.query(
@@ -95,7 +103,10 @@ export function registerDataProtectionRoutes(
         bookings: bookings.rows,
         bookingNotices: notices.rows,
         attendance: attendance.rows,
-        routineAssignments: routines.rows
+        routineAssignments: routines.rows,
+        gameRuns: gameRuns.rows,
+        rewardPoints: rewardPoints.rows,
+        productReservations: reservations.rows
       };
     }
   );
@@ -159,6 +170,7 @@ export function registerDataProtectionRoutes(
           );
           // Las notas libres de los avisos y de las rutinas pueden nombrar a la persona.
           await tx.query("UPDATE booking_notices SET note = NULL WHERE booking_id IN (SELECT id FROM bookings WHERE member_id = $1)", [memberId]);
+          await tx.query("UPDATE product_reservations SET note = NULL WHERE member_id = $1", [memberId]);
           await tx.query("UPDATE routine_assignments SET notes = NULL WHERE member_id = $1", [memberId]);
           let accountClosed = false;
           if (member.user_id) {

@@ -74,7 +74,7 @@ Prefijo versionado: `/api/v1`. Los nombres son un contrato inicial a validar ant
 | Reservas | `POST /class-sessions/:id/bookings`, `POST /bookings/:id/cancel` | Validación transaccional de estado, duplicados, cupo, alcance y corte. |
 | Asistencia | `GET/PUT /class-sessions/:id/attendance` | Administración o profesor asignado; no se aceptan miembros ajenos al alcance. |
 | Profesores | `GET/POST /coaches`, `POST /coaches/:id/payments` | Finanzas sólo para administración; obligación y pago mensual separados de clases. |
-| Rutinas | `GET/POST /routines`, `POST /members/:id/routine-assignments` | Sólo administración crea ejercicios/rutinas; profesor opera dentro de su alcance; miembro consulta las propias. |
+| Rutinas | `GET/POST /routines`, `POST /members/:id/routine-assignments` | Administración y profesores crean ejercicios, rutinas y versiones (desde 25/10/2026); el profesor asigna solo dentro de su alcance; miembro consulta las propias. |
 | Auditoría | `GET /audit-events` | Sólo administración autorizada; filtros y datos sensibles restringidos. |
 
 Usar respuestas de error consistentes (`400` entrada inválida, `401` sin sesión, `403` sin permiso, `404` recurso inexistente o no visible, `409` conflicto de estado/cupo). No incluir stack traces ni secretos en respuestas de producción.

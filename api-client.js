@@ -175,6 +175,7 @@
     updateInstitutionSettings: body => request("/admin/institution-settings", { method: "PATCH", body }),
     linkCoachToAdmin: body => request("/admin/users/link-coach", { method: "POST", body }),
     markTourCompleted: () => request("/auth/tour-completed", { method: "POST", body: {} }),
+    markReleaseNotesSeen: version => request("/auth/release-notes-seen", { method: "POST", body: { version } }),
     changePassword: (currentPassword, newPassword) => request("/auth/change-password", { method: "POST", body: { currentPassword, newPassword } }),
     listAccounts: () => request("/admin/accounts"),
     createAccount: body => request("/admin/accounts", { method: "POST", body }),
@@ -198,6 +199,27 @@
     createRoutineVersion: (routineId, body) => request(`/routines/${id(routineId)}/versions`, { method: "POST", body }),
     listRoutineAssignments: memberId => request(`/members/${id(memberId)}/routine-assignments`),
     assignRoutine: (memberId, body) => request(`/members/${id(memberId)}/routine-assignments`, { method: "POST", body }),
+    // Juego Iron Pixel y premios: el puntaje lo calcula el servidor a partir de las repeticiones.
+    getGameSummary: () => request("/game/summary"),
+    startGameRun: () => request("/game/runs", { method: "POST", body: {} }),
+    finishGameRun: (runId, reps, perfectReps) => {
+      if (![reps, perfectReps].every(n => Number.isSafeInteger(n) && n >= 0 && n <= 1000)) {
+        throw new ApiError(0, "invalid_game_result", "El resultado de la partida no es válido.");
+      }
+      return request(`/game/runs/${id(runId)}/finish`, { method: "POST", body: { reps, perfectReps } });
+    },
+    getRewardsOverview: () => request("/admin/rewards"),
+    redeemReward: (memberId, expectedBalance) => request("/admin/rewards/redeem", { method: "POST", body: { memberId, expectedBalance } }),
+    deliverWeeklyPrize: weekStart => request("/admin/rewards/weekly-prizes", { method: "POST", body: { weekStart } }),
+    updateRewardSettings: body => request("/admin/rewards/settings", { method: "PATCH", body }),
+    // Catálogo de productos y reservas (sin pagos: se cobra y retira en el mostrador).
+    listProducts: () => request("/products"),
+    createProduct: body => request("/admin/products", { method: "POST", body }),
+    updateProduct: (productId, body) => request(`/admin/products/${id(productId)}`, { method: "PATCH", body }),
+    reserveProduct: (productId, body) => request(`/products/${id(productId)}/reservations`, { method: "POST", body }),
+    listReservations: () => request("/reservations"),
+    cancelReservation: reservationId => request(`/reservations/${id(reservationId)}/cancel`, { method: "POST", body: {} }),
+    deliverReservation: reservationId => request(`/admin/reservations/${id(reservationId)}/deliver`, { method: "POST", body: {} }),
     listClassSessions: (filters = {}) => {
       const limit = filters.limit === undefined ? 50 : Number(filters.limit);
       const offset = filters.offset === undefined ? 0 : Number(filters.offset);

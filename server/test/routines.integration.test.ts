@@ -16,7 +16,7 @@ const config = loadConfig({
   SESSION_SECRET: "integration-test-secret-with-more-than-32-characters"
 });
 
-async function createActor(pool: pg.Pool, name: string, role: "admin" | "member") {
+async function createActor(pool: pg.Pool, name: string, role: "admin" | "member" | "coach") {
   const email = `routines-it-${randomUUID()}@example.test`;
   const user = await pool.query(
     "INSERT INTO users (email,password_hash,auth_provider,status) VALUES ($1,$2,'local','active') RETURNING id",
@@ -24,10 +24,12 @@ async function createActor(pool: pg.Pool, name: string, role: "admin" | "member"
   );
   const userId = String(user.rows[0]?.id);
   await pool.query("INSERT INTO user_roles (user_id,role) VALUES ($1,$2)", [userId, role]);
-  const profile = await pool.query(
-    "INSERT INTO member_profiles (user_id,full_name,status) VALUES ($1,$2,'active') RETURNING id",
-    [userId, name]
-  );
+  const profile = role === "coach"
+    ? await pool.query("INSERT INTO coach_profiles (user_id,full_name,discipline) VALUES ($1,$2,'Funcional') RETURNING id", [userId, name])
+    : await pool.query(
+      "INSERT INTO member_profiles (user_id,full_name,status) VALUES ($1,$2,'active') RETURNING id",
+      [userId, name]
+    );
   const token = randomBytes(32).toString("base64url");
   await pool.query(
     "INSERT INTO sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)",
@@ -190,4 +192,40 @@ test("PostgreSQL routines preserve versions, assignment history, and member boun
     [assignment.json().assignment.id]
   );
   assert.deepEqual(audit.rows.map((row) => row.action), ["routine.assigned"]);
+});
+
+test("PostgreSQL coaches create exercises, routines and new versions", {
+  skip: !integrationEnabled
+}, async (t: TestContext) => {
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4, connectionTimeoutMillis: 5_000 });
+  const db = new PostgresDatabase(pool);
+  const app = await buildApp(config, { db, transactionalDb: db });
+  t.after(async () => { await app.close(); await pool.end(); });
+
+  const suffix = randomUUID();
+  const coach = await createActor(pool, `Routine Coach ${suffix}`, "coach");
+
+  const exercise = await app.inject({
+    method: "POST", url: "/api/v1/exercises", headers: headers(coach),
+    payload: { name: `Coach Plank ${suffix}`, equipment: "Colchoneta" }
+  });
+  assert.equal(exercise.statusCode, 201, exercise.body);
+  const exerciseId = String(exercise.json().exercise.id);
+
+  const routine = await app.inject({
+    method: "POST", url: "/api/v1/routines", headers: headers(coach),
+    payload: { name: `Coach Core ${suffix}`, discipline: "Funcional", level: "Inicial", exercises: [{ exerciseId, sets: "3", durationSeconds: 30 }] }
+  });
+  assert.equal(routine.statusCode, 201, routine.body);
+  const routineId = String(routine.json().routine.id);
+
+  const version = await app.inject({
+    method: "POST", url: `/api/v1/routines/${routineId}/versions`, headers: headers(coach),
+    payload: { notes: "Más tiempo", exercises: [{ exerciseId, sets: "4", durationSeconds: 45 }] }
+  });
+  assert.equal(version.statusCode, 201, version.body);
+  assert.equal(version.json().version.version_number, 2);
+
+  const audit = await pool.query("SELECT action FROM audit_events WHERE actor_user_id=$1 ORDER BY occurred_at", [coach.userId]);
+  assert.deepEqual(audit.rows.map((r) => r.action), ["exercise.created", "routine.created", "routine.version_created"]);
 });
