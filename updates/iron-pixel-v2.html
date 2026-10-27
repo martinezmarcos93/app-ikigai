@@ -613,7 +613,9 @@
           lastTap = -Infinity,
           lastPull = 0,
           pullPhase = "",
-          pullPoseUntil = 0,
+          liftY = 86,
+          pullY = 0,
+          curlLift = 0,
           lastBikeSide = null,
           nextBikeSide = "left",
           lastBikeAt = 0,
@@ -808,7 +810,9 @@
           lastTap = -Infinity;
           lastPull = 0;
           pullPhase = "";
-          pullPoseUntil = 0;
+          liftY = 86;
+          pullY = 0;
+          curlLift = 0;
           lastBikeSide = null;
           nextBikeSide = "left";
           lastBikeAt = 0;
@@ -848,7 +852,6 @@
               pullPhase = "up";
               lastPull = now;
               lastTap = now;
-              pullPoseUntil = now + 430;
               beep(320, 0.05);
               return;
             }
@@ -860,7 +863,6 @@
             pullPhase = "";
             lastTap = now;
             lastPull = now;
-            pullPoseUntil = now + 430;
             award(gap <= 1250 ? "PERFECT" : gap <= 1900 ? "GOOD" : "FLOJO");
             return;
           }
@@ -1050,21 +1052,15 @@
           rect(0, 290, W, 4, "#34343b");
           for (var xx = 0; xx < W; xx += 32) rect(xx, 327, 16, 2, "#303036");
         }
-        function guy(lifted) {
-          if (exercise === 3) {
-            drawBike();
-            return;
-          }
-          var ox = 240,
-            oy = 120,
-            female = $("characterTop").value === "female",
-            skin = C.skin,
-            shirt = C.shirt;
+        // Cuerpo (sin brazos ni equipo). (ox, oy) es la esquina del sprite.
+        function body(ox, oy) {
+          var female = $("characterTop").value === "female",
+            skin = C.skin;
           rect(ox + 32, oy + 103, 35, 42, C.pants);
           rect(ox + 81, oy + 103, 35, 42, C.pants);
           rect(ox + 25, oy + 139, 44, 10, C.white);
           rect(ox + 77, oy + 139, 44, 10, C.white);
-          rect(ox + 33, oy + 53, 80, 56, shirt);
+          rect(ox + 33, oy + 53, 80, 56, C.shirt);
           if (female) {
             rect(ox + 48, oy + 57, 50, 47, "#ff4148");
             rect(ox + 56, oy + 57, 34, 14, "#f6c3a6");
@@ -1087,22 +1083,8 @@
           rect(ox + 62, oy + 23, 6, 4, "#08080a");
           rect(ox + 81, oy + 23, 6, 4, "#08080a");
           rect(ox + 68, oy + 34, 17, 4, "#8b5140");
-          if (!lifted) {
-            rect(ox + 15, oy + 60, 19, 45, C.skin);
-            rect(ox + 111, oy + 60, 19, 45, C.skin);
-            rect(ox + 11, oy + 51, 23, 17, C.shirt);
-            rect(ox + 111, oy + 51, 23, 17, C.shirt);
-          } else {
-            rect(ox + 15, oy + 38, 16, 33, C.skin);
-            rect(ox + 13, oy + 18, 18, 28, C.skin);
-            rect(ox + 12, oy + 12, 21, 15, C.skin);
-            rect(ox + 113, oy + 38, 16, 33, C.skin);
-            rect(ox + 111, oy + 18, 18, 28, C.skin);
-            rect(ox + 109, oy + 12, 21, 15, C.skin);
-            rect(ox + 13, oy + 42, 20, 15, C.shirt);
-            rect(ox + 111, oy + 42, 20, 15, C.shirt);
-          }
-          var by = exercise === 2 ? oy + 42 + Math.round(bar * 35) : lifted ? oy - 4 : oy + 86;
+        }
+        function barbell(ox, by) {
           rect(ox - 44, by, 220, 7, C.metal);
           rect(ox - 54, by - 14, 15, 34, C.white);
           rect(ox - 68, by - 22, 13, 50, "#777982");
@@ -1110,53 +1092,54 @@
           rect(ox + 176, by - 14, 15, 34, C.white);
           rect(ox + 191, by - 22, 13, 50, "#777982");
           rect(ox + 204, by - 14, 13, 34, C.red);
-          if (exercise === 1) {
-            rect(ox - 6, oy - 18, 172, 6, "#777982");
-            rect(ox + 12, oy - 12, 8, 24, C.skin);
-            rect(ox + 128, oy - 12, 8, 24, C.skin);
-            if (performance.now() < pullPoseUntil) {
-              rect(ox + 10, oy - 2, 12, 22, C.skin);
-              rect(ox + 126, oy - 2, 12, 22, C.skin);
-            }
-            rect(ox + 10, oy - 22, 12, 7, C.white);
-            rect(ox + 126, oy - 22, 12, 7, C.white);
-          }
-          if (exercise === 2) {
-            rect(ox + 12, oy + 57, 18, 34, C.skin);
-            rect(ox + 108, oy + 57, 18, 34, C.skin);
-            rect(ox + 12, oy + 57, 18, 12, C.shirt);
-            rect(ox + 108, oy + 57, 18, 12, C.shirt);
-          }
-          // Brazos superpuestos al final: manos ancladas a la barra para que el equipo y la pose coincidan.
-          if (exercise === 0) {
-            var handY = by + 3;
-            rect(ox + 23, oy + 56, 15, 13, C.shirt);
-            rect(ox + 105, oy + 56, 15, 13, C.shirt);
-            ctx.strokeStyle = C.skin;
-            ctx.lineWidth = 13;
-            ctx.lineCap = "square";
-            ctx.beginPath();
-            ctx.moveTo(ox + 30, oy + 66);
-            ctx.lineTo(ox + 35, handY);
-            ctx.moveTo(ox + 112, oy + 66);
-            ctx.lineTo(ox + 109, handY);
-            ctx.stroke();
-            rect(ox + 28, handY - 3, 14, 8, C.skin);
-            rect(ox + 103, handY - 3, 14, 8, C.skin);
-          } else if (exercise === 2) {
-            var curlHandY = by + 3;
-            ctx.strokeStyle = C.skin;
-            ctx.lineWidth = 13;
-            ctx.lineCap = "square";
-            ctx.beginPath();
-            ctx.moveTo(ox + 28, oy + 68);
-            ctx.lineTo(ox + 37, curlHandY);
-            ctx.moveTo(ox + 112, oy + 68);
-            ctx.lineTo(ox + 107, curlHandY);
-            ctx.stroke();
-            rect(ox + 30, curlHandY - 3, 14, 8, C.skin);
-            rect(ox + 100, curlHandY - 3, 14, 8, C.skin);
-          }
+        }
+        // Brazos del press y del curl: del hombro a las manos ancladas a la barra.
+        function lifterArms(ox, oy, handY) {
+          rect(ox + 23, oy + 56, 15, 13, C.shirt);
+          rect(ox + 105, oy + 56, 15, 13, C.shirt);
+          ctx.strokeStyle = C.skin;
+          ctx.lineWidth = 13;
+          ctx.lineCap = "square";
+          ctx.beginPath();
+          ctx.moveTo(ox + 30, oy + 66);
+          ctx.lineTo(ox + 35, handY);
+          ctx.moveTo(ox + 112, oy + 66);
+          ctx.lineTo(ox + 109, handY);
+          ctx.stroke();
+          rect(ox + 28, handY - 3, 14, 8, C.skin);
+          rect(ox + 103, handY - 3, 14, 8, C.skin);
+        }
+        // Press y curl. La altura de la barra viene de liftY / curlLift, que se interpolan en frame()
+        // (antes la barra saltaba entre dos posiciones fijas).
+        function drawLift() {
+          var ox = 240,
+            oy = 120,
+            by = exercise === 2 ? oy + 96 - Math.round(curlLift * 50) : oy + liftY;
+          body(ox, oy);
+          barbell(ox, by);
+          lifterArms(ox, oy, by + 3);
+        }
+        // Dominadas: el personaje cuelga de una barra fija (sin discos) y sube/baja con la fase del ejercicio.
+        function drawPull() {
+          var ox = 240,
+            barY = 132,
+            bodyY = barY - 1 + Math.round(pullY),
+            shoulderY = bodyY + 58;
+          rect(ox - 20, barY - 4, 8, 160, "#34343b");
+          rect(ox + 162, barY - 4, 8, 160, "#34343b");
+          rect(ox - 20, barY - 4, 190, 8, "#777982");
+          body(ox, bodyY);
+          rect(ox + 18, barY, 15, shoulderY - barY + 6, C.skin);
+          rect(ox + 112, barY, 15, shoulderY - barY + 6, C.skin);
+          rect(ox + 16, bodyY + 51, 19, 17, C.shirt);
+          rect(ox + 111, bodyY + 51, 19, 17, C.shirt);
+          rect(ox + 15, barY - 5, 20, 10, C.white);
+          rect(ox + 110, barY - 5, 20, 10, C.white);
+        }
+        function guy() {
+          if (exercise === 3) drawBike();
+          else if (exercise === 1) drawPull();
+          else drawLift();
         }
         function meter() {
           if (exercise === 3) {
@@ -1289,7 +1272,7 @@
           ctx.setTransform(S, 0, 0, S, offX, offY);
           background();
           meter();
-          guy(flashUntil > now || (exercise === 1 && pullPhase === "up"));
+          guy();
           // Puntos, repeticiones y combo ya están en el HUD de abajo: no se repiten sobre el personaje.
           // El resultado de cada repetición se muestra en el piso, sin tapar al personaje ni la bicicleta.
           if (flashUntil > now) {
@@ -1336,13 +1319,17 @@
           bikePedalPhase += bikePedalVel * dt;
           bikePedalVel *= Math.exp(-3.5 * dt);
           if (bikePedalVel < 0.03) bikePedalVel = 0;
+          // Animaciones suavizadas: la barra del press, el cuerpo en las dominadas y la barra del curl
+          // se interpolan hacia su posición objetivo en lugar de saltar.
+          liftY += ((flashUntil > now && exercise === 0 ? 6 : 86) - liftY) * Math.min(1, dt * 14);
+          pullY += ((pullPhase === "up" ? -22 : 0) - pullY) * Math.min(1, dt * 9);
+          if (holdActive) curlLift = Math.min(1, (now - holdStart) / 950);
+          else curlLift += (0 - curlLift) * Math.min(1, dt * 8);
           if (state === "running") {
             if (!zen) timeLeft = Math.max(0, (phaseEnd - now) / 1000);
             else timeLeft = 0;
-            if (exercise === 2) {
-              var curlTarget = holdActive ? 0.5 : 0.05;
-              bar += (curlTarget - bar) * Math.min(1, dt * 3);
-            } else {
+            // El indicador que barre la zona de precisión solo existe en el press de banca.
+            if (exercise === 0) {
               bar += dir * dt * 0.75 * weight().speed * (1 + reps * 0.025);
               if (bar > 0.98) {
                 bar = 0.98;
