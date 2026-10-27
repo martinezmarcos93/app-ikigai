@@ -68,8 +68,9 @@ if(exercise===3){
  bikePedalPhase += 0.5;
  if(side==='right'){
   var cycleTime=now-lastBikePair;
+  lastBikePair=now;
   if(cycleTime<650){notice('Completá el ciclo de pedaleo.');return}
-  award(cycleTime<=1500?'PERFECT':cycleTime<=2300?'GOOD':'FLOJO');lastBikePair=now;
+  award(cycleTime<=1500?'PERFECT':cycleTime<=2300?'GOOD':'FLOJO');
  }
  $('keyhint').textContent='ÚLTIMO PEDAL: '+(side==='left'?'IZQUIERDO':'DERECHO')+' · AHORA '+(nextBikeSide==='left'?'← IZQUIERDA':'DERECHA →');
  return;
