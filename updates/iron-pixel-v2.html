@@ -178,6 +178,19 @@
         gap: 10px;
         padding: 12px;
       }
+      .bikebtns {
+        display: none;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .bikebtns .primary:not(.next) {
+        opacity: 0.55;
+      }
+      .bikebtns .primary.next {
+        box-shadow:
+          0 4px 0 #7d0b10,
+          0 0 0 3px #fff;
+      }
       .action {
         min-height: 58px;
         font-size: 16px;
@@ -430,6 +443,10 @@
           <div class="controls">
             <div>
               <button class="primary action" id="actionBtn">▲ LEVANTAR</button>
+              <div class="bikebtns" id="bikeBtns">
+                <button class="primary action" id="bikeL">◀ IZQUIERDA</button>
+                <button class="primary action" id="bikeR">DERECHA ▶</button>
+              </div>
               <div class="hint" id="keyhint">ESPACIO / ↑ / TOCAR PARA JUGAR</div>
               <div class="hint" id="exerciseHelp" style="font-size: 11px; color: #f4f4f5; margin-top: 8px">
                 PRESS: un intento por recorrido. DOMINADAS: ritmo de toques. CURL: mantener y soltar.
@@ -752,9 +769,17 @@
               ? "DOMINADAS: TOCÁ PARA SUBIR Y TOCÁ DE NUEVO PARA BAJAR CON LA ZONA VERDE"
               : exercise === 2
                 ? "CURL: MANTENÉ Y SOLTÁ CUANDO EL MARCADOR LLEGUE A LA ZONA VERDE"
-                : "BICICLETA: ALTERNÁ ←/→ O A/D · EMPEZÁ POR LA IZQUIERDA";
+                : "BICICLETA: ALTERNÁ ←/→ O A/D (O LOS BOTONES) · EMPEZÁ POR LA IZQUIERDA";
+        }
+        function updateBikeButtons() {
+          $("bikeL").classList.toggle("next", nextBikeSide === "left");
+          $("bikeR").classList.toggle("next", nextBikeSide === "right");
         }
         function tagExercise() {
+          var bike = exercise === 3 && state !== "over";
+          $("actionBtn").style.display = bike ? "none" : "";
+          $("bikeBtns").style.display = bike ? "grid" : "none";
+          updateBikeButtons();
           for (var i = 0; i < 4; i++) {
             $("ex" + (i + 1)).className = "tag" + (i === exercise && state !== "over" ? " active" : "");
             $("ex" + (i + 1)).textContent = visited[ex[i].id] ? "COMPLETO" : i === exercise ? "ACTIVO" : "PENDIENTE";
@@ -831,7 +856,7 @@
           curlLift = 0;
           lastBikeSide = null;
           nextBikeSide = "left";
-          lastBikeAt = 0;
+          lastBikeAt = -Infinity;
           lastBikePair = performance.now();
           bikePedalPhase = 0;
           bikePedalVel = 0;
@@ -903,7 +928,11 @@
             return;
           }
           if (exercise === 3) {
-            var side = bikeSide || nextBikeSide;
+            var side = bikeSide;
+            if (!side) {
+              notice("Pedaleá con ← / → (o A / D) o con los botones IZQUIERDA y DERECHA.");
+              return;
+            }
             // Validar el lado esperado antes de modificar el estado: el primer pedal siempre es izquierdo.
             if (side !== nextBikeSide) {
               notice("Alterná los pedales: ahora toca " + (nextBikeSide === "left" ? "izquierda" : "derecha") + ".");
@@ -924,6 +953,7 @@
             lastBikeSide = side;
             nextBikeSide = side === "left" ? "right" : "left";
             bikePedalVel = Math.max(bikePedalVel, 10);
+            updateBikeButtons();
             if (side === "left") {
               lastBikePair = now;
             } else {
@@ -968,7 +998,7 @@
           pullPhase = "";
           lastBikeSide = null;
           nextBikeSide = "left";
-          lastBikeAt = 0;
+          lastBikeAt = -Infinity;
           lastBikePair = now;
           bikePedalVel = 0;
           holdActive = false;
@@ -981,6 +1011,7 @@
           visited[ex[exercise].id] = true;
           state = "over";
           holdActive = false;
+          tagExercise();
           $("endZen").style.display = "none";
           updateMissions();
           var name = (
@@ -1443,10 +1474,13 @@
           if (state === "running" && zen) finish();
         });
         $("actionBtn").addEventListener("click", function () {
-          if (exercise === 3) {
-            var side = nextBikeSide;
-            act(performance.now(), side);
-          } else act(performance.now());
+          act(performance.now());
+        });
+        $("bikeL").addEventListener("click", function () {
+          act(performance.now(), "left");
+        });
+        $("bikeR").addEventListener("click", function () {
+          act(performance.now(), "right");
         });
         $("characterTop").addEventListener("change", function (e) {
           setCharacter(e.target.value);
@@ -1466,9 +1500,14 @@
         $("weight").addEventListener("change", function () {
           notice("Peso " + weight().label + ": puntos ×" + weight().mult + ".");
         });
-        canvas.addEventListener("pointerdown", function () {
-          if (state === "running") act(performance.now());
-          else if (state === "ready" || state === "over") startRun();
+        canvas.addEventListener("pointerdown", function (e) {
+          if (state === "running") {
+            if (exercise === 3) {
+              // En la bici, la mitad izquierda del canvas es el pedal izquierdo y la derecha, el derecho.
+              var r = canvas.getBoundingClientRect();
+              act(performance.now(), e.clientX - r.left < r.width / 2 ? "left" : "right");
+            } else act(performance.now());
+          } else if (state === "ready" || state === "over") startRun();
         });
         var pointerFocus = false;
         document.addEventListener(
