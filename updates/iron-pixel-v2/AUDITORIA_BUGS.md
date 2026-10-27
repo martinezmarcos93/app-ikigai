@@ -145,6 +145,41 @@ No atribuir el fallo a una causa concreta hasta reproducirlo y aislarlo.
 
 **Criterio de cierre:** límite claramente comunicado y decisión de integración documentada.
 
+## 3.1 Actualización 2026-10-27: reproducción, hallazgos nuevos y correcciones
+
+**Método:** Chromium headless (1280 px, 2× y emulación de iPhone 13 a 3×), entradas inyectadas y tiempo simulado. Es validación automatizada, no manual: no se probó en Firefox, Safari ni dispositivos reales.
+
+### Estado de los hallazgos anteriores
+
+| ID | Estado | Resultado |
+|---|---|---|
+| AUD-01 | Abierto, no reproducido | La página carga sin errores de consola y se dibujan las cuatro pruebas. Hipótesis sin confirmar: navegador o motor distinto, caché de una versión anterior, o haber guardado la página HTML de GitHub en lugar del archivo raw. Falta navegador, dispositivo y captura de quien lo vio. |
+| AUD-02 | Confirmado | La sintaxis correcta no garantizaba el comportamiento: los defectos de abajo convivían con código válido. |
+| AUD-03 | Mejorado | Con simulación la bicicleta puntúa un ciclo una sola vez, rechaza entradas inválidas sin corromper el estado y exige pedal izquierdo/derecho. Falta ver la animación en dispositivos reales. |
+| AUD-04, 05, 06 | Verificado en simulación | Dominadas, press y curl puntúan una vez por ciclo válido; el press resiste pulsaciones frenéticas (27 puntos pulsando cada 130 ms). Pendiente prueba manual. |
+| AUD-07 | Verificado en simulación | Siete circuitos completos sin ejercicios omitidos ni duplicados, con transiciones correctas y sin estado residual al reiniciar. |
+| AUD-08 | Corregido | El backing store del canvas se ajusta a ancho CSS × devicePixelRatio y se redimensiona en vivo. No hay scroll horizontal a 390 px. |
+| AUD-09 | Verificado en simulación | Inicio, partida, resultado y nueva partida sin estados residuales. |
+| AUD-10 | Mitigado | Zen y prueba individual ya no suman al ranking local. Sigue sin ser apto para premios. |
+
+### Hallazgos nuevos, todos corregidos en la rama `fix/iron-pixel-v2-estabilizacion`
+
+| ID | Severidad | Hallazgo | Corrección |
+|---|---|---|---|
+| AUD-11 | P1 | Tras clickear un botón, Espacio no jugaba y volvía a activarlo (p. ej. alternaba SONIDO). | El teclado de juego se mantiene con foco de puntero; con Tab se respeta la activación nativa. |
+| AUD-12 | P1 | Las dominadas dibujaban una barra con discos además de la barra fija; el medidor del press no tenía relación con su puntuación. | Dibujo propio colgado de una barra fija y medidor de ritmo. |
+| AUD-13 | P1 | Curl: el medidor llegaba al verde a ~730 ms pero puntuaba PERFECT entre 350 y 1150 ms; mantener 400 ms rendía 2762 puntos en 20 s. | Ventana simétrica alrededor de 750 ms, escalada por peso, con medidor coherente; el mismo exploit rinde unos 150 puntos. |
+| AUD-14 | P1 | Bicicleta: con mouse o toque un solo botón alternaba solo, y Espacio también pedaleaba. | Botones IZQUIERDA/DERECHA, mitad del canvas y exigencia de lado explícito. |
+| AUD-15 | P2 | El panel mostraba siempre 01-04 aunque el orden jugado era aleatorio. | Panel generado desde el orden real, con estado SIGUE durante la transición. |
+| AUD-16 | P2 | Zen en circuito no avanzaba de la primera prueba; Zen y prueba individual contaminaban el ranking; el final decía siempre "CIRCUITO COMPLETADO". | Botón SIGUIENTE EJERCICIO, práctica sin récord y títulos según el caso. |
+| AUD-17 | P2 | Escala no entera del canvas con texto irregular; PUNTOS/REP/COMBO tapaban los pies y las ruedas; colores del medidor distintos a los de la leyenda; puntaje flotante cruzando el título. | Canvas nítido a cualquier DPR, texto duplicado eliminado, banner en el piso y una única paleta. |
+
+### Pendiente
+
+- Calibración fina del balance entre pruebas y de la dificultad progresiva (el press sigue siendo la prueba con menor tope).
+- Reproducir el fallo visual con datos de quien lo vio.
+- Pruebas manuales en navegadores y dispositivos reales, accesibilidad y animaciones.
+
 ## 4. Historial de áreas intervenidas
 
 El historial de trabajo incluye cambios titulados o descritos como:

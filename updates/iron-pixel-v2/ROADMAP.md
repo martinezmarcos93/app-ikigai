@@ -14,6 +14,12 @@ El prototipo continúa aislado de la lógica productiva de Ikigai Training. No m
 
 La última revisión estática de JavaScript no equivale a una validación funcional en navegador. Se informó que las visuales siguen rotas en la versión descargada; por lo tanto, el parche de animación de bicicleta no debe considerarse una solución verificada. No sumar mecánicas ni declarar una fase terminada sin probar el HTML real en navegador y registrar el resultado.
 
+## Actualización 2026-10-27
+
+Se intentó reproducir el fallo visual en Chromium headless (escritorio y emulación móvil) y **no se reprodujo**: la página carga sin errores de consola y las cuatro pruebas se dibujan completas. Se corrigieron en cambio defectos visuales y de jugabilidad confirmados (ver AUD-11 a AUD-17 en la auditoría). La validación fue automatizada; sigue pendiente la prueba manual en navegadores y dispositivos reales, y no se probó Firefox ni Safari.
+
+Estado por fase tras esa actualización: Fase 0 y Fase 1 parciales (sin reproducción del fallo, auditoría de canvas y estados hecha por código y simulación); Fase 2 con los cuatro ciclos de puntuación revisados y corregidos en simulación, a la espera de prueba manual; Fases 3 a 6 sin empezar.
+
 ## Fases
 
 ### Fase 0 — Congelar y establecer una línea base
@@ -122,8 +128,9 @@ No se considera validación de navegador el mero análisis del código ni el che
 | Fecha | Commit | Navegador/dispositivo | Flujo probado | Resultado | Evidencia/defectos |
 |---|---|---|---|---|---|
 | Pendiente | Pendiente | Pendiente | Inicio → circuito completo → resultado | No validado | La versión descargada sigue reportándose visualmente rota |
+| 2026-10-27 | Rama `fix/iron-pixel-v2-estabilizacion` | Chromium headless 1280 px, 2× y emulación iPhone 13 (3×) | Circuitos completos con entradas aleatorias, Zen, prueba individual, cada ejercicio por separado | Sin errores de consola; fallo visual reportado no reproducido | Validación automatizada con tiempo simulado; sin capturas guardadas en el repo; Firefox/Safari y dispositivos reales sin probar |
 
 ## Documentos relacionados
 
 - [Auditoría de bugs y estado técnico](AUDITORIA_BUGS.md)
-- [README del prototipo](README.md)
+- [README del prototipo](../README.md)
