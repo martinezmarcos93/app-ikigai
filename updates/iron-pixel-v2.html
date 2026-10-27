@@ -449,7 +449,7 @@
               </div>
               <div class="hint" id="keyhint">ESPACIO / ↑ / TOCAR PARA JUGAR</div>
               <div class="hint" id="exerciseHelp" style="font-size: 11px; color: #f4f4f5; margin-top: 8px">
-                PRESS: un intento por recorrido. DOMINADAS: ritmo de toques. CURL: mantener y soltar.
+                PRESS: timing · DOMINADAS: dos toques con ritmo · CURL: mantener y soltar · BICI: alternar pedales.
               </div>
             </div>
             <button class="secondary" id="soundBtn" aria-pressed="false">SONIDO: OFF</button>
@@ -489,23 +489,8 @@
         <aside class="side">
           <section class="card">
             <div class="ctitle">CIRCUITO ACTUAL</div>
-            <div class="row">
-              <div><b>01 / PRESS DE BANCA</b><small>Golpeá la zona de precisión.</small></div>
-              <span class="tag active" id="ex1">ACTIVO</span>
-            </div>
-            <div class="row">
-              <div><b>02 / DOMINADAS</b><small>Toques rápidos con cooldown.</small></div>
-              <span class="tag" id="ex2">PENDIENTE</span>
-            </div>
-            <div class="row">
-              <div><b>03 / CURL DE BÍCEPS</b><small>Mantené y soltá en el momento.</small></div>
-              <span class="tag" id="ex3">PENDIENTE</span>
-            </div>
-            <div class="row">
-              <div><b>04 / BICICLETA</b><small>Alterná izquierda y derecha para pedalear.</small></div>
-              <span class="tag" id="ex4">PENDIENTE</span>
-            </div>
-            <p class="mini">20 segundos por prueba · 3 segundos de transición. El peso cambia la dificultad.</p>
+            <div id="circuitList"></div>
+            <p class="mini" id="circuitNote"></p>
           </section>
           <section class="card">
             <div class="ctitle">PUNTOS POR REPETICIÓN</div>
@@ -762,6 +747,42 @@
           $("mAll").textContent = count + "/4";
           $("pAll").style.width = (count / 4) * 100 + "%";
         }
+        var exInfo = [
+          "Pulsá cuando el marcador esté en la zona verde. Un intento por recorrido.",
+          "Tocá para subir y tocá de nuevo para bajar con la zona verde.",
+          "Mantené y soltá cuando el marcador llegue a la zona verde.",
+          "Alterná pedal izquierdo y derecho con ritmo.",
+        ];
+        // El panel refleja el orden real (aleatorio) de la partida; antes mostraba siempre 01-04 en orden fijo.
+        function renderCircuit() {
+          var ready = state === "ready",
+            single = ready ? $("playMode").value !== "circuit" : singleExercise,
+            order = single ? [ready ? Number($("playMode").value) : exercise] : circuitOrder;
+          $("circuitList").innerHTML = order
+            .map(function (id, i) {
+              var done = !ready && visited[ex[id].id],
+                active = state === "running" && id === exercise,
+                next = state === "transition" && !single && id === circuitOrder[circuitPos + 1],
+                label = done ? "COMPLETO" : active ? "ACTIVO" : next ? "SIGUE" : "PENDIENTE";
+              return (
+                '<div class="row"><div><b>' +
+                pad(i + 1, 2) +
+                " / " +
+                ex[id].name +
+                "</b><small>" +
+                exInfo[id] +
+                '</small></div><span class="tag' +
+                (active ? " active" : "") +
+                '">' +
+                label +
+                "</span></div>"
+              );
+            })
+            .join("");
+          $("circuitNote").textContent = ready
+            ? "El orden de las pruebas se sortea al iniciar. 20 segundos por prueba · 3 segundos de transición."
+            : "20 segundos por prueba · 3 segundos de transición. El peso cambia la dificultad.";
+        }
         function hintText() {
           return exercise === 0
             ? "UN INTENTO POR RECORRIDO · PULSÁ CUANDO EL MARCADOR ESTÉ EN LA ZONA VERDE"
@@ -780,10 +801,7 @@
           $("actionBtn").style.display = bike ? "none" : "";
           $("bikeBtns").style.display = bike ? "grid" : "none";
           updateBikeButtons();
-          for (var i = 0; i < 4; i++) {
-            $("ex" + (i + 1)).className = "tag" + (i === exercise && state !== "over" ? " active" : "");
-            $("ex" + (i + 1)).textContent = visited[ex[i].id] ? "COMPLETO" : i === exercise ? "ACTIVO" : "PENDIENTE";
-          }
+          renderCircuit();
           if (state !== "over") {
             $("actionBtn").textContent =
               exercise === 0
@@ -1497,6 +1515,12 @@
             notice("Audio activado.");
           }
         });
+        $("playMode").addEventListener("change", function () {
+          if (state === "ready") {
+            renderCircuit();
+            $("startBtn").textContent = this.value === "circuit" ? "INICIAR CIRCUITO" : "INICIAR PRUEBA";
+          }
+        });
         $("weight").addEventListener("change", function () {
           notice("Peso " + weight().label + ": puntos ×" + weight().mult + ".");
         });
@@ -1553,6 +1577,7 @@
         if (window.ResizeObserver) new ResizeObserver(fitCanvas).observe(canvas);
         window.addEventListener("resize", fitCanvas);
         renderRecords();
+        renderCircuit();
         updateHud();
         updateMissions();
         draw(0);
