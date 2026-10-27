@@ -26,8 +26,8 @@ No requiere instalación, servidor, dependencias ni conexión a la aplicación.
 - Efectos sonoros 8-bit generados con Web Audio, activables por el usuario.
 - Tres misiones de demostración durante la sesión.
 - Tabla de mejores puntuaciones local con iniciales, guardada en `localStorage`.
-- Modo Zen experimental con una duración de 60 segundos y límite de puntuación de 500.
-- Controles de ratón, pantalla táctil y teclado (Espacio, flecha arriba o Enter).\n- Selector de avatar masculino/femenino en pixel art.\n- Mecánicas separadas: press con un intento por recorrido del indicador, dominadas por ritmo de toques y curl mediante mantener/soltar.
+- Modo Zen sin temporizador, finalizable manualmente y con límite de puntuación de 500; en esta iteración funciona como práctica libre del primer ejercicio.
+- Controles de ratón, pantalla táctil y teclado (Espacio, flecha arriba o Enter).\n- Selector de avatar masculino/femenino en pixel art, visible en la cabecera y sincronizado con el selector de ajustes.\n- Mecánicas separadas: press con un intento por recorrido del indicador, dominadas por ritmo de toques y curl mediante mantener/soltar.
 
 ## Límites conocidos de esta iteración
 
@@ -35,7 +35,7 @@ No requiere instalación, servidor, dependencias ni conexión a la aplicación.
 - La tabla de récords y las misiones son locales al navegador y se pueden borrar o manipular. No son aptas para otorgar premios.
 - El modo Zen de esta primera iteración usa una sesión de 60 segundos; no es todavía el modo sin temporizador definitivo.
 - Las mecánicas de los tres ejercicios requieren pruebas manuales de dificultad y calibración; el press limita cada recorrido a un intento para evitar sumar puntos mediante pulsaciones frenéticas.
-- Falta una batería de pruebas manuales en escritorio y móvil, revisión de accesibilidad y balance de puntuación.
+- Falta una batería de pruebas manuales en escritorio y móvil, revisión de accesibilidad, calibración del balance de puntuación y evaluación visual de las animaciones.
 
 ## Próximo ciclo de trabajo sugerido
 
