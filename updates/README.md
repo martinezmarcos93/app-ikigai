@@ -47,3 +47,10 @@ No requiere instalación, servidor, dependencias ni conexión a la aplicación.
 ## Estado de integración
 
 Intencionalmente no se modifica `iron-pixel.js`, la API, las migraciones ni las reglas de puntos existentes. La integración posterior queda a cargo del mantenedor del proyecto junto con Claude, después de validar el prototipo.
+
+## Plan de trabajo y auditoría
+
+- [Roadmap de estabilización y evolución](iron-pixel-v2/ROADMAP.md): fases, prioridades y criterios de salida.
+- [Auditoría de bugs y estado técnico](iron-pixel-v2/AUDITORIA_BUGS.md): hallazgos, riesgos, evidencias disponibles y protocolo de regresión.
+
+La prioridad inmediata es reproducir y resolver el fallo visual reportado y validarlo en navegador. La revisión sintáctica por sí sola no se considera una prueba funcional.
