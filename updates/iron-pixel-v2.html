@@ -700,17 +700,10 @@
           } else if (g === "GOOD") beep(520, 0.07);
           else beep(180, 0.09);
         }
+        // Solo la primera partícula tenía texto (las otras 7 dibujaban cadenas vacías): queda un único
+        // puntaje flotante que sube unos píxeles desde el banner de resultado.
         function particlesFor(label, x, y, color) {
-          for (var i = 0; i < 8; i++)
-            particles.push({
-              x: x,
-              y: y,
-              vx: (Math.random() - 0.5) * 3,
-              vy: -1 - Math.random() * 3,
-              life: 40,
-              text: i === 0 ? label : "",
-              color: color,
-            });
+          particles.push({ x: x, y: y, vx: 0, vy: -0.9, life: 34, text: label, color: color });
         }
         function grade() {
           var z = 0.06 * Math.max(0.55, 1 - reps * 0.006) * weight().zone,
@@ -772,10 +765,10 @@
           score += pts;
           reps++;
           if (g === "PERFECT") perfects++;
-          flash = g + " +" + pts;
+          flash = g;
           flashUntil = performance.now() + 650;
           shake = g === "PERFECT" ? 3 : 0;
-          particlesFor("+" + pts, 320, 115, g === "PERFECT" ? C.green : g === "GOOD" ? C.yellow : C.white);
+          particlesFor("+" + pts, 320, 292, g === "PERFECT" ? C.green : g === "GOOD" ? C.yellow : C.white);
           soundGrade(g);
           updateHud();
           updateMissions();
@@ -1281,7 +1274,6 @@
           ctx.stroke();
           rect(leftX - 7, leftY - 8, 17, 7, C.white);
           rect(rightX - 7, rightY - 8, 17, 7, C.white);
-          txt("PEDALEÁ ALTERNANDO ← →", 320, 320, 12, C.white);
         }
         function draw(now) {
           offX = 0;
@@ -1298,20 +1290,14 @@
           background();
           meter();
           guy(flashUntil > now || (exercise === 1 && pullPhase === "up"));
-          txt("PUNTOS " + pad(score), 320, 255, 18, C.white);
-          txt(
-            "REP " + pad(reps, 2) + "     COMBO ×" + comboMult().toFixed(1),
-            320,
-            278,
-            12,
-            combo >= 6 ? C.green : C.muted,
-          );
+          // Puntos, repeticiones y combo ya están en el HUD de abajo: no se repiten sobre el personaje.
+          // El resultado de cada repetición se muestra en el piso, sin tapar al personaje ni la bicicleta.
           if (flashUntil > now) {
-            rect(175, 220, 290, 28, "#050506");
+            rect(175, 298, 290, 28, "#050506");
             txt(
               flash,
               320,
-              240,
+              318,
               16,
               flash.indexOf("PERFECT") === 0 ? C.green : flash.indexOf("GOOD") === 0 ? C.yellow : C.white,
             );
