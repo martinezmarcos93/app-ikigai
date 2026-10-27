@@ -27,14 +27,14 @@ No requiere instalación, servidor, dependencias ni conexión a la aplicación.
 - Tres misiones de demostración durante la sesión.
 - Tabla de mejores puntuaciones local con iniciales, guardada en `localStorage`.
 - Modo Zen experimental con una duración de 60 segundos y límite de puntuación de 500.
-- Controles de ratón, pantalla táctil y teclado (Espacio, flecha arriba o Enter).
+- Controles de ratón, pantalla táctil y teclado (Espacio, flecha arriba o Enter).\n- Selector de avatar masculino/femenino en pixel art.\n- Mecánicas separadas: press con un intento por recorrido del indicador, dominadas por ritmo de toques y curl mediante mantener/soltar.
 
 ## Límites conocidos de esta iteración
 
 - **No es una versión conectada a Ikigai Training.** No inicia sesiones en el servidor ni registra usuarios, monedas, canjes, premios, asistencia o ranking global.
 - La tabla de récords y las misiones son locales al navegador y se pueden borrar o manipular. No son aptas para otorgar premios.
 - El modo Zen de esta primera iteración usa una sesión de 60 segundos; no es todavía el modo sin temporizador definitivo.
-- Las mecánicas de dominadas y curl son prototipos de interacción y requieren ajuste de dificultad y calibración.
+- Las mecánicas de los tres ejercicios requieren pruebas manuales de dificultad y calibración; el press limita cada recorrido a un intento para evitar sumar puntos mediante pulsaciones frenéticas.
 - Falta una batería de pruebas manuales en escritorio y móvil, revisión de accesibilidad y balance de puntuación.
 
 ## Próximo ciclo de trabajo sugerido
