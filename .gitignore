@@ -21,3 +21,6 @@ __pycache__/
 accesos-*.jsonl
 accesos-*.html
 Ikigai-accesos/
+
+# Material de referencia de cada actualización (no es parte de la app)
+updates/
