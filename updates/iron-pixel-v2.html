@@ -482,7 +482,9 @@
                 value="MM"
                 aria-label="Iniciales para ranking"
                 style="width: 58px; text-transform: uppercase" /></label
-            ><label class="toggle"><input id="zen" type="checkbox" /> MODO ZEN (SIN TEMPORIZADOR · TOPE 500)</label
+            ><label class="toggle"
+              ><input id="zen" type="checkbox" /> MODO ZEN (SIN TEMPORIZADOR · TOPE 500 · NO SUMA RÉCORD)</label
+            ><button class="secondary" id="nextZen" style="display: none">SIGUIENTE EJERCICIO</button
             ><button class="secondary" id="endZen" style="display: none">TERMINAR ZEN</button>
           </div>
         </section>
@@ -533,7 +535,7 @@
           <section class="card">
             <div class="ctitle">RÉCORDS LOCALES</div>
             <div id="leaderboard"><p class="mini">Todavía no hay partidas registradas.</p></div>
-            <p class="mini">Solo se guardan en este navegador.</p>
+            <p class="mini">Solo cuentan los circuitos completos. Se guardan en este navegador.</p>
           </section>
         </aside>
       </div>
@@ -646,6 +648,8 @@
           audio = null,
           sound = false,
           zen = false,
+          zenCapNotified = false,
+          endTitle = "CIRCUITO COMPLETADO",
           transitionEnd = 0,
           records = loadRecords(),
           raf = 0;
@@ -781,7 +785,9 @@
             .join("");
           $("circuitNote").textContent = ready
             ? "El orden de las pruebas se sortea al iniciar. 20 segundos por prueba · 3 segundos de transición."
-            : "20 segundos por prueba · 3 segundos de transición. El peso cambia la dificultad.";
+            : zen && state === "running"
+              ? "Modo Zen: sin temporizador. Usá SIGUIENTE EJERCICIO para pasar de prueba o TERMINAR ZEN para cerrar."
+              : "20 segundos por prueba · 3 segundos de transición. El peso cambia la dificultad.";
         }
         function hintText() {
           return exercise === 0
@@ -798,6 +804,10 @@
         }
         function tagExercise() {
           var bike = exercise === 3 && state !== "over";
+          $("nextZen").style.display =
+            zen && state === "running" && !singleExercise && circuitPos < circuitOrder.length - 1
+              ? "inline-block"
+              : "none";
           $("actionBtn").style.display = bike ? "none" : "";
           $("bikeBtns").style.display = bike ? "grid" : "none";
           updateBikeButtons();
@@ -834,6 +844,11 @@
           updateHud();
           updateMissions();
           if (g === "PERFECT") notice("¡PERFECT! " + pts + " puntos · combo ×" + comboMult().toFixed(1));
+          // Va después del aviso de PERFECT para que no lo pise.
+          if (zen && score >= 500 && !zenCapNotified) {
+            zenCapNotified = true;
+            notice("Tope del modo Zen alcanzado: 500 puntos. Podés seguir practicando.");
+          }
         }
         function startRun() {
           if (state === "running" || state === "transition") return;
@@ -854,6 +869,7 @@
           circuitPos = 0;
           exercise = singleExercise ? Number($("playMode").value) : circuitOrder[0];
           zen = $("zen").checked;
+          zenCapNotified = false;
           timeLeft = zen ? 0 : 20;
           bar = 0.05;
           dir = 1;
@@ -1004,9 +1020,9 @@
             return;
           }
           exercise = circuitOrder[circuitPos];
-          timeLeft = 20;
+          timeLeft = zen ? 0 : 20;
           state = "running";
-          phaseEnd = now + 20000;
+          phaseEnd = zen ? Infinity : now + 20000;
           bar = 0.04;
           dir = 1;
           benchSweep = 0;
@@ -1031,21 +1047,28 @@
           holdActive = false;
           tagExercise();
           $("endZen").style.display = "none";
+          $("nextZen").style.display = "none";
           updateMissions();
-          var name = (
-            $("initials")
-              .value.toUpperCase()
-              .replace(/[^A-Z0-9]/g, "")
-              .slice(0, 3) || "YOU"
-          ).padEnd(3, "X");
-          records.push({ name: name, score: score, when: Date.now(), reps: reps, perfects: perfects });
-          records.sort(function (a, b) {
-            return b.score - a.score;
-          });
-          records = records.slice(0, 10);
-          saveRecords();
-          renderRecords();
-          $("overlayTitle").textContent = "CIRCUITO COMPLETADO";
+          // Solo el circuito completo cuenta para los récords: Zen (tope 500) y una sola prueba (≈1/4 del
+          // puntaje posible) son práctica y no deben mezclarse con él.
+          var practice = zen || singleExercise;
+          endTitle = zen ? "PRÁCTICA TERMINADA" : singleExercise ? "PRUEBA COMPLETADA" : "CIRCUITO COMPLETADO";
+          if (!practice) {
+            var name = (
+              $("initials")
+                .value.toUpperCase()
+                .replace(/[^A-Z0-9]/g, "")
+                .slice(0, 3) || "YOU"
+            ).padEnd(3, "X");
+            records.push({ name: name, score: score, when: Date.now(), reps: reps, perfects: perfects });
+            records.sort(function (a, b) {
+              return b.score - a.score;
+            });
+            records = records.slice(0, 10);
+            saveRecords();
+            renderRecords();
+          }
+          $("overlayTitle").textContent = endTitle;
           $("overlayCopy").textContent =
             "Puntuación " +
             score +
@@ -1053,11 +1076,14 @@
             reps +
             " repeticiones · " +
             perfects +
-            " PERFECT. Los récords son locales y no se convierten en puntos de cuenta.";
+            " PERFECT. " +
+            (practice
+              ? "Es una práctica: no se registra en los récords."
+              : "Los récords son locales y no se convierten en puntos de cuenta.");
           $("startBtn").textContent = "JUGAR OTRA VEZ";
           $("overlay").classList.remove("hidden");
           $("actionBtn").disabled = true;
-          $("actionBtn").textContent = "CIRCUITO COMPLETADO";
+          $("actionBtn").textContent = endTitle;
           updateHud();
           beep(880, 0.1);
           setTimeout(function () {
@@ -1430,13 +1456,6 @@
             txt(ex[circuitOrder[Math.min(circuitPos + 1, circuitOrder.length - 1)]].name, 320, 158, 14, C.red);
             txt(Math.max(0, (transitionEnd - now) / 1000).toFixed(1) + " s", 320, 184, 12, C.muted);
           }
-          if (state === "over") {
-            rect(95, 94, 450, 112, "#050506");
-            rect(95, 94, 450, 4, C.red);
-            txt("CIRCUITO TERMINADO", 320, 133, 18, C.white);
-            txt(score + " PUNTOS · " + perfects + " PERFECT", 320, 162, 13, C.green);
-            txt("MIRÁ TUS RÉCORDS A LA DERECHA", 320, 185, 10, C.muted);
-          }
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           offX = 0;
           offY = 0;
@@ -1488,6 +1507,9 @@
           raf = requestAnimationFrame(frame);
         }
         $("startBtn").addEventListener("click", startRun);
+        $("nextZen").addEventListener("click", function () {
+          if (state === "running" && zen && !singleExercise) nextExercise(performance.now());
+        });
         $("endZen").addEventListener("click", function () {
           if (state === "running" && zen) finish();
         });
