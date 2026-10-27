@@ -590,6 +590,21 @@
           medium: { label: "MEDIO", mult: 1.5, speed: 1.17, zone: 0.83 },
           heavy: { label: "PESADO", mult: 2, speed: 1.34, zone: 0.68 },
         };
+        // Ventanas de puntuación en ms. Se usan tanto para puntuar como para dibujar el medidor de cada ejercicio,
+        // de modo que lo que se ve en pantalla coincide con lo que puntúa.
+        var PULL = { min: 700, perfect: 1250, good: 1900, span: 2500 }, // ms entre el toque de subida y el de bajada
+          BIKE = { min: 650, perfect: 1500, good: 2300, span: 2500 }, // ms entre pedal izquierdo y derecho
+          CURL = { center: 750, max: 1500 }, // ms de mantener: óptimo en 750, se suelta solo a los 1500
+          ZC = { perfect: C.green, good: "#a8890f", flojo: "#3d3d45", blocked: "#1a1a1f" }; // misma paleta que la leyenda
+        function curlWindows() {
+          var p = 160 * weight().zone;
+          return { perfect: p, good: p * 2.6 };
+        }
+        function gradeCurl(held) {
+          var w = curlWindows(),
+            d = Math.abs(held - CURL.center);
+          return d <= w.perfect ? "PERFECT" : d <= w.good ? "GOOD" : "FLOJO";
+        }
         var state = "ready",
           exercise = 0,
           singleExercise = false,
@@ -710,7 +725,6 @@
         function grade() {
           var z = 0.06 * Math.max(0.55, 1 - reps * 0.006) * weight().zone,
             d = Math.abs(bar - 0.5);
-          if (exercise === 2 && holdActive) return "FLOJO";
           if (d < z) return "PERFECT";
           if (d < z * 2.7) return "GOOD";
           return "FLOJO";
@@ -731,6 +745,15 @@
           $("mAll").textContent = count + "/4";
           $("pAll").style.width = (count / 4) * 100 + "%";
         }
+        function hintText() {
+          return exercise === 0
+            ? "UN INTENTO POR RECORRIDO · PULSÁ CUANDO EL MARCADOR ESTÉ EN LA ZONA VERDE"
+            : exercise === 1
+              ? "DOMINADAS: TOCÁ PARA SUBIR Y TOCÁ DE NUEVO PARA BAJAR CON LA ZONA VERDE"
+              : exercise === 2
+                ? "CURL: MANTENÉ Y SOLTÁ CUANDO EL MARCADOR LLEGUE A LA ZONA VERDE"
+                : "BICICLETA: ALTERNÁ ←/→ O A/D · EMPEZÁ POR LA IZQUIERDA";
+        }
         function tagExercise() {
           for (var i = 0; i < 4; i++) {
             $("ex" + (i + 1)).className = "tag" + (i === exercise && state !== "over" ? " active" : "");
@@ -747,14 +770,7 @@
                       ? "▼ SOLTAR"
                       : "▲ CURL"
                     : "◀ ▶ PEDALEAR";
-            $("keyhint").textContent =
-              exercise === 0
-                ? "UN INTENTO POR RECORRIDO · PULSÁ EN LA ZONA VERDE"
-                : exercise === 1
-                  ? "DOMINADAS: TOCÁ CON RITMO, NO MANTENGAS PRESIONADO"
-                  : exercise === 2
-                    ? "CURL: MANTENÉ Y SOLTÁ CERCA DE LA ZONA VERDE"
-                    : "BICICLETA: ALTERNÁ ←/→ O A/D PARA PEDALEAR";
+            $("keyhint").textContent = hintText();
           }
         }
         function award(g) {
@@ -852,18 +868,20 @@
               pullPhase = "up";
               lastPull = now;
               lastTap = now;
+              $("keyhint").textContent = "SUBIENDO · TOCÁ OTRA VEZ PARA BAJAR EN LA ZONA VERDE";
               beep(320, 0.05);
               return;
             }
             var gap = now - lastPull;
-            if (gap < 700) {
+            if (gap < PULL.min) {
               notice("Completá la subida y bajada antes de repetir.");
               return;
             }
             pullPhase = "";
             lastTap = now;
             lastPull = now;
-            award(gap <= 1250 ? "PERFECT" : gap <= 1900 ? "GOOD" : "FLOJO");
+            $("keyhint").textContent = hintText();
+            award(gap <= PULL.perfect ? "PERFECT" : gap <= PULL.good ? "GOOD" : "FLOJO");
             return;
           }
           if (exercise === 2) {
@@ -873,13 +891,15 @@
               holdActive = true;
               holdStart = now;
               $("actionBtn").textContent = "▼ SOLTAR";
+              $("keyhint").textContent = "MANTENIENDO · SOLTÁ CUANDO EL MARCADOR ESTÉ EN LA ZONA VERDE";
               beep(260, 0.04);
               return;
             }
             var held = now - holdStart;
             holdActive = false;
             $("actionBtn").textContent = "▲ CURL";
-            award(held < 350 ? "FLOJO" : held <= 1150 ? "PERFECT" : held <= 1700 ? "GOOD" : "FLOJO");
+            $("keyhint").textContent = hintText();
+            award(gradeCurl(held));
             return;
           }
           if (exercise === 3) {
@@ -895,7 +915,7 @@
             }
             // Un ciclo derecho demasiado rápido se rechaza sin consumir el turno ni reiniciar su referencia temporal.
             var cycleTime = side === "right" ? now - lastBikePair : 0;
-            if (side === "right" && cycleTime < 650) {
+            if (side === "right" && cycleTime < BIKE.min) {
               notice("Completá el ciclo de pedaleo.");
               return;
             }
@@ -908,7 +928,7 @@
               lastBikePair = now;
             } else {
               lastBikePair = now;
-              award(cycleTime <= 1500 ? "PERFECT" : cycleTime <= 2300 ? "GOOD" : "FLOJO");
+              award(cycleTime <= BIKE.perfect ? "PERFECT" : cycleTime <= BIKE.good ? "GOOD" : "FLOJO");
             }
             $("keyhint").textContent =
               "ÚLTIMO PEDAL: " +
@@ -1122,11 +1142,11 @@
         // Dominadas: el personaje cuelga de una barra fija (sin discos) y sube/baja con la fase del ejercicio.
         function drawPull() {
           var ox = 240,
-            barY = 132,
+            barY = 138,
             bodyY = barY - 1 + Math.round(pullY),
             shoulderY = bodyY + 58;
-          rect(ox - 20, barY - 4, 8, 160, "#34343b");
-          rect(ox + 162, barY - 4, 8, 160, "#34343b");
+          rect(ox - 20, barY - 4, 8, 154, "#34343b");
+          rect(ox + 162, barY - 4, 8, 154, "#34343b");
           rect(ox - 20, barY - 4, 190, 8, "#777982");
           body(ox, bodyY);
           rect(ox + 18, barY, 15, shoulderY - barY + 6, C.skin);
@@ -1141,33 +1161,92 @@
           else if (exercise === 1) drawPull();
           else drawLift();
         }
-        function meter() {
-          if (exercise === 3) {
-            txt(ex[exercise].name, 320, 68, 14, C.muted);
-            rect(150, 86, 340, 20, "#29292f");
-            rect(280, 91, 80, 10, C.green);
-            txt("ALTERNÁ IZQUIERDA Y DERECHA", 320, 124, 12, C.white);
-            return;
-          }
-          txt(ex[exercise].name, 320, 68, 14, C.muted);
+        // Barra de precisión común: segmentos [desde, hasta, color] en fracciones 0..1, marcador y etiquetas.
+        function track(segments, pos, labels) {
           var x = 110,
             y = 82,
             w = 420,
             h = 24,
-            z = 0.06 * Math.max(0.55, 1 - reps * 0.006) * weight().zone;
+            inner = w - 8,
+            cx = x + 4;
           rect(x, y, w, h, "#29292f");
-          rect(x + 4, y + 4, w - 8, h - 8, "#09090b");
-          rect(x + 4, y + 4, (w - 8) * (0.5 - z * 2.7), h - 8, "#6d1015");
-          rect(x + 4 + (w - 8) * (0.5 - z * 2.7), y + 4, (w - 8) * (z * 1.7), h - 8, "#a9141b");
-          rect(x + 4 + (w - 8) * (0.5 - z), y + 4, (w - 8) * z * 2, h - 8, C.green);
-          rect(x + 4 + (w - 8) * (0.5 + z), y + 4, (w - 8) * (z * 1.7), h - 8, "#a9141b");
-          rect(x + 4 + (w - 8) * (0.5 + z * 2.7), y + 4, (w - 8) * (0.5 - z * 2.7), h - 8, "#6d1015");
-          var px = x + 4 + (w - 8) * bar;
+          rect(cx, y + 4, inner, h - 8, "#09090b");
+          segments.forEach(function (sg) {
+            rect(cx + inner * sg[0], y + 4, inner * (sg[1] - sg[0]), h - 8, sg[2]);
+          });
+          var px = cx + inner * Math.max(0, Math.min(1, pos));
           rect(px - 3, y - 5, 6, h + 10, C.white);
           rect(px - 1, y - 3, 2, h + 6, C.red);
-          txt("FLOJO", x + 24, y + 37, 9, C.muted);
-          txt("PERFECT", 320, y + 37, 10, C.green);
-          txt("FLOJO", x + w - 24, y + 37, 9, C.muted);
+          labels.forEach(function (lb) {
+            txt(lb[0], cx + inner * lb[1], y + 37, 10, lb[2]);
+          });
+        }
+        // Segmentos de una ventana de tiempo [bloqueado | PERFECT | GOOD | FLOJO] (dominadas y bicicleta).
+        function timeSegments(r) {
+          return [
+            [0, r.min / r.span, ZC.blocked],
+            [r.min / r.span, r.perfect / r.span, ZC.perfect],
+            [r.perfect / r.span, r.good / r.span, ZC.good],
+            [r.good / r.span, 1, ZC.flojo],
+          ];
+        }
+        function timeLabels(r) {
+          return [
+            ["ESPERÁ", r.min / 2 / r.span, C.muted],
+            ["PERFECT", (r.min + r.perfect) / 2 / r.span, C.green],
+            ["GOOD", (r.perfect + r.good) / 2 / r.span, C.yellow],
+            ["FLOJO", (r.good + r.span) / 2 / r.span, C.muted],
+          ];
+        }
+        function meter(now) {
+          txt(ex[exercise].name, 320, 68, 14, C.muted);
+          if (exercise === 0) {
+            var z = 0.06 * Math.max(0.55, 1 - reps * 0.006) * weight().zone;
+            track(
+              [
+                [0, 0.5 - z * 2.7, ZC.flojo],
+                [0.5 - z * 2.7, 0.5 - z, ZC.good],
+                [0.5 - z, 0.5 + z, ZC.perfect],
+                [0.5 + z, 0.5 + z * 2.7, ZC.good],
+                [0.5 + z * 2.7, 1, ZC.flojo],
+              ],
+              bar,
+              [
+                ["FLOJO", 0.05, C.muted],
+                ["PERFECT", 0.5, C.green],
+                ["FLOJO", 0.95, C.muted],
+              ],
+            );
+          } else if (exercise === 1) {
+            track(timeSegments(PULL), pullPhase === "up" ? (now - lastPull) / PULL.span : 0, timeLabels(PULL));
+          } else if (exercise === 2) {
+            var w = curlWindows(),
+              c = CURL.center / CURL.max,
+              p = w.perfect / CURL.max,
+              g = Math.min(w.good / CURL.max, 1 - c);
+            track(
+              [
+                [0, c - g, ZC.flojo],
+                [c - g, c - p, ZC.good],
+                [c - p, c + p, ZC.perfect],
+                [c + p, c + g, ZC.good],
+                [c + g, 1, ZC.flojo],
+              ],
+              holdActive ? (now - holdStart) / CURL.max : 0,
+              [
+                ["FLOJO", (c - g) / 2, C.muted],
+                ["PERFECT", c, C.green],
+                ["FLOJO", (1 + c + g) / 2, C.muted],
+              ],
+            );
+          } else {
+            track(
+              timeSegments(BIKE),
+              nextBikeSide === "right" ? (now - lastBikePair) / BIKE.span : 0,
+              timeLabels(BIKE),
+            );
+            txt(nextBikeSide === "left" ? "AHORA: ◀ IZQUIERDA" : "AHORA: DERECHA ▶", 320, 135, 12, C.white);
+          }
         }
         function drawBike() {
           rect(0, 145, 640, 145, "#0d0d11");
@@ -1271,7 +1350,7 @@
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.setTransform(S, 0, 0, S, offX, offY);
           background();
-          meter();
+          meter(now);
           guy();
           // Puntos, repeticiones y combo ya están en el HUD de abajo: no se repiten sobre el personaje.
           // El resultado de cada repetición se muestra en el piso, sin tapar al personaje ni la bicicleta.
@@ -1322,8 +1401,8 @@
           // Animaciones suavizadas: la barra del press, el cuerpo en las dominadas y la barra del curl
           // se interpolan hacia su posición objetivo en lugar de saltar.
           liftY += ((flashUntil > now && exercise === 0 ? 6 : 86) - liftY) * Math.min(1, dt * 14);
-          pullY += ((pullPhase === "up" ? -22 : 0) - pullY) * Math.min(1, dt * 9);
-          if (holdActive) curlLift = Math.min(1, (now - holdStart) / 950);
+          pullY += ((pullPhase === "up" ? -16 : 0) - pullY) * Math.min(1, dt * 9);
+          if (holdActive) curlLift = Math.min(1, (now - holdStart) / CURL.center);
           else curlLift += (0 - curlLift) * Math.min(1, dt * 8);
           if (state === "running") {
             if (!zen) timeLeft = Math.max(0, (phaseEnd - now) / 1000);
@@ -1341,7 +1420,7 @@
                 benchSweep++;
               }
             }
-            if (exercise === 2 && holdActive && now - holdStart > 1700) {
+            if (exercise === 2 && holdActive && now - holdStart > CURL.max) {
               holdActive = false;
               $("actionBtn").textContent = "▲ CURL";
               award("FLOJO");
