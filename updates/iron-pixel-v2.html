@@ -42,7 +42,7 @@ if(state!=='running')return;
 if(exercise===0){
  if(now-lastTap<250)return;
  lastTap=now;
- if(benchLastSweep===benchSweep){notice('Esperá que la barra complete el recorrido.');return}
+ if(benchSweep===0){notice('Esperá que la barra complete su primer recorrido.');return}if(benchLastSweep===benchSweep){notice('Esperá que la barra complete el recorrido.');return}
  benchLastSweep=benchSweep;award(grade());return;
 }
 if(exercise===1){
