@@ -1387,8 +1387,28 @@
           if (state === "running") act(performance.now());
           else if (state === "ready" || state === "over") startRun();
         });
+        var pointerFocus = false;
+        document.addEventListener(
+          "pointerdown",
+          function () {
+            pointerFocus = true;
+          },
+          true,
+        );
         document.addEventListener("keydown", function (e) {
-          if (e.repeat || e.target.closest("button,select,input,textarea,a")) return;
+          var t = e.target;
+          if (e.code === "Tab") {
+            pointerFocus = false;
+            return;
+          }
+          if (e.repeat || (t.closest && t.closest("input,select,textarea,a"))) return;
+          // Un botón que quedó con foco tras un click de mouse o toque no debe tragarse el teclado de juego
+          // (antes Espacio volvía a activar, por ejemplo, SONIDO). Si el foco llegó con Tab se respeta la
+          // activación nativa del botón. (:focus-visible no sirve acá: ya vale durante el propio keydown.)
+          if (t.closest && t.closest("button")) {
+            if (!pointerFocus) return;
+            t.blur();
+          }
           if (
             exercise === 3 &&
             (e.code === "ArrowLeft" || e.code === "KeyA" || e.code === "ArrowRight" || e.code === "KeyD")
