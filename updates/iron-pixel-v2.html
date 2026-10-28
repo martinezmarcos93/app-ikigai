@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#09090b" />
+    <meta name="google" content="notranslate" />
     <title>Iron Pixel V2 — Ikigai Training</title>
     <style>
       :root {
@@ -191,6 +192,11 @@
           0 4px 0 #7d0b10,
           0 0 0 3px #fff;
       }
+      #soundBtn {
+        align-self: start;
+        padding: 9px 12px;
+        font-size: 11px;
+      }
       .action {
         min-height: 58px;
         font-size: 16px;
@@ -233,6 +239,22 @@
       .toggle input {
         accent-color: var(--red);
       }
+      .settings :disabled,
+      .settings label:has(:disabled) {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .settingsnote {
+        flex-basis: 100%;
+        margin: 0;
+      }
+      .zenbtns {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 8px;
+      }
+
       .side {
         display: grid;
         gap: 12px;
@@ -336,13 +358,22 @@
         letter-spacing: 0.1em;
         flex: 1;
       }
+      /* El aviso flota sobre el canvas: antes iba debajo de los controles, fuera de la vista mientras se
+         jugaba, y al aparecer empujaba hacia abajo la fila de ajustes. */
       .notice {
         display: none;
-        margin: 0 12px 12px;
-        padding: 9px;
-        background: #222228;
+        position: absolute;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        width: max-content;
+        max-width: calc(100% - 40px);
+        padding: 8px 12px;
+        background: #222228f2;
         border-left: 3px solid var(--red);
-        font-size: 11px;
+        font-size: 12px;
+        pointer-events: none;
+        text-align: center;
       }
       .notice.show {
         display: block;
@@ -395,6 +426,86 @@
         .badge {
           font-size: 9px;
         }
+        /* El canvas mide ~190 px de alto en un celular: el cartel de inicio/fin se compacta para no desbordarlo. */
+        .overlay {
+          padding: 6px;
+        }
+        .overlaybox {
+          padding: 8px 6px;
+        }
+        .ocopy {
+          font-size: 10px;
+          margin: 4px auto 8px;
+        }
+        .overlay .primary {
+          padding: 9px 12px;
+        }
+        .notice {
+          bottom: 14px;
+          font-size: 10px;
+          padding: 5px 8px;
+        }
+      }
+      /* Teléfono acostado: la pantalla mide ~300 px de alto y el botón de juego quedaba fuera de la vista.
+         Canvas a la izquierda; puntaje, botón y ajustes a la derecha. */
+      @media (orientation: landscape) and (max-height: 520px) {
+        body {
+          padding: 6px 10px;
+        }
+        .top {
+          padding: 2px 0 6px;
+          margin-bottom: 8px;
+        }
+        .sub,
+        .badge {
+          display: none;
+        }
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .main {
+          display: grid;
+          grid-template-columns: minmax(0, 1.5fr) minmax(220px, 1fr);
+          align-items: start;
+        }
+        .frame {
+          grid-row: 1 / 4;
+          padding: 6px;
+        }
+        .overlay {
+          inset: 6px;
+          padding: 6px;
+        }
+        canvas {
+          max-height: calc(100svh - 70px);
+          width: auto;
+          max-width: 100%;
+          margin: auto;
+        }
+        .hud {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .stat {
+          padding: 6px 10px;
+        }
+        .controls {
+          grid-template-columns: 1fr;
+          padding: 8px;
+          gap: 6px;
+        }
+        .action {
+          min-height: 50px;
+        }
+        .settings {
+          grid-column: 1 / -1;
+        }
+        .ocopy {
+          font-size: 10px;
+          margin: 4px auto 8px;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         * {
@@ -411,12 +522,6 @@
           <div class="sub">IRON PIXEL // ARCADE LAB V2</div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
-          <label class="field" style="color: #f4f4f5"
-            >AVATAR<select id="characterTop" aria-label="Elegir personaje">
-              <option value="male" selected>Masculino</option>
-              <option value="female">Femenino</option>
-            </select></label
-          >
           <div class="badge">PROTOTIPO LOCAL · NO OTORGA COINS</div>
         </div>
       </header>
@@ -433,12 +538,13 @@
                 <button class="primary" id="startBtn">INICIAR CIRCUITO</button>
               </div>
             </div>
+            <div class="notice" id="notice" role="status"></div>
           </div>
           <div class="hud" aria-live="polite">
             <div class="stat"><label>PUNTUACIÓN</label><strong id="score" class="red">00000</strong></div>
             <div class="stat"><label>REPETICIONES</label><strong id="reps">00</strong></div>
             <div class="stat"><label>COMBO</label><strong id="combo">×1.0</strong></div>
-            <div class="stat"><label>TIEMPO</label><strong id="time">20.0</strong></div>
+            <div class="stat"><label>TIEMPO</label><strong id="time">30.0</strong></div>
           </div>
           <div class="controls">
             <div>
@@ -448,14 +554,14 @@
                 <button class="primary action" id="bikeR">DERECHA ▶</button>
               </div>
               <div class="hint" id="keyhint">ESPACIO / ↑ / TOCAR PARA JUGAR</div>
-              <div class="hint" id="exerciseHelp" style="font-size: 11px; color: #f4f4f5; margin-top: 8px">
-                PRESS: timing · DOMINADAS: dos toques con ritmo · CURL: mantener y soltar · BICI: alternar pedales.
+              <div class="zenbtns">
+                <button class="secondary" id="nextZen" style="display: none">SIGUIENTE EJERCICIO</button
+                ><button class="secondary" id="endZen" style="display: none">TERMINAR ZEN</button>
               </div>
             </div>
             <button class="secondary" id="soundBtn" aria-pressed="false">SONIDO: OFF</button>
           </div>
-          <div class="notice" id="notice" role="status"></div>
-          <div class="settings">
+          <div class="settings" id="settings">
             <label class="field"
               >MODO<select id="playMode">
                 <option value="circuit">CIRCUITO COMPLETO</option>
@@ -484,8 +590,8 @@
                 style="width: 58px; text-transform: uppercase" /></label
             ><label class="toggle"
               ><input id="zen" type="checkbox" /> MODO ZEN (SIN TEMPORIZADOR · TOPE 500 · NO SUMA RÉCORD)</label
-            ><button class="secondary" id="nextZen" style="display: none">SIGUIENTE EJERCICIO</button
-            ><button class="secondary" id="endZen" style="display: none">TERMINAR ZEN</button>
+            >
+            <p class="mini settingsnote" id="settingsNote">Modo, peso y Zen se aplican al iniciar la partida.</p>
           </div>
         </section>
         <aside class="side">
@@ -523,7 +629,7 @@
               <div class="progress"><i id="pPerfect"></i></div>
             </div>
             <div class="mission">
-              <div class="mhead"><span>Alcanzá combo ×3</span><b id="mCombo">PEND.</b></div>
+              <div class="mhead"><span>Llegá a combo ×3.0 (12 seguidas)</span><b id="mCombo">PEND.</b></div>
               <div class="progress"><i id="pCombo"></i></div>
             </div>
             <div class="mission">
@@ -556,6 +662,7 @@
         // El lienzo lógico es 640x360. El backing store se ajusta al tamaño CSS real × devicePixelRatio para que
         // el pixel art no se escale con un factor no entero (que producía píxeles desparejos y texto "fantasma").
         var S = 1,
+          T = 1, // escala del texto: en pantallas angostas el canvas se achica y el texto de 10 px quedaba en ~5 px
           offX = 0,
           offY = 0;
         function fitCanvas() {
@@ -567,6 +674,7 @@
             canvas.height = Math.round((pw * H) / W);
           }
           S = canvas.width / W;
+          T = Math.min(1.6, Math.max(1, 560 / cssW));
           ctx.imageSmoothingEnabled = false;
         }
         fitCanvas();
@@ -609,6 +717,10 @@
             d = Math.abs(held - CURL.center);
           return d <= w.perfect ? "PERFECT" : d <= w.good ? "GOOD" : "FLOJO";
         }
+        // Duración de cada prueba y de la transición. Con 20 s / 3 s el circuito se sentía apurado al probarlo en
+        // un celular real; se alargó a 30 s / 5 s.
+        var EX_SECONDS = 30,
+          TRANSITION_SECONDS = 5;
         var state = "ready",
           exercise = 0,
           singleExercise = false,
@@ -620,7 +732,8 @@
           combo = 0,
           maxCombo = 0,
           visited = {},
-          timeLeft = 20,
+          repsBy = {},
+          timeLeft = EX_SECONDS,
           phaseEnd = 0,
           lastFrame = 0,
           bar = 0.05,
@@ -629,6 +742,7 @@
           benchLastSweep = -1,
           holdStart = 0,
           holdActive = false,
+          holdBy = "", // "key", "pointer" o "toggle": qué entrada mantiene el curl y debe soltarlo
           lastTap = -Infinity,
           lastPull = 0,
           pullPhase = "",
@@ -662,9 +776,8 @@
         function comboMult() {
           return Math.min(3, 1 + 0.5 * Math.floor(combo / 3));
         }
-        function setCharacter(v) {
-          $("character").value = v;
-          $("characterTop").value = v;
+        function female() {
+          return $("character").value === "female";
         }
         function loadRecords() {
           try {
@@ -752,14 +865,15 @@
           $("pAll").style.width = (count / 4) * 100 + "%";
         }
         var exInfo = [
-          "Pulsá cuando el marcador esté en la zona verde. Un intento por recorrido.",
-          "Tocá para subir y tocá de nuevo para bajar con la zona verde.",
-          "Mantené y soltá cuando el marcador llegue a la zona verde.",
+          "Pulsá cuando el marcador esté en la zona verde. Un intento por ida y vuelta.",
+          "Tocá para subir y tocá de nuevo para bajar cuando el marcador esté en verde.",
+          "Mantené apretado y soltá cuando el marcador llegue a la zona verde.",
           "Alterná pedal izquierdo y derecho con ritmo.",
         ];
         // El panel refleja el orden real (aleatorio) de la partida; antes mostraba siempre 01-04 en orden fijo.
         function renderCircuit() {
           var ready = state === "ready",
+            n,
             single = ready ? $("playMode").value !== "circuit" : singleExercise,
             order = single ? [ready ? Number($("playMode").value) : exercise] : circuitOrder;
           $("circuitList").innerHTML = order
@@ -767,7 +881,15 @@
               var done = !ready && visited[ex[id].id],
                 active = state === "running" && id === exercise,
                 next = state === "transition" && !single && id === circuitOrder[circuitPos + 1],
-                label = done ? "COMPLETO" : active ? "ACTIVO" : next ? "SIGUE" : "PENDIENTE";
+                label = done
+                  ? (n = repsBy[ex[id].id] || 0)
+                    ? n + (n === 1 ? " REP" : " REPS")
+                    : "SIN REPS"
+                  : active
+                    ? "ACTIVO"
+                    : next
+                      ? "SIGUE"
+                      : "PENDIENTE";
               return (
                 '<div class="row"><div><b>' +
                 pad(i + 1, 2) +
@@ -784,19 +906,50 @@
             })
             .join("");
           $("circuitNote").textContent = ready
-            ? "El orden de las pruebas se sortea al iniciar. 20 segundos por prueba · 3 segundos de transición."
+            ? "El orden de las pruebas se sortea al iniciar. " +
+              EX_SECONDS +
+              " segundos por prueba · " +
+              TRANSITION_SECONDS +
+              " segundos de transición."
             : zen && state === "running"
               ? "Modo Zen: sin temporizador. Usá SIGUIENTE EJERCICIO para pasar de prueba o TERMINAR ZEN para cerrar."
-              : "20 segundos por prueba · 3 segundos de transición. El peso cambia la dificultad.";
+              : EX_SECONDS + " segundos por prueba · " + TRANSITION_SECONDS + " segundos de transición. El peso cambia la dificultad.";
         }
         function hintText() {
           return exercise === 0
-            ? "UN INTENTO POR RECORRIDO · PULSÁ CUANDO EL MARCADOR ESTÉ EN LA ZONA VERDE"
+            ? "PRESS: PULSÁ CUANDO EL MARCADOR ESTÉ EN LA ZONA VERDE · UN INTENTO POR IDA Y VUELTA"
             : exercise === 1
               ? "DOMINADAS: TOCÁ PARA SUBIR Y TOCÁ DE NUEVO PARA BAJAR CON LA ZONA VERDE"
               : exercise === 2
-                ? "CURL: MANTENÉ Y SOLTÁ CUANDO EL MARCADOR LLEGUE A LA ZONA VERDE"
+                ? "CURL: MANTENÉ APRETADO (TECLA, BOTÓN O PANTALLA) Y SOLTÁ EN LA ZONA VERDE"
                 : "BICICLETA: ALTERNÁ ←/→ O A/D (O LOS BOTONES) · EMPEZÁ POR LA IZQUIERDA";
+        }
+        // Modo, peso, Zen e iniciales solo se leen al iniciar: durante la partida quedan deshabilitados para que
+        // no parezca que funcionan (antes se podían tocar sin ningún efecto visible).
+        function lockSettings() {
+          var playing = state === "running" || state === "transition";
+          ["playMode", "weight", "zen", "initials"].forEach(function (id) {
+            $(id).disabled = playing;
+          });
+          $("settingsNote").textContent = playing
+            ? "Modo, peso y Zen quedan fijos hasta que termine la partida. El personaje se puede cambiar siempre."
+            : "Modo, peso y Zen se aplican al iniciar la partida.";
+        }
+        function startLabel() {
+          return $("zen").checked
+            ? "INICIAR PRÁCTICA ZEN"
+            : $("playMode").value === "circuit"
+              ? "INICIAR CIRCUITO"
+              : "INICIAR PRUEBA";
+        }
+        // Con la partida detenida, cambiar el modo o Zen actualiza el botón, el panel y la escena de inmediato.
+        function previewSettings() {
+          if (state === "running" || state === "transition") return;
+          state = "ready";
+          singleExercise = $("playMode").value !== "circuit";
+          exercise = singleExercise ? Number($("playMode").value) : 0;
+          $("startBtn").textContent = startLabel();
+          tagExercise();
         }
         function updateBikeButtons() {
           $("bikeL").classList.toggle("next", nextBikeSide === "left");
@@ -808,6 +961,9 @@
             zen && state === "running" && !singleExercise && circuitPos < circuitOrder.length - 1
               ? "inline-block"
               : "none";
+          $("endZen").style.display = zen && state === "running" ? "inline-block" : "none";
+          document.querySelector(".zenbtns").style.display = zen && state === "running" ? "" : "none";
+          lockSettings();
           $("actionBtn").style.display = bike ? "none" : "";
           $("bikeBtns").style.display = bike ? "grid" : "none";
           updateBikeButtons();
@@ -835,6 +991,7 @@
           if (zen) pts = Math.min(pts, Math.max(0, 500 - score));
           score += pts;
           reps++;
+          repsBy[ex[exercise].id] = (repsBy[ex[exercise].id] || 0) + 1;
           if (g === "PERFECT") perfects++;
           flash = g;
           flashUntil = performance.now() + 650;
@@ -859,6 +1016,7 @@
           combo = 0;
           maxCombo = 0;
           visited = {};
+          repsBy = {};
           circuitOrder = [0, 1, 2, 3];
           for (var ri = circuitOrder.length - 1; ri > 0; ri--) {
             var rj = Math.floor(Math.random() * (ri + 1));
@@ -870,7 +1028,7 @@
           exercise = singleExercise ? Number($("playMode").value) : circuitOrder[0];
           zen = $("zen").checked;
           zenCapNotified = false;
-          timeLeft = zen ? 0 : 20;
+          timeLeft = zen ? 0 : EX_SECONDS;
           bar = 0.05;
           dir = 1;
           benchSweep = 0;
@@ -894,9 +1052,9 @@
           lastBikePair = performance.now();
           bikePedalPhase = 0;
           bikePedalVel = 0;
-          $("endZen").style.display = zen ? "inline-block" : "none";
           lastPull = 0;
           holdActive = false;
+          holdBy = "";
           tagExercise();
           updateHud();
           updateMissions();
@@ -906,14 +1064,13 @@
           now = now || performance.now();
           if (state !== "running") return;
           if (exercise === 0) {
+            // Un intento por ida y vuelta del marcador; el primero vale desde el arranque. Antes había que esperar
+            // una vuelta completa (~2,5 s) antes del primer intento y el aviso que lo explicaba no se veía. Con un
+            // intento por pasada el press daba casi el doble de repeticiones que las otras pruebas.
             if (now - lastTap < 250) return;
             lastTap = now;
-            if (benchSweep === 0) {
-              notice("Esperá que la barra complete su primer recorrido.");
-              return;
-            }
             if (benchLastSweep === benchSweep) {
-              notice("Esperá que la barra complete el recorrido.");
+              notice("Un intento por ida y vuelta del marcador.");
               return;
             }
             benchLastSweep = benchSweep;
@@ -944,21 +1101,18 @@
             return;
           }
           if (exercise === 2) {
-            if (now - lastTap < 280) return;
-            lastTap = now;
-            if (!holdActive) {
-              holdActive = true;
-              holdStart = now;
-              $("actionBtn").textContent = "▼ SOLTAR";
-              $("keyhint").textContent = "MANTENIENDO · SOLTÁ CUANDO EL MARCADOR ESTÉ EN LA ZONA VERDE";
-              beep(260, 0.04);
+            if (holdActive) {
+              curlRelease(now);
               return;
             }
-            var held = now - holdStart;
-            holdActive = false;
-            $("actionBtn").textContent = "▲ CURL";
-            $("keyhint").textContent = hintText();
-            award(gradeCurl(held));
+            if (now - lastTap < 280) return;
+            lastTap = now;
+            holdActive = true;
+            holdStart = now;
+            holdBy = holdBy || "toggle";
+            $("actionBtn").textContent = "▼ SOLTAR";
+            $("keyhint").textContent = "MANTENIENDO · SOLTÁ CUANDO EL MARCADOR ESTÉ EN LA ZONA VERDE";
+            beep(260, 0.04);
             return;
           }
           if (exercise === 3) {
@@ -1002,11 +1156,25 @@
             return;
           }
         }
+        // El curl se mantiene con la tecla, el mouse o el dedo y puntúa al soltar. Antes se jugaba con dos
+        // toques aunque la consigna decía "mantené y soltá". Con el teclado sobre un botón enfocado con Tab
+        // sigue funcionando con dos pulsaciones.
+        function curlRelease(now) {
+          if (state !== "running" || exercise !== 2 || !holdActive) return;
+          var held = now - holdStart;
+          holdActive = false;
+          holdBy = "";
+          lastTap = now;
+          $("actionBtn").textContent = "▲ CURL";
+          $("keyhint").textContent = hintText();
+          award(gradeCurl(held));
+        }
         function transition(now) {
           state = "transition";
-          transitionEnd = now + 3000;
-          timeLeft = 3;
+          transitionEnd = now + TRANSITION_SECONDS * 1000;
+          timeLeft = TRANSITION_SECONDS;
           holdActive = false;
+          holdBy = "";
           combo = 0;
           tagExercise();
           updateHud();
@@ -1020,9 +1188,9 @@
             return;
           }
           exercise = circuitOrder[circuitPos];
-          timeLeft = zen ? 0 : 20;
+          timeLeft = zen ? 0 : EX_SECONDS;
           state = "running";
-          phaseEnd = zen ? Infinity : now + 20000;
+          phaseEnd = zen ? Infinity : now + EX_SECONDS * 1000;
           bar = 0.04;
           dir = 1;
           benchSweep = 0;
@@ -1036,6 +1204,7 @@
           lastBikePair = now;
           bikePedalVel = 0;
           holdActive = false;
+          holdBy = "";
           tagExercise();
           updateMissions();
           notice("SIGUIENTE: " + ex[exercise].name);
@@ -1045,9 +1214,8 @@
           visited[ex[exercise].id] = true;
           state = "over";
           holdActive = false;
+          holdBy = "";
           tagExercise();
-          $("endZen").style.display = "none";
-          $("nextZen").style.display = "none";
           updateMissions();
           // Solo el circuito completo cuenta para los récords: Zen (tope 500) y una sola prueba (≈1/4 del
           // puntaje posible) son práctica y no deben mezclarse con él.
@@ -1068,6 +1236,7 @@
             saveRecords();
             renderRecords();
           }
+          $("notice").classList.remove("show");
           $("overlayTitle").textContent = endTitle;
           $("overlayCopy").textContent =
             "Puntuación " +
@@ -1127,7 +1296,7 @@
         }
         function txt(s, x, y, size, c, align) {
           ctx.fillStyle = c;
-          ctx.font = "bold " + size + "px monospace";
+          ctx.font = "bold " + Math.round(size * (size < 13 ? T : Math.min(T, 1.25))) + "px monospace";
           ctx.textAlign = align || "center";
           ctx.fillText(s, x, y);
         }
@@ -1137,8 +1306,16 @@
           for (var x = 16; x < W; x += 32) rect(x, 18, 1, 270, "#17171c");
           rect(20, 28, 132, 60, "#111115");
           rect(24, 32, 124, 52, "#1b1b20");
-          txt("IKIGAI", 86, 53, 17, C.red);
-          txt("TRAINING", 86, 73, 10, C.muted);
+          // El cartel izquierdo indica en qué prueba vas (antes repetía el logo de la cabecera).
+          var playing = state === "running" || state === "transition";
+          txt(
+            !playing ? "IRON PIXEL" : singleExercise ? "PRUEBA" : "PRUEBA " + (circuitPos + 1) + "/" + circuitOrder.length,
+            86,
+            53,
+            !playing ? 15 : 14,
+            C.red,
+          );
+          txt(!playing ? "ARCADE LAB" : zen ? "MODO ZEN" : singleExercise ? "ÚNICA" : "CIRCUITO", 86, 73, 10, C.muted);
           rect(492, 28, 126, 60, "#111115");
           rect(496, 32, 118, 52, "#1b1b20");
           txt(weight().label, 555, 53, 12, C.white);
@@ -1149,14 +1326,14 @@
         }
         // Cuerpo (sin brazos ni equipo). (ox, oy) es la esquina del sprite.
         function body(ox, oy) {
-          var female = $("characterTop").value === "female",
+          var isFemale = female(),
             skin = C.skin;
           rect(ox + 32, oy + 103, 35, 42, C.pants);
           rect(ox + 81, oy + 103, 35, 42, C.pants);
           rect(ox + 25, oy + 139, 44, 10, C.white);
           rect(ox + 77, oy + 139, 44, 10, C.white);
           rect(ox + 33, oy + 53, 80, 56, C.shirt);
-          if (female) {
+          if (isFemale) {
             rect(ox + 48, oy + 57, 50, 47, "#ff4148");
             rect(ox + 56, oy + 57, 34, 14, "#f6c3a6");
             rect(ox + 58, oy + 39, 32, 18, skin);
@@ -1166,7 +1343,7 @@
             rect(ox + 57, oy + 39, 34, 18, skin);
           }
           rect(ox + 52, oy + 10, 44, 32, skin);
-          if (female) {
+          if (isFemale) {
             rect(ox + 48, oy + 5, 52, 16, "#282228");
             rect(ox + 46, oy + 12, 8, 34, "#282228");
             rect(ox + 94, oy + 12, 8, 34, "#282228");
@@ -1204,15 +1381,57 @@
           rect(ox + 28, handY - 3, 14, 8, C.skin);
           rect(ox + 103, handY - 3, 14, 8, C.skin);
         }
-        // Press y curl. La altura de la barra viene de liftY / curlLift, que se interpolan en frame()
-        // (antes la barra saltaba entre dos posiciones fijas).
+        // Curl de pie. La altura de la barra viene de curlLift, que se interpola en frame().
         function drawLift() {
           var ox = 240,
             oy = 120,
-            by = exercise === 2 ? oy + 96 - Math.round(curlLift * 50) : oy + liftY;
+            by = oy + 96 - Math.round(curlLift * 50);
           body(ox, oy);
           barbell(ox, by);
           lifterArms(ox, oy, by + 3);
+        }
+        // Press de banca visto de costado: acostado en el banco, la barra (vista de frente: el disco) baja al
+        // pecho y sube al acertar. Antes se dibujaba de pie, idéntico al curl.
+        function drawBench() {
+          var isFemale = female(),
+            hair = isFemale ? "#282228" : "#222228",
+            ext = Math.max(0, Math.min(1, (86 - liftY) / 80)),
+            by = Math.round(206 - ext * 56),
+            sx = 278,
+            sy = 224;
+          // Banco y soportes
+          rect(196, 240, 230, 12, "#2b2b31");
+          rect(196, 240, 230, 3, "#4a4a52");
+          rect(212, 252, 10, 38, "#34343b");
+          rect(400, 252, 10, 38, "#34343b");
+          // Piernas: muslo sobre el banco y pierna apoyada en el piso
+          rect(338, 218, 62, 22, C.pants);
+          rect(392, 230, 20, 56, C.pants);
+          rect(388, 282, 34, 8, C.white);
+          // Torso y cabeza
+          rect(240, 212, 100, 28, C.shirt);
+          rect(250, 216, 70, 6, isFemale ? "#ff4148" : "#8a0c12");
+          rect(206, 210, 34, 30, C.skin);
+          rect(202, 208, 14, 28, hair);
+          if (isFemale) rect(196, 214, 10, 30, hair);
+          rect(226, 216, 4, 4, C.bg);
+          rect(232, 230, 8, 3, "#8b5140");
+          // Brazos: hombro → codo (flexionado hacia los pies con la barra abajo, recto arriba) → manos en la barra
+          var ex2 = sx + 16 * (1 - ext),
+            ey = 228 - 41 * ext;
+          ctx.strokeStyle = C.skin;
+          ctx.lineWidth = 12;
+          ctx.lineCap = "square";
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(ex2, ey);
+          ctx.lineTo(sx, by + 4);
+          ctx.stroke();
+          rect(sx - 10, sy - 8, 20, 14, C.shirt);
+          // Barra vista de frente: disco y punta del eje
+          rect(sx - 14, by - 26, 28, 52, "#777982");
+          rect(sx - 9, by - 20, 18, 40, C.red);
+          rect(sx - 4, by - 4, 8, 8, C.metal);
         }
         // Dominadas: el personaje cuelga de una barra fija (sin discos) y sube/baja con la fase del ejercicio.
         function drawPull() {
@@ -1234,6 +1453,7 @@
         function guy() {
           if (exercise === 3) drawBike();
           else if (exercise === 1) drawPull();
+          else if (exercise === 0) drawBench();
           else drawLift();
         }
         // Barra de precisión común: segmentos [desde, hasta, color] en fracciones 0..1, marcador y etiquetas.
@@ -1320,97 +1540,121 @@
               nextBikeSide === "right" ? (now - lastBikePair) / BIKE.span : 0,
               timeLabels(BIKE),
             );
-            txt(nextBikeSide === "left" ? "AHORA: ◀ IZQUIERDA" : "AHORA: DERECHA ▶", 320, 135, 12, C.white);
+            // Al costado izquierdo de la bici, donde no tapa al ciclista.
+            txt("AHORA", 130, 196, 11, C.muted);
+            txt(nextBikeSide === "left" ? "◀ IZQUIERDA" : "DERECHA ▶", 130, 220, 13, C.white);
           }
         }
+        // Bicicleta estática: base en el piso, volante de inercia adelante y bielas que siguen la fase del pedal.
         function drawBike() {
-          rect(0, 145, 640, 145, "#0d0d11");
-          rect(0, 286, 640, 4, "#34343b");
-          function wheel(x, y) {
-            ctx.strokeStyle = "#777982";
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.arc(x, y, 42, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.strokeStyle = "#34343b";
-            ctx.lineWidth = 2;
-            for (var i = 0; i < 8; i++) {
-              var a = (i * Math.PI) / 4 + bikePedalPhase;
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-              ctx.lineTo(x + Math.cos(a) * 38, y + Math.sin(a) * 38);
-              ctx.stroke();
-            }
-          }
-          wheel(245, 245);
-          wheel(395, 245);
-          ctx.strokeStyle = C.red;
-          ctx.lineWidth = 8;
-          ctx.beginPath();
-          ctx.moveTo(245, 245);
-          ctx.lineTo(292, 190);
-          ctx.lineTo(350, 245);
-          ctx.lineTo(245, 245);
-          ctx.lineTo(395, 245);
-          ctx.stroke();
-          rect(278, 179, 30, 7, C.metal);
-          rect(370, 202, 30, 7, C.metal);
-          var t = bikePedalPhase,
-            crankX = 320,
-            crankY = 245,
-            radius = 22;
-          var leftX = crankX + Math.cos(t) * radius,
-            leftY = crankY + Math.sin(t) * radius;
-          var rightX = crankX + Math.cos(t + Math.PI) * radius,
-            rightY = crankY + Math.sin(t + Math.PI) * radius;
-          ctx.strokeStyle = C.yellow;
-          ctx.lineWidth = 5;
-          ctx.beginPath();
-          ctx.moveTo(leftX, leftY);
-          ctx.lineTo(rightX, rightY);
-          ctx.stroke();
-          rect(leftX - 5, leftY - 3, 10, 6, C.white);
-          rect(rightX - 5, rightY - 3, 10, 6, C.white);
-          // Torso and brazos llegan al manubrio; rodillas y pies siguen la fase del pedal.
-          var female = $("characterTop").value === "female";
-          rect(300, 150, 38, 36, C.skin);
-          rect(295, 141, 47, 12, "#282228");
-          if (female) rect(293, 148, 8, 29, "#282228");
-          rect(307, 162, 4, 4, C.bg);
-          rect(328, 162, 4, 4, C.bg);
-          rect(310, 174, 17, 3, "#8b5140");
-          rect(296, 186, 47, 45, C.red);
-          ctx.strokeStyle = C.skin;
-          ctx.lineWidth = 10;
           ctx.lineCap = "square";
+          // Base y patas
+          rect(214, 282, 230, 8, "#34343b");
+          rect(204, 278, 36, 12, "#4a4a52");
+          rect(418, 278, 36, 12, "#4a4a52");
+          // Volante de inercia con carcasa
+          var fx = 404,
+            fy = 248;
+          ctx.fillStyle = "#1b1b20";
           ctx.beginPath();
-          ctx.moveTo(300, 194);
-          ctx.lineTo(314, 205);
-          ctx.lineTo(302, 184);
-          ctx.moveTo(340, 194);
-          ctx.lineTo(354, 205);
-          ctx.lineTo(382, 205);
+          ctx.arc(fx, fy, 30, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#777982";
+          ctx.lineWidth = 5;
           ctx.stroke();
-          rect(298, 190, 11, 10, C.red);
-          rect(337, 190, 11, 10, C.red);
-          ctx.strokeStyle = C.skin;
-          ctx.lineWidth = 10;
+          ctx.strokeStyle = "#4a4a52";
+          ctx.lineWidth = 3;
+          for (var i = 0; i < 6; i++) {
+            var a = (i * Math.PI) / 3 + bikePedalPhase * 1.6;
+            ctx.beginPath();
+            ctx.moveTo(fx, fy);
+            ctx.lineTo(fx + Math.cos(a) * 26, fy + Math.sin(a) * 26);
+            ctx.stroke();
+          }
+          rect(fx - 4, fy - 4, 8, 8, C.metal);
+          // Ciclista de perfil mirando al manubrio. El lado lejano (brazo, pierna, biela) se dibuja ANTES que el
+          // cuadro y más oscuro, así queda tapado por la bici; el lado cercano va encima de todo. Las rodillas se
+          // calculan con cinemática inversa de dos segmentos (muslo + pierna) a partir de la posición del pedal.
+          var t = bikePedalPhase,
+            cx = 322,
+            cy = 252,
+            cr = 18,
+            hip = { x: 298, y: 196 },
+            sh = { x: 336, y: 158 },
+            grip = { x: 388, y: 214 },
+            near = { x: cx + Math.cos(t) * cr, y: cy + Math.sin(t) * cr },
+            far = { x: cx + Math.cos(t + Math.PI) * cr, y: cy + Math.sin(t + Math.PI) * cr },
+            isFemale = female(),
+            hair = "#282228",
+            DARK = { pants: "#2a2a31", skin: "#8f6249", shirt: "#8a0c12", shoe: "#6d6d76", crank: "#8a6d0c" },
+            NEAR_PANTS = "#5b5b67";
+          function knee(p) {
+            var L1 = 42,
+              L2 = 40,
+              dx = p.x - hip.x,
+              dy = p.y - hip.y,
+              d = Math.min(L1 + L2 - 1, Math.max(1, Math.hypot(dx, dy))),
+              ang = Math.atan2(dy, dx),
+              bend = Math.acos((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d));
+            return { x: hip.x + Math.cos(ang - bend) * L1, y: hip.y + Math.sin(ang - bend) * L1 };
+          }
+          function seg(pts, width, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (var k = 1; k < pts.length; k++) ctx.lineTo(pts[k].x, pts[k].y);
+            ctx.stroke();
+          }
+          function leg(p, pants, shoe) {
+            var k = knee(p);
+            seg([hip, k], 13, pants);
+            seg([k, { x: p.x, y: p.y - 4 }], 11, pants);
+            rect(p.x - 8, p.y - 8, 19, 7, shoe);
+          }
+          function crank(p, color) {
+            seg([{ x: cx, y: cy }, p], 5, color);
+            rect(p.x - 6, p.y - 2, 12, 5, C.metal);
+          }
+          function arm(offset, skin, shirt) {
+            var elbow = { x: 362 + offset, y: 188 };
+            seg([{ x: sh.x + offset, y: sh.y + 4 }, elbow], 10, shirt);
+            seg([elbow, { x: grip.x + offset, y: grip.y }], 9, skin);
+          }
+          // 1. Lado lejano, detrás del cuadro
+          arm(-6, DARK.skin, DARK.shirt);
+          crank(far, DARK.crank);
+          leg(far, DARK.pants, DARK.shoe);
+          // 2. Cuadro gris: en rojo se fundía con la remera del ciclista
+          ctx.strokeStyle = "#6b6d75";
+          ctx.lineWidth = 9;
           ctx.beginPath();
-          ctx.moveTo(305, 229);
-          ctx.lineTo(leftX, leftY);
-          ctx.moveTo(335, 229);
-          ctx.lineTo(rightX, rightY);
+          ctx.moveTo(300, 204);
+          ctx.lineTo(cx, cy);
+          ctx.lineTo(300, 282);
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(fx, fy);
+          ctx.moveTo(382, 219);
+          ctx.lineTo(fx, fy);
+          ctx.lineTo(430, 282);
           ctx.stroke();
-          ctx.strokeStyle = C.pants;
-          ctx.lineWidth = 12;
-          ctx.beginPath();
-          ctx.moveTo(307, 229);
-          ctx.lineTo(leftX, leftY - 7);
-          ctx.moveTo(335, 229);
-          ctx.lineTo(rightX, rightY - 7);
-          ctx.stroke();
-          rect(leftX - 7, leftY - 8, 17, 7, C.white);
-          rect(rightX - 7, rightY - 8, 17, 7, C.white);
+          rect(278, 198, 34, 7, C.metal);
+          rect(370, 212, 30, 7, C.metal);
+          rect(cx - 6, cy - 6, 12, 12, "#4a4a52");
+          // 3. Torso inclinado hacia el manubrio y cabeza de perfil
+          seg([hip, sh], 24, C.shirt);
+          seg([{ x: hip.x + 4, y: hip.y - 6 }, { x: sh.x - 4, y: sh.y + 8 }], 5, "#ff4148");
+          rect(sh.x + 1, sh.y - 10, 12, 8, C.skin);
+          rect(sh.x - 6, sh.y - 34, 26, 26, C.skin);
+          rect(sh.x - 8, sh.y - 37, 28, 8, hair);
+          rect(sh.x - 8, sh.y - 32, 8, 13, hair);
+          if (isFemale) rect(sh.x - 17, sh.y - 32, 10, 22, hair);
+          rect(sh.x + 12, sh.y - 26, 4, 4, C.bg);
+          rect(sh.x + 15, sh.y - 16, 5, 3, "#8b5140");
+          // 4. Lado cercano, delante de todo
+          crank(near, C.yellow);
+          leg(near, NEAR_PANTS, C.white);
+          arm(0, C.skin, C.shirt);
         }
         function draw(now) {
           offX = 0;
@@ -1449,12 +1693,17 @@
           particles = particles.filter(function (p) {
             return p.life > 0;
           });
+          // La transición oscurece toda la escena: antes el cartel quedaba montado sobre el medidor del
+          // ejercicio anterior y se veían restos por detrás.
           if (state === "transition") {
-            rect(90, 94, 460, 112, "#050506");
-            rect(90, 94, 460, 4, C.red);
-            txt("CAMBIO DE EJERCICIO", 320, 130, 17, C.white);
-            txt(ex[circuitOrder[Math.min(circuitPos + 1, circuitOrder.length - 1)]].name, 320, 158, 14, C.red);
-            txt(Math.max(0, (transitionEnd - now) / 1000).toFixed(1) + " s", 320, 184, 12, C.muted);
+            ctx.fillStyle = "rgba(5,5,6,0.82)";
+            ctx.fillRect(0, 0, W, H);
+            rect(110, 110, 420, 130, "#0b0b0e");
+            rect(110, 110, 420, 4, C.red);
+            rect(110, 236, 420, 4, C.red);
+            txt("CAMBIO DE EJERCICIO", 320, 148, 17, C.white);
+            txt("SIGUE: " + ex[circuitOrder[Math.min(circuitPos + 1, circuitOrder.length - 1)]].name, 320, 180, 15, C.red);
+            txt(Math.max(0, (transitionEnd - now) / 1000).toFixed(1) + " s", 320, 212, 13, C.muted);
           }
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           offX = 0;
@@ -1490,8 +1739,20 @@
             }
             if (exercise === 2 && holdActive && now - holdStart > CURL.max) {
               holdActive = false;
+              holdBy = "";
               $("actionBtn").textContent = "▲ CURL";
+              $("keyhint").textContent = hintText();
               award("FLOJO");
+              notice("Lo mantuviste demasiado: el curl se soltó solo.");
+            }
+            // Dominada colgada arriba sin bajar: se cuenta como FLOJO en lugar de quedar trabada para siempre.
+            if (exercise === 1 && pullPhase === "up" && now - lastPull > PULL.span) {
+              pullPhase = "";
+              lastTap = now;
+              lastPull = now;
+              $("keyhint").textContent = hintText();
+              award("FLOJO");
+              notice("Tardaste demasiado en bajar.");
             }
             if (!zen && timeLeft <= 0) {
               visited[ex[exercise].id] = true;
@@ -1513,20 +1774,34 @@
         $("endZen").addEventListener("click", function () {
           if (state === "running" && zen) finish();
         });
-        $("actionBtn").addEventListener("click", function () {
+        // En el curl el botón se mantiene: pointerdown empieza y pointerup suelta. El click que llega después
+        // se ignora; un click de teclado (detail 0) usa el modo de dos pulsaciones.
+        $("actionBtn").addEventListener("pointerdown", function (e) {
+          if (state === "running" && exercise === 2 && !holdActive) {
+            holdBy = "pointer";
+            act(performance.now());
+          }
+        });
+        $("actionBtn").addEventListener("click", function (e) {
+          if (exercise === 2 && e.detail > 0) return;
           act(performance.now());
+        });
+        ["pointerup", "pointercancel"].forEach(function (type) {
+          document.addEventListener(type, function () {
+            if (holdBy === "pointer") curlRelease(performance.now());
+          });
+        });
+        document.addEventListener("keyup", function (e) {
+          if (holdBy === "key" && ["Space", "ArrowUp", "Enter"].indexOf(e.code) >= 0) curlRelease(performance.now());
+        });
+        window.addEventListener("blur", function () {
+          if (holdBy === "key" || holdBy === "pointer") curlRelease(performance.now());
         });
         $("bikeL").addEventListener("click", function () {
           act(performance.now(), "left");
         });
         $("bikeR").addEventListener("click", function () {
           act(performance.now(), "right");
-        });
-        $("characterTop").addEventListener("change", function (e) {
-          setCharacter(e.target.value);
-        });
-        $("character").addEventListener("change", function (e) {
-          setCharacter(e.target.value);
         });
         $("soundBtn").addEventListener("click", function () {
           sound = !sound;
@@ -1537,12 +1812,8 @@
             notice("Audio activado.");
           }
         });
-        $("playMode").addEventListener("change", function () {
-          if (state === "ready") {
-            renderCircuit();
-            $("startBtn").textContent = this.value === "circuit" ? "INICIAR CIRCUITO" : "INICIAR PRUEBA";
-          }
-        });
+        $("playMode").addEventListener("change", previewSettings);
+        $("zen").addEventListener("change", previewSettings);
         $("weight").addEventListener("change", function () {
           notice("Peso " + weight().label + ": puntos ×" + weight().mult + ".");
         });
@@ -1552,7 +1823,10 @@
               // En la bici, la mitad izquierda del canvas es el pedal izquierdo y la derecha, el derecho.
               var r = canvas.getBoundingClientRect();
               act(performance.now(), e.clientX - r.left < r.width / 2 ? "left" : "right");
-            } else act(performance.now());
+            } else {
+              if (exercise === 2 && !holdActive) holdBy = "pointer";
+              act(performance.now());
+            }
           } else if (state === "ready" || state === "over") startRun();
         });
         var pointerFocus = false;
@@ -1587,6 +1861,7 @@
           }
           if (["Space", "ArrowUp", "Enter"].indexOf(e.code) >= 0) {
             e.preventDefault();
+            if (state === "running" && exercise === 2 && !holdActive) holdBy = "key";
             act(performance.now());
           }
         });
@@ -1596,6 +1871,29 @@
             .replace(/[^A-Z0-9]/g, "")
             .slice(0, 3);
         });
+        // Solo para pruebas: con ?debug en la URL se expone el estado interno (no cambia el juego).
+        if (/[?&]debug\b/.test(location.search))
+          window.ironPixelDebug = function () {
+            return {
+              state: state,
+              exercise: exercise,
+              bar: bar,
+              dir: dir,
+              benchSweep: benchSweep,
+              benchLastSweep: benchLastSweep,
+              pullPhase: pullPhase,
+              holdActive: holdActive,
+              holdBy: holdBy,
+              score: score,
+              reps: reps,
+              combo: combo,
+              circuitOrder: circuitOrder.slice(),
+              circuitPos: circuitPos,
+              repsBy: JSON.parse(JSON.stringify(repsBy)),
+              nextBikeSide: nextBikeSide,
+              timeLeft: timeLeft,
+            };
+          };
         if (window.ResizeObserver) new ResizeObserver(fitCanvas).observe(canvas);
         window.addEventListener("resize", fitCanvas);
         renderRecords();
