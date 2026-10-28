@@ -1,6 +1,6 @@
 # Iron Pixel V2 — Roadmap de estabilización y evolución
 
-**Rama:** `feat/iron-pixel-v2-prototype`  
+**Rama:** `fix/iron-pixel-v2-estabilizacion` (parte de `feat/iron-pixel-v2-prototype`)  
 **Estado general:** prototipo experimental; no apto para integración ni publicación como versión estable.  
 **Prioridad actual:** corregir y verificar la experiencia visual antes de sumar mecánicas nuevas.
 
@@ -20,43 +20,47 @@ Se intentó reproducir el fallo visual en Chromium headless (escritorio y emulac
 
 Estado por fase tras esa actualización: Fase 0 y Fase 1 parciales (sin reproducción del fallo, auditoría de canvas y estados hecha por código y simulación); Fase 2 con los cuatro ciclos de puntuación revisados y corregidos en simulación, a la espera de prueba manual; Fases 3 a 6 sin empezar.
 
+### Segunda pasada 2026-10-27: Chrome real
+
+Se jugó en Chrome de escritorio real y en marcos de celular, con clicks y con un bot en tiempo real. Se corrigieron AUD-18 a AUD-27: avisos invisibles que movían la página, ajustes que no respondían, curl que no se mantenía, press con tiempo muerto, controles duplicados, press dibujado igual que el curl, panel y transición engañosos y desborde en 360 px. Las casillas de abajo reflejan lo verificado; lo que depende de una persona jugando en un dispositivo real queda sin marcar.
+
 ## Fases
 
 ### Fase 0 — Congelar y establecer una línea base
-**Estado: pendiente.**
+**Estado: completa, salvo capturas guardadas en el repo.**
 
-- [ ] Confirmar que todo el trabajo se realiza en esta rama y que `main` no cambia.
-- [ ] Registrar commit y versión exacta del HTML probado.
-- [ ] Reproducir el fallo visual desde una copia limpia del archivo.
-- [ ] Probar en un navegador de escritorio y, luego, en móvil.
+- [x] Confirmar que todo el trabajo se realiza en esta rama y que `main` no cambia.
+- [x] Registrar commit y versión exacta del HTML probado.
+- [x] Reproducir el fallo visual desde una copia limpia del archivo. (No se reprodujo ni en Chromium headless ni en Chrome real.)
+- [x] Probar en un navegador de escritorio y, luego, en móvil. (Móvil: marcos de 390 y 360 px; falta un teléfono real.)
 - [ ] Capturar evidencia de cada pantalla: inicio, cada ejercicio, transiciones, resultado y modo Zen.
-- [ ] Distinguir errores de renderizado, animación, escala del canvas, estado de juego y controles.
+- [x] Distinguir errores de renderizado, animación, escala del canvas, estado de juego y controles.
 
 **Criterio de salida:** el fallo visual está reproducido, documentado y asociado a un caso concreto. Si no se reproduce, registrar navegador, pasos y diferencias con la versión descargada.
 
 ### Fase 1 — Auditoría visual y funcional
-**Estado: pendiente; bloquea las fases posteriores.**
+**Estado: completa en Chrome; falta Firefox/Safari.**
 
-- [ ] Revisar tamaño real del canvas, relación de aspecto, escalado HiDPI y `image-rendering`.
-- [ ] Revisar coordenadas de dibujo, orden de capas, limpieza de frames y estados de animación.
-- [ ] Verificar que cada sprite/figura se dibuje dentro del área visible y no quede tapado por HUD u overlays.
-- [ ] Revisar coherencia entre estado lógico del ejercicio y pose dibujada.
-- [ ] Verificar redimensionado, proporciones y controles táctiles.
-- [ ] Comprobar errores de consola y fallos de carga.
-- [ ] Crear una lista de defectos con severidad, pasos para reproducir y criterio de aceptación.
+- [x] Revisar tamaño real del canvas, relación de aspecto, escalado HiDPI y `image-rendering`.
+- [x] Revisar coordenadas de dibujo, orden de capas, limpieza de frames y estados de animación.
+- [x] Verificar que cada sprite/figura se dibuje dentro del área visible y no quede tapado por HUD u overlays.
+- [x] Revisar coherencia entre estado lógico del ejercicio y pose dibujada.
+- [x] Verificar redimensionado, proporciones y controles táctiles. (Táctil simulado con eventos de puntero.)
+- [x] Comprobar errores de consola y fallos de carga.
+- [x] Crear una lista de defectos con severidad, pasos para reproducir y criterio de aceptación.
 
 **Criterio de salida:** todas las pantallas se renderizan de forma coherente; los defectos críticos tienen corrección y prueba reproducible.
 
 ### Fase 2 — Corregir animaciones y ciclos de puntuación existentes
-**Estado: pendiente.**
+**Estado: completa con bot en tiempo real; falta la prueba manual de una persona.**
 
-- [ ] **Bicicleta:** confirmar alternancia izquierda/derecha, fase visual continua y coincidencia entre pedaleo y giro de ruedas; una entrada inválida no debe consumir turno ni corromper el ciclo.
-- [ ] **Dominadas:** validar ciclo completo de subida y bajada; evitar sumar repeticiones por pulsaciones repetidas o fases incompletas.
-- [ ] **Press de banca:** validar recorrido completo del indicador/barra y que la puntuación se otorgue una sola vez por ciclo.
-- [ ] **Curl de bíceps:** comprobar mantener/soltar, límite de duración y feedback de puntuación.
-- [ ] Verificar temporizadores, pausas, transiciones, reinicio y finalización.
-- [ ] Probar que el orden aleatorio no omita ni duplique ejercicios.
-- [ ] Comprobar puntuación, combo, dificultad y selección de peso.
+- [x] **Bicicleta:** confirmar alternancia izquierda/derecha, fase visual continua y coincidencia entre pedaleo y giro de ruedas; una entrada inválida no debe consumir turno ni corromper el ciclo.
+- [x] **Dominadas:** validar ciclo completo de subida y bajada; evitar sumar repeticiones por pulsaciones repetidas o fases incompletas.
+- [x] **Press de banca:** validar recorrido completo del indicador/barra y que la puntuación se otorgue una sola vez por ciclo.
+- [x] **Curl de bíceps:** comprobar mantener/soltar, límite de duración y feedback de puntuación.
+- [x] Verificar temporizadores, pausas, transiciones, reinicio y finalización.
+- [x] Probar que el orden aleatorio no omita ni duplique ejercicios.
+- [ ] Comprobar puntuación, combo, dificultad y selección de peso. (Puntuación y combo verificados; el balance entre pruebas pasa a la Fase 5.)
 
 **Criterio de salida:** cada ejercicio tiene un ciclo claramente observable, una regla de puntuación entendible y pruebas manuales registradas.
 
@@ -128,6 +132,7 @@ No se considera validación de navegador el mero análisis del código ni el che
 | Fecha | Commit | Navegador/dispositivo | Flujo probado | Resultado | Evidencia/defectos |
 |---|---|---|---|---|---|
 | Pendiente | Pendiente | Pendiente | Inicio → circuito completo → resultado | No validado | La versión descargada sigue reportándose visualmente rota |
+| 2026-10-27 (2.ª pasada) | Rama `fix/iron-pixel-v2-estabilizacion`, cambios AUD-18 a AUD-27 | Chrome de escritorio real 1360 px; marcos de 390 y 360 px | Circuito completo con bot en tiempo real, Zen con SIGUIENTE/TERMINAR, cada prueba suelta, curl con tecla y puntero, cambio de modo tras terminar | Sin errores de consola; todo según lo esperado | Capturas tomadas durante la sesión, no guardadas en el repo; falta Firefox, Safari y teléfono real |
 | 2026-10-27 | Rama `fix/iron-pixel-v2-estabilizacion` | Chromium headless 1280 px, 2× y emulación iPhone 13 (3×) | Circuitos completos con entradas aleatorias, Zen, prueba individual, cada ejercicio por separado | Sin errores de consola; fallo visual reportado no reproducido | Validación automatizada con tiempo simulado; sin capturas guardadas en el repo; Firefox/Safari y dispositivos reales sin probar |
 
 ## Documentos relacionados

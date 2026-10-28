@@ -17,18 +17,20 @@ No requiere instalación, servidor, dependencias ni conexión a la aplicación.
 
 - Estética pixel-art y paleta de Ikigai Training (negro, rojo, grises y blanco). El canvas se ajusta al tamaño de pantalla y a la densidad de píxeles para verse nítido.
 - Circuito de cuatro pruebas en orden aleatorio; el panel lateral muestra el orden real de la partida.
-- 20 segundos por ejercicio y transición de 3 segundos entre pruebas.
+- 30 segundos por ejercicio y transición de 5 segundos entre pruebas (constantes `EX_SECONDS` y `TRANSITION_SECONDS`; antes 20 s / 3 s, se sentía apurado en un celular real).
 - Clasificación de repetición: PERFECT (25 puntos), GOOD (10) y FLOJO (2).
 - Combo acumulativo: +0,5× cada tres aciertos seguidos, hasta ×3 (se reinicia en cada transición).
 - Selector de peso liviano, medio y pesado; cambia velocidad, amplitud de las ventanas de precisión y multiplicador de puntuación.
 - Dificultad progresiva en el press: la zona PERFECT se estrecha con las repeticiones y el indicador acelera.
 - Efectos visuales: resultado de cada repetición en el piso, puntaje flotante, vibración breve de pantalla y animación suave de las barras.
 - Efectos sonoros 8-bit generados con Web Audio, activables por el usuario.
-- Tres misiones de demostración: 10 PERFECT, alcanzar combo ×3 y probar los 4 ejercicios.
+- Tres misiones de demostración: 10 PERFECT, llegar a combo ×3.0 (12 seguidas) y probar los 4 ejercicios.
 - Tabla de mejores puntuaciones local con iniciales, guardada en `localStorage`. **Solo suman los circuitos completos.**
 - Modo Zen: práctica sin temporizador, con botón SIGUIENTE EJERCICIO en el circuito, tope de 500 puntos y sin récord.
 - Modo de una sola prueba: también es práctica y no suma récord.
-- Selector de avatar masculino/femenino en pixel art, visible en la cabecera y sincronizado con el selector de ajustes.
+- Selector de personaje masculino/femenino en pixel art (uno solo, en la fila de ajustes; se puede cambiar en cualquier momento).
+- Modo, peso, Zen e iniciales quedan deshabilitados durante la partida y se aplican al iniciar; con la partida detenida, cambiar el modo o Zen actualiza el botón, el panel y la escena.
+- Avisos flotando sobre el canvas, sin mover la página.
 
 ### Reglas de cada ejercicio
 
@@ -36,15 +38,15 @@ Cada ejercicio tiene su propio medidor, con los colores de la leyenda de puntos 
 
 | Ejercicio | Acción | Puntuación |
 |---|---|---|
-| Press de banca | Pulsar con el marcador en la zona verde. Un intento por recorrido de la barra. | Según la distancia al centro; la zona se achica con el peso y las repeticiones. |
-| Dominadas | Un toque sube y otro baja (ritmo de dos toques). | Tiempo entre toques: menos de 700 ms no cuenta (ESPERÁ); hasta 1250 ms PERFECT; hasta 1900 ms GOOD; más, FLOJO. |
-| Curl de bíceps | Mantener y soltar. | Óptimo a 750 ms: PERFECT ±160 ms (× factor de peso 1 / 0,83 / 0,68), GOOD hasta 2,6× esa ventana; se suelta solo a los 1500 ms (FLOJO). |
+| Press de banca | Pulsar con el marcador en la zona verde. Un intento por ida y vuelta del marcador; el primero vale desde el arranque. | Según la distancia al centro; la zona se achica con el peso y las repeticiones. |
+| Dominadas | Un toque sube y otro baja (ritmo de dos toques). | Tiempo entre toques: menos de 700 ms no cuenta (ESPERÁ); hasta 1250 ms PERFECT; hasta 1900 ms GOOD; más, FLOJO. A los 2500 ms sin bajar cuenta FLOJO solo. |
+| Curl de bíceps | Mantener apretado (tecla, botón o pantalla) y soltar. Con un botón enfocado con Tab, dos pulsaciones. | Óptimo a 750 ms: PERFECT ±160 ms (× factor de peso 1 / 0,83 / 0,68), GOOD hasta 2,6× esa ventana; se suelta solo a los 1500 ms (FLOJO). |
 | Bicicleta | Alternar pedal izquierdo y derecho, empezando por el izquierdo. | Tiempo del ciclo izquierda → derecha: menos de 650 ms no cuenta; hasta 1500 ms PERFECT; hasta 2300 ms GOOD; más, FLOJO. |
 
 ### Controles
 
-- **Teclado:** Espacio / ↑ / Enter para press, dominadas y curl. En la bicicleta, ←/→ o A/D; Espacio no pedalea.
-- **Ratón y táctil:** botón principal o toque sobre el canvas. En la bicicleta, botones IZQUIERDA / DERECHA (el pedal esperado aparece resaltado) o mitad izquierda / derecha del canvas.
+- **Teclado:** Espacio / ↑ / Enter para press, dominadas y curl (en el curl se mantiene la tecla). En la bicicleta, ←/→ o A/D; Espacio no pedalea.
+- **Ratón y táctil:** botón principal o toque sobre el canvas (en el curl, mantener apretado). En la bicicleta, botones IZQUIERDA / DERECHA (el pedal esperado aparece resaltado) o mitad izquierda / derecha del canvas.
 - Si el foco quedó en un botón tras un click, el teclado de juego sigue funcionando; con navegación por Tab se respeta la activación nativa de cada botón.
 
 ## Límites conocidos de esta iteración
@@ -63,6 +65,24 @@ Hecha con Chromium headless (escritorio 1280 px, 2× y emulación de iPhone 13 a
 - El orden del panel coincide con el orden jugado en todas las partidas.
 - Sin scroll horizontal a 390 px; el canvas ajusta su resolución al tamaño CSS × devicePixelRatio, también al redimensionar.
 - Puntaje en 20 s con el juego "óptimo" de cada ejercicio (peso medio): dominadas 1754, bicicleta 1754, curl 1642. Pulsar el press cada 130 ms: 27 puntos. Curl manteniendo 400 ms (el exploit anterior): unos 150 puntos (antes 2762).
+
+## Prueba en navegador real (2026-10-27, segunda pasada)
+
+Chrome de escritorio real (ventana de 1360 px), servido con `python3 -m http.server` desde `updates/`, jugado con clicks reales y con un bot que inyecta teclas y punteros en tiempo real (sin tiempo simulado), más marcos de 390 y 360 px para celular. Con `?debug` en la URL el juego expone `window.ironPixelDebug()` para leer el estado; sin ese parámetro no cambia nada.
+
+- La página cargó sin errores en todas las pasadas; el fallo "visuales completamente rotas" tampoco apareció en Chrome real.
+- Circuito completo jugado por el bot: los 4 ejercicios en orden aleatorio, sin repetir ni omitir, con transiciones y récord guardado. Repeticiones con juego perfecto en 20 s: press 31, curl 19, dominadas 16, bicicleta 15.
+- Curl mantenido 750 ms con tecla y con puntero: PERFECT; 150 ms: FLOJO; más de 1500 ms: se suelta solo con aviso. El click que sigue al soltar no cuenta doble.
+- Dominada colgada 2,7 s: FLOJO automático y el ejercicio sigue.
+- Zen en circuito: SIGUIENTE recorre las 4 pruebas y desaparece en la última; TERMINAR cierra sin récord.
+- Ver AUD-18 a AUD-27 en la auditoría.
+
+## Prueba en emulador Android (2026-10-27)
+
+Pixel 6 con Android 14 y Chrome. Para repetirla: `emulator -avd ikigai_phone`, `python3 -m http.server 8765` en `updates/`, `adb reverse tcp:8765 tcp:8765` y abrir `http://localhost:8765/iron-pixel-v2.html` en el teléfono. Con `adb forward tcp:9222 localabstract:chrome_devtools_remote` se puede leer `ironPixelDebug()` desde la PC.
+
+- Vertical y horizontal: todo el juego entra en pantalla sin scroll (en horizontal, canvas a la izquierda y controles a la derecha).
+- Toques reales en las cuatro pruebas y dos circuitos completos sin errores. Ver AUD-28 a AUD-33.
 
 ## Próximo ciclo de trabajo sugerido
 

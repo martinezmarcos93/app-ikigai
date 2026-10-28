@@ -1,6 +1,6 @@
 # Iron Pixel V2 — Auditoría de bugs y estado técnico
 
-**Rama auditada:** `feat/iron-pixel-v2-prototype`  
+**Rama auditada:** `fix/iron-pixel-v2-estabilizacion` (parte de `feat/iron-pixel-v2-prototype`)  
 **Archivo principal:** `updates/iron-pixel-v2.html`  
 **Estado:** auditoría preliminar; pendiente de reproducción y verificación real en navegador.  
 **Advertencia:** este documento diferencia observaciones reportadas, riesgos inferidos del código y pruebas todavía no realizadas.
@@ -179,6 +179,45 @@ No atribuir el fallo a una causa concreta hasta reproducirlo y aislarlo.
 - Calibración fina del balance entre pruebas y de la dificultad progresiva (el press sigue siendo la prueba con menor tope).
 - Reproducir el fallo visual con datos de quien lo vio.
 - Pruebas manuales en navegadores y dispositivos reales, accesibilidad y animaciones.
+
+## 3.2 Actualización 2026-10-27 (segunda pasada): prueba en Chrome real y revisión crítica de la interfaz
+
+**Método:** Chrome de escritorio real, servido en local, con clicks reales y un bot que inyecta teclas y punteros en tiempo real; marcos de 390 y 360 px para celular. Sigue sin probarse Firefox, Safari y dispositivos táctiles reales.
+
+AUD-01 tampoco se reprodujo en Chrome real: la página carga y dibuja las cuatro pruebas sin errores.
+
+| ID | Severidad | Hallazgo | Corrección |
+|---|---|---|---|
+| AUD-18 | P1 | Los avisos ("Esperá...", "Alterná los pedales...") se mostraban debajo de los controles, fuera de la vista mientras se jugaba, y al aparecer empujaban hacia abajo la fila de ajustes: los controles de abajo se movían justo cuando se iban a tocar. | El aviso flota sobre el canvas, sin ocupar lugar en la página. |
+| AUD-19 | P1 | Los ajustes de abajo (modo, peso, Zen) se podían tocar durante la partida sin ningún efecto visible; Zen no tenía ningún listener, y después de terminar una partida cambiar el modo no actualizaba el botón ni el panel. Es lo que se percibía como "los botones de abajo no funcionan". | Se deshabilitan durante la partida con un texto que lo explica; con la partida detenida, modo y Zen actualizan al instante el botón, el panel y la escena. |
+| AUD-20 | P1 | El curl decía "mantené y soltá" pero se jugaba con dos toques: soltar la tecla o el dedo no hacía nada. | Mantener de verdad con tecla, botón o pantalla; puntúa al soltar. Con Tab sigue con dos pulsaciones. |
+| AUD-21 | P1 | Press: el primer intento recién se aceptaba tras un ida y vuelta completo (~2,5 s) y el aviso que lo explicaba no se veía (AUD-18): parecía que el botón no andaba. | Un intento por pasada del marcador, desde el primer instante. |
+| AUD-22 | P2 | Dominadas: si se subía y no se volvía a tocar, quedaba colgado arriba para siempre. | A los 2500 ms cuenta FLOJO solo, con aviso. |
+| AUD-23 | P2 | Controles repetidos: selector de avatar en la cabecera y otro en ajustes; las reglas de los cuatro ejercicios repetidas en una línea fija bajo el botón, además del panel y la pista; el cartel del canvas repetía el logo de la cabecera. | Un solo selector de personaje; se quita la línea fija de reglas; el cartel del canvas muestra PRUEBA n/4 y el modo. |
+| AUD-24 | P2 | Press dibujado de pie, idéntico al curl. | Press de costado, acostado en el banco, con la barra subiendo al acertar. |
+| AUD-25 | P2 | El panel marcaba COMPLETO las pruebas salteadas sin repeticiones (por ejemplo con SIGUIENTE en Zen). | El panel muestra las repeticiones reales de cada prueba o SIN REPS. |
+| AUD-26 | P2 | La transición dibujaba un cartel montado sobre el medidor anterior, con restos visibles por detrás; el último aviso quedaba flotando sobre la pantalla final. | La transición oscurece toda la escena; el aviso se oculta al terminar. |
+| AUD-27 | P2 | En 360 px el cartel de inicio era más alto que el canvas y se desbordaba. | Cartel compacto en pantallas chicas. |
+
+## 3.3 Actualización 2026-10-27 (tercera pasada): emulador Android
+
+**Método:** emulador Android 14 (Pixel 6, `ikigai_phone`) con Chrome, el juego servido desde la PC con `adb reverse`, toques reales de pantalla (`adb shell input tap/swipe`, incluido mantener 750 ms) y lectura del estado por las DevTools remotas. Vertical (412 px) y horizontal (866 × 308 px).
+
+| ID | Severidad | Hallazgo | Corrección |
+|---|---|---|---|
+| AUD-28 | P1 | Balance: con un intento por pasada el press daba casi el doble de repeticiones que las otras pruebas (31 contra 15-19 con juego perfecto). | Un intento por ida y vuelta; el primero sigue valiendo desde el arranque. Resultado: press 18, curl 19, dominadas 16, bici 15. |
+| AUD-29 | P1 | Con el teléfono acostado la pantalla mide ~308 px de alto: el canvas se cortaba y el botón de juego quedaba fuera de la vista. | Diseño horizontal propio: canvas a la izquierda, puntaje y botones a la derecha; todo entra sin scroll. |
+| AUD-30 | P2 | El texto dibujado en el canvas quedaba en ~5 px en celular. | El texto del canvas escala con el ancho real (hasta 1,6×). |
+| AUD-31 | P2 | La bicicleta era de ruta y el ciclista, dibujado de frente sobre una bici de perfil, no podía mostrar profundidad. | Bici estática (base, volante de inercia) y ciclista de perfil en capas: brazo, pierna y biela del lado lejano, más oscuros, detrás del cuadro; los del lado cercano, delante. Rodillas por cinemática inversa a partir del pedal. Cuadro gris para no fundirse con la remera. |
+| AUD-32 | P2 | El botón SONIDO ocupaba tanto como el botón de juego. | Botón compacto. |
+| AUD-33 | P2 | En un teléfono configurado en inglés Chrome ofrece traducir la página y su barra tapa medio juego. | `<meta name="google" content="notranslate">`. |
+
+Verificado con toques reales: curl mantenido (PERFECT/GOOD) y toque corto (FLOJO) sin quedar trabado; bici con botones y con cada mitad del canvas, rechazo del lado equivocado y de toques demasiado rápidos; dominada colgada que pasa a FLOJO; press resistente a 6 toques seguidos (1 sola repetición). Dos circuitos completos en Android sin errores, con personaje masculino y femenino.
+
+### Pendiente tras esta pasada
+
+- Prueba de una persona jugando en un teléfono real y en Firefox/Safari.
+- Calibrar el balance con partidas humanas (Fase 5): el bot juega perfecto.
 
 ## 4. Historial de áreas intervenidas
 
