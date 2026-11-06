@@ -51,6 +51,25 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
     return reply.send({ exercises: exercises.rows, exercise, rankings: rankings.rows, me: own });
   });
 
+  app.get<{ Querystring: RankingQuery }>("/api/v1/admin/strength-records", {
+    schema: { querystring: { type: "object", additionalProperties: false, properties: { exerciseId: { type: "string", format: "uuid" } } } }
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
+    const params: unknown[] = [];
+    const where = request.query.exerciseId ? "WHERE sr.exercise_id = $1" : "";
+    if (request.query.exerciseId) params.push(request.query.exerciseId);
+    const records = await db.query(
+      "SELECT sr.id, sr.member_id, m.full_name AS member_name, sr.exercise_id, se.code, se.name AS exercise_name, sr.weight_kg, sr.recorded_at, sr.notes " +
+      "FROM strength_records sr JOIN member_profiles m ON m.id=sr.member_id JOIN strength_exercises se ON se.id=sr.exercise_id " +
+      where + " ORDER BY sr.recorded_at DESC, sr.id DESC",
+      params
+    );
+    return reply.send({ records: records.rows });
+  });
+
   app.post<{ Body: RecordBody }>("/api/v1/admin/strength-records", {
     schema: { body: { type: "object", required: ["memberId", "exerciseId", "weightKg"], additionalProperties: false, properties: {
       memberId: { type: "string", format: "uuid" },
