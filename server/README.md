@@ -68,6 +68,9 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally (each record may carry `arrivedLate`, only valid for an attendee); duplicate bookings are rejected and every change is audited.
 - `GET /api/v1/members/:id/attendance`: administrator or the member reads the member's own attendance history.
 - `GET /api/v1/exercises` and `POST /api/v1/exercises`: coaches/admin browse active exercises; only administration creates them.
+- `GET /api/v1/strength-rankings?exerciseId=...`: any authenticated user can read the strength ranking for one exercise; the response includes the exercise catalog, ordered positions and the current member's own position when linked.
+- `GET /api/v1/admin/strength-records?exerciseId=...`: administrator-only history of recorded strength marks.
+- `POST /api/v1/admin/strength-records`, `PATCH /api/v1/admin/strength-records/:id` and `DELETE /api/v1/admin/strength-records/:id`: administrator-only creation/correction/deletion of historical strength marks, with CSRF, transactions and audit events.
 - `GET /api/v1/routines`: administration/coaches browse active routines at their latest immutable version.
 - `POST /api/v1/routines` and `POST /api/v1/routines/:id/versions`: administrator-only routine creation/versioning, with all exercise references validated inside the transaction.
 - `GET/POST /api/v1/members/:id/routine-assignments`: member-owned routine history and assignment by administration or a coach with member scope. Assignment records reference immutable routine versions.
