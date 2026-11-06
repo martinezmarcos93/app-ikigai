@@ -67,6 +67,15 @@ Este modelo separa el funcionamiento del gimnasio de la interfaz. Es la base con
 - Detalle de rutina: ejercicio, orden, series, repeticiones/duración, descanso y notas.
 - Asignación: miembro, rutina/version, responsable, fecha de inicio y fin, observaciones e historial.
 
+
+### Ranking de fuerza
+- Catálogo independiente de ocho ejercicios de fuerza: código, nombre, unidad y orden de presentación.
+- Marca histórica: miembro, ejercicio, peso en kg, fecha/hora, usuario de administración que la registró y nota opcional.
+- El ranking no guarda una posición editable: se calcula en cada consulta tomando la mejor marca histórica de cada miembro para el ejercicio seleccionado.
+- Todos los usuarios autenticados pueden leer el ranking; la API devuelve la posición del miembro vinculado para que pueda verse sin recorrer la tabla.
+- Sólo administración puede crear, corregir o eliminar marcas. Cada modificación genera un evento de auditoría.
+- Los perfiles anonimizados o dados de baja no aparecen en el ranking. El historial de marcas se conserva mientras el perfil siga operativo.
+
 ### Usuario, rol y auditoría
 - Usuario de acceso independiente de la ficha de miembro/profesor.
 - Roles: administración, profesor y miembro; el alcance también limita a qué miembros, clases y datos puede acceder cada usuario.
