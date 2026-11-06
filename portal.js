@@ -625,15 +625,15 @@
     state.selectedStrengthExercise = first.exercise?.id || state.strengthExercises[0]?.id || "";
     state.strengthRankings = first.rankings || [];
     if (!state.strengthRankings.length) {
-      $("#pageContent").innerHTML = \`
+      $("#pageContent").innerHTML = `
         <section class="panel ranking-empty">
           <p class="eyebrow">RANKING</p>
           <h2 class="section-title">Todavía no hay marcas registradas</h2>
           <p class="section-subtitle">Elegí un ejercicio y registrá las primeras marcas desde administración.</p>
-          \${isAdmin() ? \`<button class="button primary small" type="button" data-view="strength-rankings">Actualizar</button>\` : ""}
+          ${isAdmin() ? `<button class="button primary small" type="button" data-view="strength-rankings">Actualizar</button>` : ""}
         </section>
-        \${isAdmin() ? renderStrengthAdminForm(first.exercise) : ""}
-      \`;
+        ${isAdmin() ? renderStrengthAdminForm(first.exercise) : ""}
+      `;
       if (isAdmin()) {
         const records = await api.listAdminStrengthRecords(state.selectedStrengthExercise || undefined);
         state.strengthRecords = records.records || [];
@@ -645,45 +645,45 @@
     const exercise = first.exercise;
     const top = state.strengthRankings.slice(0, 3);
     const rest = state.strengthRankings.slice(3);
-    const selector = \`
+    const selector = `
       <section class="panel ranking-header">
         <div class="ranking-toolbar">
           <div><p class="eyebrow">FUERZA</p><h2 class="section-title">Ranking por ejercicio</h2></div>
           <div class="field ranking-exercise-field">
             <label for="strengthExerciseSelect">Ejercicio</label>
             <select id="strengthExerciseSelect" data-action="strength-exercise">
-              \${state.strengthExercises.map(item => \`<option value="\${esc(item.id)}"\${String(item.id) === String(state.selectedStrengthExercise) ? " selected" : ""}>\${esc(item.name)}</option>\`).join("")}
+              ${state.strengthExercises.map(item => `<option value="${esc(item.id)}"${String(item.id) === String(state.selectedStrengthExercise) ? " selected" : ""}>${esc(item.name)}</option>`).join("")}
             </select>
           </div>
         </div>
-        <p class="section-subtitle">La posición se calcula con la mejor marca registrada de cada miembro en este ejercicio. Unidad: \${esc(exercise?.unit || "kg")}.</p>
-      </section>\`;
+        <p class="section-subtitle">La posición se calcula con la mejor marca registrada de cada miembro en este ejercicio. Unidad: ${esc(exercise?.unit || "kg")}.</p>
+      </section>`;
 
-    const podium = \`
+    const podium = `
       <section class="ranking-podium" aria-label="Top 3">
-        \${top.map((item, index) => \`
-          <article class="ranking-podium-card ranking-place-\${index + 1}">
-            <span class="ranking-medal">\${["🥇","🥈","🥉"][index]}</span>
-            <span class="ranking-place">#\${esc(item.position)}</span>
-            <strong>\${esc(item.member_name)}</strong>
-            <b>\${esc(item.best_weight_kg)} kg</b>
-            \${isAdmin() ? \`<button class="button ghost small" type="button" data-action="edit-member" data-id="\${esc(item.member_id)}">Perfil</button>\` : ""}
-          </article>\`).join("")}
-      </section>\`;
+        ${top.map((item, index) => `
+          <article class="ranking-podium-card ranking-place-${index + 1}">
+            <span class="ranking-medal">${["🥇","🥈","🥉"][index]}</span>
+            <span class="ranking-place">#${esc(item.position)}</span>
+            <strong>${esc(item.member_name)}</strong>
+            <b>${esc(item.best_weight_kg)} kg</b>
+            ${isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : ""}
+          </article>`).join("")}
+      </section>`;
 
-    const own = first.me ? \`
+    const own = first.me ? `
       <section class="ranking-self panel">
-        <div><p class="eyebrow">TU POSICIÓN</p><strong>#\${esc(first.me.position)} de \${state.strengthRankings.length}</strong></div>
-        <div><span>\${esc(exercise?.name || "Ejercicio")}</span><b>\${esc(first.me.best_weight_kg)} kg</b></div>
-      </section>\` : "";
+        <div><p class="eyebrow">TU POSICIÓN</p><strong>#${esc(first.me.position)} de ${state.strengthRankings.length}</strong></div>
+        <div><span>${esc(exercise?.name || "Ejercicio")}</span><b>${esc(first.me.best_weight_kg)} kg</b></div>
+      </section>` : "";
 
     const list = table(
       ["Posición","Miembro","Mejor marca","Acceso"],
       rest.map(item => row([
-        \`<strong>#\${esc(item.position)}</strong>\`,
+        `<strong>#${esc(item.position)}</strong>`,
         esc(item.member_name),
-        \`<strong>\${esc(item.best_weight_kg)} kg</strong>\`,
-        isAdmin() ? \`<button class="button ghost small" type="button" data-action="edit-member" data-id="\${esc(item.member_id)}">Perfil</button>\` : "—"
+        `<strong>${esc(item.best_weight_kg)} kg</strong>`,
+        isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : "—"
       ]))
     );
 
@@ -695,7 +695,7 @@
     }
 
     $("#pageContent").innerHTML = selector + podium + own +
-      \`<section class="panel"><h2 class="section-title">Clasificación completa</h2>\${list}</section>\` + admin;
+      `<section class="panel"><h2 class="section-title">Clasificación completa</h2>${list}</section>` + admin;
   }
 
   function renderStrengthAdminForm(exercise) {
@@ -714,18 +714,18 @@
 
   function renderStrengthAdminRecords() {
     if (!isAdmin()) return "";
-    return \`
+    return `
       <section class="panel">
         <h2 class="section-title">Historial administrativo</h2>
-        \${table(["Miembro","Ejercicio","Peso","Fecha","Acciones"], state.strengthRecords.map(record => row([
+        ${table(["Miembro","Ejercicio","Peso","Fecha","Acciones"], state.strengthRecords.map(record => row([
           esc(record.member_name),
           esc(record.exercise_name),
-          \`\${esc(record.weight_kg)} kg\`,
+          `${esc(record.weight_kg)} kg`,
           date(record.recorded_at),
-          \`<button class="button ghost small" type="button" data-action="edit-strength-record" data-id="\${esc(record.id)}" data-weight="\${esc(record.weight_kg)}" data-notes="\${esc(record.notes || "")}">Editar</button>
-           <button class="button ghost small danger" type="button" data-action="delete-strength-record" data-id="\${esc(record.id)}">Eliminar</button>\`
+          `<button class="button ghost small" type="button" data-action="edit-strength-record" data-id="${esc(record.id)}" data-weight="${esc(record.weight_kg)}" data-notes="${esc(record.notes || "")}">Editar</button>
+           <button class="button ghost small danger" type="button" data-action="delete-strength-record" data-id="${esc(record.id)}">Eliminar</button>`
         ])))}
-      </section>\`;
+      </section>`;
   }
 
   async function renderRoutines() {
