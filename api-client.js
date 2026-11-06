@@ -199,6 +199,13 @@
     createRoutineVersion: (routineId, body) => request(`/routines/${id(routineId)}/versions`, { method: "POST", body }),
     listRoutineAssignments: memberId => request(`/members/${id(memberId)}/routine-assignments`),
     assignRoutine: (memberId, body) => request(`/members/${id(memberId)}/routine-assignments`, { method: "POST", body }),
+    listStrengthRankings: (exerciseId) => {
+      const query = exerciseId ? `?exerciseId=${encodeURIComponent(String(exerciseId))}` : "";
+      return request(`/strength-rankings${query}`);
+    },
+    createStrengthRecord: body => request("/admin/strength-records", { method: "POST", body }),
+    updateStrengthRecord: (recordId, body) => request(`/admin/strength-records/${id(recordId)}`, { method: "PATCH", body }),
+    deleteStrengthRecord: recordId => request(`/admin/strength-records/${id(recordId)}`, { method: "DELETE", body: {} }),
     // Juego Iron Pixel y premios: el puntaje lo calcula el servidor a partir de las repeticiones.
     getGameSummary: () => request("/game/summary"),
     startGameRun: () => request("/game/runs", { method: "POST", body: {} }),
