@@ -108,7 +108,7 @@ test("strength rankings are readable by authenticated roles and writable only by
   assert.equal(ranking.statusCode, 200);
   assert.deepEqual(
     ranking.json().rankings.map((item: { member_id: string; position: number; best_weight_kg: string }) => [item.member_id, Number(item.position), Number(item.best_weight_kg)]),
-    [[other.memberId, 1, 65], [member.memberId, 2, 70]].sort((a, b) => a[1] - b[1])
+    [[member.memberId, 1, 70], [other.memberId, 2, 65]]
   );
   assert.equal(String(ranking.json().me.member_id), member.memberId);
   assert.equal(Number(ranking.json().me.best_weight_kg), 70);
@@ -137,6 +137,15 @@ test("strength rankings are readable by authenticated roles and writable only by
     payload: {}
   });
   assert.equal(remove.statusCode, 200);
+
+  const rankingAfterDelete = await app.inject({
+    method: "GET",
+    url: `/api/v1/strength-rankings?exerciseId=${exerciseId}`,
+    headers: { cookie: `ikigai_session=${member.token}` }
+  });
+  assert.equal(rankingAfterDelete.statusCode, 200);
+  assert.equal(Number(rankingAfterDelete.json().me.best_weight_kg), 60);
+  assert.equal(Number(rankingAfterDelete.json().me.position), 2);
 
   const audit = await pool.query(
     "SELECT action FROM audit_events WHERE entity_type='strength_record' AND actor_user_id=$1 ORDER BY occurred_at",
