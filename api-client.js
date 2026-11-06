@@ -203,6 +203,7 @@
       const query = exerciseId ? `?exerciseId=${encodeURIComponent(String(exerciseId))}` : "";
       return request(`/strength-rankings${query}`);
     },
+    listAdminStrengthRecords: (exerciseId) => request(`/admin/strength-records${exerciseId ? `?exerciseId=${encodeURIComponent(String(exerciseId))}` : ""}`),
     createStrengthRecord: body => request("/admin/strength-records", { method: "POST", body }),
     updateStrengthRecord: (recordId, body) => request(`/admin/strength-records/${id(recordId)}`, { method: "PATCH", body }),
     deleteStrengthRecord: recordId => request(`/admin/strength-records/${id(recordId)}`, { method: "DELETE", body: {} }),
