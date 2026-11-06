@@ -47,8 +47,13 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
     const own = actor.memberId
       ? rankings.rows.find((item) => String(item.member_id) === String(actor.memberId)) ?? null
       : null;
+    const visibleRankings = rankings.rows.map((item) => {
+      if (actor.roles.includes("admin") || String(item.member_id) === String(actor.memberId)) return item;
+      const { member_id: _memberId, ...publicRow } = item as Record<string, unknown>;
+      return publicRow;
+    });
 
-    return reply.send({ exercises: exercises.rows, exercise, rankings: rankings.rows, me: own });
+    return reply.send({ exercises: exercises.rows, exercise, rankings: visibleRankings, me: own });
   });
 
   app.get<{ Querystring: RankingQuery }>("/api/v1/admin/strength-records", {
