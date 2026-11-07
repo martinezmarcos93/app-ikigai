@@ -36,3 +36,6 @@ Iron Pixel V2 (`updates/iron-pixel-v2.html`) es un circuito de 4 pruebas de 30 s
 1. Servidor: migración, `judgeRunV2`, cierre v2, ranking con apodo y versión, tests de integración.
 2. Portal: `iron-pixel-v2.js` montable, CSS acotado, `api-client.js` y vista `game`; se quita el V1.
 3. Verificación de Claude: Chrome de escritorio y celular, recorrido completo con la API real, mutación de los topes.
+
+## Implementación (2026-11-07)
+Las tres etapas están hechas en `feat/iron-pixel-v2-integracion`. Techos por ejercicio en `server/src/domain/game.ts` (`V2_CAPS`): el PERFECT del press se igualó a su total (120) porque la barra acelera con las reps de todo el circuito y el orden es aleatorio. Verificación: 137/137 tests con PostgreSQL, mutación del combo detectada, y circuito completo en Chrome contra la API real, donde el puntaje del servidor coincidió con el del juego.
