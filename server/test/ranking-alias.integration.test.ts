@@ -144,7 +144,7 @@ test("ranking alias integration tests", {
   assert.equal(shortOnCreate.json().error, "invalid_alias");
 
   // 7. ranking de Iron Pixel: name sea el apodo
-  await pool.query("INSERT INTO game_runs (user_id, member_id, status, finished_at, score, points_awarded) VALUES ($1, $2, 'finished', now(), 100000, 10)", [member1.userId, member1.memberId]);
+  await pool.query("INSERT INTO game_runs (user_id, member_id, status, finished_at, score, points_awarded, game_version) VALUES ($1, $2, 'finished', now(), 100000, 10, 2)", [member1.userId, member1.memberId]);
   const gameSummary = await app.inject({
     method: "GET",
     url: "/api/v1/game/summary",
