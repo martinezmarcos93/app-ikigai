@@ -7,6 +7,7 @@ import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { PostgresDatabase } from "../src/db/postgres.js";
 import { csrfTokenFor } from "../src/security/csrf.js";
+import { pointsForRun } from "../src/domain/game.js";
 
 const integrationEnabled = process.env.IKIGAI_INTEGRATION_TESTS === "1" && Boolean(process.env.DATABASE_URL);
 const origin = "https://game-integration.example.com";
@@ -49,11 +50,7 @@ test("PostgreSQL game: score validated by the server, points capped per day, red
   const coach = await createActor(pool, `Profe ${suffix}`, ["coach"]);
   const ana = await createActor(pool, `Ana Zeta${suffix}`, ["member"]);
 
-  function sequenceFor(reps: number, perfectReps: number) {
-    if (reps > 120) return { bench: "G".repeat(121), pull: "", curl: "", bike: "" };
-    return { bench: "P".repeat(Math.min(perfectReps, 18)) + "G".repeat(Math.min(reps - perfectReps, 120 - Math.min(perfectReps, 18))), pull: "", curl: "", bike: "" };
-  }
-  function scoreFor(exercises: ReturnType<typeof sequenceFor>) {
+  function scoreFor(exercises: { bench: string; pull: string; curl: string; bike: string }) {
     let score = 0;
     for (const sequence of Object.values(exercises)) {
       let combo = 0;
@@ -64,54 +61,56 @@ test("PostgreSQL game: score validated by the server, points capped per day, red
     }
     return score;
   }
-  async function play(actor: typeof ana, reps: number, perfectReps: number, ageSeconds = 140) {
+  async function play(actor: typeof ana, exercises: { bench: string; pull: string; curl: string; bike: string }, ageSeconds = 140) {
     const started = await app.inject({ method: "POST", url: "/api/v1/game/runs", headers: headers(actor) });
     assert.equal(started.statusCode, 201, started.body);
     const runId = String(started.json().run.id);
     // Simula que pasaron los 30 segundos de juego.
     await pool.query("UPDATE game_runs SET started_at = clock_timestamp() - make_interval(secs => $2) WHERE id = $1", [runId, ageSeconds]);
-    const exercises = sequenceFor(reps, perfectReps);
     return app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(actor), payload: { version: 2, weight: "light", exercises } });
   }
 
   // Una partida normal acredita el puntaje como puntos.
-  const first = await play(ana, 40, 10);
+  const firstExercises = { bench: "PPP", pull: "", curl: "", bike: "" };
+  const first = await play(ana, firstExercises);
   assert.equal(first.statusCode, 200, first.body);
-  assert.equal(first.json().score, scoreFor(sequenceFor(40, 10)));
-  assert.equal(first.json().pointsAwarded, first.json().score);
-  assert.equal(first.json().balance, first.json().score);
+  assert.equal(first.json().score, scoreFor(firstExercises));
+  assert.equal(first.json().pointsAwarded, pointsForRun(first.json().score, 0, 1000));
+  assert.equal(first.json().balance, first.json().pointsAwarded);
 
-  // El tope diario recorta: 500 + 700 → solo 500 más.
-  const second = await play(ana, 50, 20);
-  assert.equal(second.json().score, scoreFor(sequenceFor(50, 20)));
-  assert.equal(second.json().pointsAwarded, 1000 - first.json().score);
+  // El tope diario recorta el puntaje de la segunda partida.
+  const secondExercises = { bench: "P".repeat(120), pull: "", curl: "", bike: "" };
+  const second = await play(ana, secondExercises);
+  assert.equal(second.json().score, scoreFor(secondExercises));
+  assert.equal(second.json().pointsAwarded, pointsForRun(second.json().score, first.json().pointsAwarded, 1000));
   assert.equal(second.json().balance, 1000);
-  const third = await play(ana, 30, 0);
+  const third = await play(ana, { bench: "GGG", pull: "", curl: "", bike: "" });
   assert.equal(third.json().pointsAwarded, 0);
 
   // Partidas imposibles: se rechazan y no suman nada.
-  const tooFast = await play(ana, 20, 0, 5);
+  const tooFast = await play(ana, { bench: "GG", pull: "", curl: "", bike: "" }, 5);
   assert.equal(tooFast.statusCode, 422);
   assert.equal(tooFast.json().reason, "too_fast");
-  const spam = await play(ana, 500, 0);
+  const spam = await play(ana, { bench: "G".repeat(121), pull: "", curl: "", bike: "" });
   assert.equal(spam.statusCode, 422);
   assert.equal(spam.json().reason, "implausible_reps");
 
   // Una partida no se puede cerrar dos veces ni la cierra otra persona.
   const started = await app.inject({ method: "POST", url: "/api/v1/game/runs", headers: headers(ana) });
   const runId = String(started.json().run.id);
-  const foreign = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(coach), payload: { version: 2, weight: "light", exercises: sequenceFor(1, 0) } });
+  const foreign = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(coach), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } } });
   assert.equal(foreign.statusCode, 404);
   await pool.query("UPDATE game_runs SET started_at = clock_timestamp() - interval '31 seconds' WHERE id = $1", [runId]);
-  const once = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: sequenceFor(1, 0) } });
+  const once = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } });
   assert.equal(once.statusCode, 200);
-  const twice = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: sequenceFor(1, 0) } });
+  const twice = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } });
   assert.equal(twice.statusCode, 409);
 
   // El profe juega pero no suma puntos canjeables ni entra al ranking.
-  const coachRun = await play(coach, 60, 30);
+  const coachExercises = { bench: "P".repeat(18) + "G".repeat(12), pull: "", curl: "", bike: "" };
+  const coachRun = await play(coach, coachExercises);
   assert.equal(coachRun.statusCode, 200);
-  assert.equal(coachRun.json().score, scoreFor(sequenceFor(60, 30)));
+  assert.equal(coachRun.json().score, scoreFor(coachExercises));
   assert.equal(coachRun.json().competes, false);
   assert.equal(coachRun.json().balance, null);
 
@@ -120,14 +119,14 @@ test("PostgreSQL game: score validated by the server, points capped per day, red
   const body = summary.json();
   assert.equal(body.competes, true);
   assert.equal(body.me.balance, 1000);
-  assert.equal(body.me.personalBest, scoreFor(sequenceFor(50, 20)));
+  assert.equal(body.me.personalBest, scoreFor(secondExercises));
   const mine = body.week.ranking.find((r: { me: boolean }) => r.me);
   assert.ok(mine, "Ana figura en el ranking");
   assert.equal(mine.name, `Ana Z.`);
-  assert.equal(mine.score, scoreFor(sequenceFor(50, 20)));
+  assert.equal(mine.score, scoreFor(secondExercises));
   const coachSummary = await app.inject({ method: "GET", url: "/api/v1/game/summary", headers: headers(coach) });
   assert.equal(coachSummary.json().competes, false);
-  assert.equal(coachSummary.json().me.personalBest, scoreFor(sequenceFor(60, 30)));
+  assert.equal(coachSummary.json().me.personalBest, scoreFor(coachExercises));
   assert.ok(!coachSummary.json().week.ranking.some((r: { me: boolean }) => r.me));
 
   // Canje: solo administración, con saldo suficiente y sin doble toque.

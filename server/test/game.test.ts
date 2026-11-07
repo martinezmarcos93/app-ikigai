@@ -67,7 +67,11 @@ test("judgeRunV2 aplica multiplicador por toque y valida duración, peso y techo
   for (const exercise of V2_EXERCISES) {
     const tooMany = emptyV2(); tooMany[exercise] = "G".repeat(V2_CAPS[exercise].total + 1);
     assert.deepEqual(judgeRunV2(140_000, "light", tooMany), { ok: false, reason: `implausible_${exercise}` });
-    const tooPerfect = emptyV2(); tooPerfect[exercise] = "P".repeat(V2_CAPS[exercise].perfect + 1);
-    assert.deepEqual(judgeRunV2(140_000, "light", tooPerfect), { ok: false, reason: `implausible_${exercise}` });
+    if (V2_CAPS[exercise].perfect < V2_CAPS[exercise].total) {
+      const tooPerfect = emptyV2(); tooPerfect[exercise] = "P".repeat(V2_CAPS[exercise].perfect + 1);
+      assert.deepEqual(judgeRunV2(140_000, "light", tooPerfect), { ok: false, reason: `implausible_${exercise}` });
+    }
   }
+  const tooPerfect = emptyV2(); tooPerfect.bench = "P".repeat(V2_CAPS.bench.perfect + 1);
+  assert.deepEqual(judgeRunV2(140_000, "light", tooPerfect), { ok: false, reason: "implausible_bench" });
 });

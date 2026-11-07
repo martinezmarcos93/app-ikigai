@@ -23,12 +23,12 @@ export const V2_EXERCISES = ["bench", "pull", "curl", "bike"] as const;
 export const V2_MIN_RUN_MS = 133_000;
 export const V2_WEIGHT_MULTIPLIERS = { light: 1, medium: 1.5, heavy: 2 } as const;
 // 30 s / 250 ms entre toques = 120.
-// bench perfect: con peso pesado, 30 s / ~1,7 s por barrido (0,75 × 1,34 × aceleración por rep) = 18.
+// perfect = total: la barra acelera con las reps de todo el circuito y el orden es aleatorio; solo limita el freno de 250 ms.
 // 30 s / 700 ms entre ciclos completos = 42; cada ciclo admite PERFECT hasta 1250 ms.
 // curl total: 30 s / 280 ms de freno al iniciar intentos = 107; PERFECT: 30 s / (590 ms mínimos + 280 ms) = 34.
 // 30 s / 650 ms entre ciclos completos = 46; cada ciclo admite PERFECT hasta 1500 ms.
 export const V2_CAPS = {
-  bench: { total: 120, perfect: 18 },
+  bench: { total: 120, perfect: 120 },
   pull: { total: 42, perfect: 42 },
   curl: { total: 107, perfect: 34 },
   bike: { total: 46, perfect: 46 }

@@ -43,6 +43,16 @@ test("PostgreSQL game V2 contract, rejection, and V1 ranking exclusion", { skip:
   assert.equal(stored.rows[0]?.weight, "light");
   assert.deepEqual(stored.rows[0]?.detail, { bench: "PPP", pull: "", curl: "", bike: "" });
 
+  for (const invalid of [
+    { version: 2, weight: "light", exercises: { bench: "P", pull: "", curl: "" } },
+    { version: 2, weight: "light", exercises: { bench: "P".repeat(300), pull: "", curl: "", bike: "" }, perfect: 1.5 },
+    { version: 2, weight: "light", exercises: { bench: "P", pull: "", curl: "", bike: "" }, perfect: -1 }
+  ]) {
+    const schemaRun = await start(140);
+    const rejected = await app.inject({ method: "POST", url: `/api/v1/game/runs/${schemaRun}/finish`, headers, payload: invalid });
+    assert.equal(rejected.statusCode, 400, rejected.body);
+  }
+
   const legacyRun = await start(140);
   const legacy = await app.inject({ method: "POST", url: `/api/v1/game/runs/${legacyRun}/finish`, headers, payload: { reps: 1, perfectReps: 0 } });
   assert.equal(legacy.statusCode, 409);
