@@ -106,10 +106,29 @@ test("strength rankings are readable by authenticated roles and writable only by
     headers: { cookie: `ikigai_session=${member.token}` }
   });
   assert.equal(ranking.statusCode, 200);
-  assert.deepEqual(
-    ranking.json().rankings.map((item: { member_id: string; position: number; best_weight_kg: string }) => [item.member_id, Number(item.position), Number(item.best_weight_kg)]),
-    [[member.memberId, 1, 70], [other.memberId, 2, 65]]
-  );
+  // As member, own member_id is visible, others are hidden
+  assert.equal(ranking.json().rankings[0].position, 1);
+  assert.equal(ranking.json().rankings[0].best_weight_kg, 70);
+  assert.equal(String(ranking.json().rankings[0].member_id), member.memberId);
+
+  assert.equal(ranking.json().rankings[1].position, 2);
+  assert.equal(ranking.json().rankings[1].best_weight_kg, 65);
+  assert.equal("member_id" in ranking.json().rankings[1], false);
+
+  // As admin, all member_ids are visible
+  const adminRanking = await app.inject({
+    method: "GET",
+    url: `/api/v1/strength-rankings?exerciseId=${exerciseId}`,
+    headers: headers(admin),
+  });
+  assert.equal(adminRanking.statusCode, 200);
+  assert.equal(adminRanking.json().rankings[0].position, 1);
+  assert.equal(adminRanking.json().rankings[0].best_weight_kg, 70);
+  assert.equal(String(adminRanking.json().rankings[0].member_id), member.memberId);
+
+  assert.equal(adminRanking.json().rankings[1].position, 2);
+  assert.equal(adminRanking.json().rankings[1].best_weight_kg, 65);
+  assert.equal(String(adminRanking.json().rankings[1].member_id), other.memberId);
   assert.equal(String(ranking.json().me.member_id), member.memberId);
   assert.equal(Number(ranking.json().me.best_weight_kg), 70);
 
