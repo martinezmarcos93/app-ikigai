@@ -120,6 +120,11 @@ async function weeklyRanking(db: Database, weekStartSql: string, values: unknown
   return result.rows.map((r) => ({ ...r, score: Number(r.score) }));
 }
 
+// Helper para display_name
+function getDisplayName(r: RankingRow): string {
+  return r.ranking_alias ?? rankingName(r.full_name);
+}
+
 export function registerGameRoutes(
   app: FastifyInstance,
   db: Database,
@@ -164,7 +169,7 @@ export function registerGameRoutes(
           start: String(lastWeekStart.rows[0]?.current ?? ""),
           ranking: ranking.map((r, i) => ({
             position: i + 1,
-            name: r.ranking_alias ?? rankingName(r.full_name),
+            name: getDisplayName(r),
             score: r.score,
             me: r.member_id === actor.memberId
           }))
@@ -172,7 +177,7 @@ export function registerGameRoutes(
         lastWeek: {
           start: String(lastWeekStart.rows[0]?.previous ?? ""),
           winner: winner ? {
-            name: winner.ranking_alias ?? rankingName(winner.full_name),
+            name: getDisplayName(winner),
             score: winner.score,
             me: winner.member_id === actor.memberId
           } : null,
