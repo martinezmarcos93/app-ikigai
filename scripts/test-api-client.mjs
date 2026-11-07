@@ -247,6 +247,32 @@ test("institution settings contract sends an authenticated PATCH without caching
   assert.equal(JSON.parse(calls[2].options.body).institution_name, "Gimnasio ficticio");
 });
 
+test("strength alias contracts use the expected URL, method, and body", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-strength-alias-test",
+        user: { id: "admin-test", roles: ["admin"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ aliases: [] }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  });
+
+  await api.login("admin@example.com", "fictional-password");
+  await api.listStrengthAliases();
+  await api.setStrengthAlias("member/with space", "Fuerza Uno");
+
+  assert.equal(new URL(calls[1].url).pathname, "/api/v1/admin/strength-aliases");
+  assert.equal(calls[1].options.method, "GET");
+  assert.equal(new URL(calls[2].url).pathname, "/api/v1/admin/strength-aliases/member%2Fwith%20space");
+  assert.equal(calls[2].options.method, "PUT");
+  assert.deepEqual(JSON.parse(calls[2].options.body), { alias: "Fuerza Uno" });
+});
+
 
 
 test("booking creation and cancellation use the server contract with CSRF and no-store", async () => {
