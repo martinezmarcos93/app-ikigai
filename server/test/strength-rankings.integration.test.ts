@@ -52,6 +52,7 @@ test("strength rankings are readable by authenticated roles and writable only by
   t.after(async () => { await app.close(); await pool.end(); });
 
   const suffix = randomUUID();
+  const tag = suffix.slice(0, 8);
   const admin = await createActor(pool, `Ranking Admin ${suffix}`, "admin");
   const member = await createActor(pool, `Ranking Member ${suffix}`, "member");
   const other = await createActor(pool, `Ranking Other ${suffix}`, "member");
@@ -85,7 +86,7 @@ test("strength rankings are readable by authenticated roles and writable only by
     method: "POST",
     url: "/api/v1/admin/strength-records",
     headers: headers(admin),
-    payload: { memberId: member.memberId, exerciseId, weightKg: 60, notes: "Inicio" }
+    payload: { memberId: member.memberId, exerciseId, weightKg: 60, notes: "Inicio", alias: `A ${tag}` }
   });
   assert.equal(first.statusCode, 201, first.body);
 
@@ -101,7 +102,7 @@ test("strength rankings are readable by authenticated roles and writable only by
     method: "POST",
     url: "/api/v1/admin/strength-records",
     headers: headers(admin),
-    payload: { memberId: other.memberId, exerciseId, weightKg: 65 }
+    payload: { memberId: other.memberId, exerciseId, weightKg: 65, alias: `B ${tag}` }
   });
   assert.equal(otherRecord.statusCode, 201);
 

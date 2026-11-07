@@ -75,6 +75,7 @@ Este modelo separa el funcionamiento del gimnasio de la interfaz. Es la base con
 - Todos los usuarios autenticados pueden leer el ranking; la API devuelve la posición del miembro vinculado para que pueda verse sin recorrer la tabla.
 - Sólo administración puede crear, corregir o eliminar marcas. Cada modificación genera un evento de auditoría.
 - Los perfiles anonimizados o dados de baja no aparecen en el ranking. El historial de marcas se conserva mientras el perfil siga operativo.
+- **Apodo (`ranking_alias`)**: Apodo opcional y único por miembro para ocultar el nombre real en el ranking. Editable sólo por administración, con longitud 2-24 caracteres, sin espacios al inicio ni final. Al anonimizar el perfil, el apodo se suprime.
 
 ### Usuario, rol y auditoría
 - Usuario de acceso independiente de la ficha de miembro/profesor.

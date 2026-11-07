@@ -5,7 +5,7 @@ import { resolveActor } from "../security/actor.js";
 import { requireCsrf } from "../security/csrf.js";
 
 interface RankingQuery { exerciseId?: string }
-interface RecordBody { memberId: string; exerciseId: string; weightKg: number; recordedAt?: string; notes?: string }
+interface RecordBody { memberId: string; exerciseId: string; weightKg: number; recordedAt?: string; notes?: string; alias?: string }
 interface RecordParams { id: string }
 interface UpdateBody { weightKg?: number; recordedAt?: string; notes?: string }
 
@@ -30,17 +30,17 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
 
     const rankings = await db.query(
       "WITH best AS (" +
-      " SELECT sr.member_id, m.full_name AS member_name, MAX(sr.weight_kg) AS best_weight_kg," +
+      " SELECT sr.member_id, m.full_name AS member_name, COALESCE(m.ranking_alias, 'Miembro') AS display_name, MAX(sr.weight_kg) AS best_weight_kg," +
       "        MAX(sr.recorded_at) FILTER (WHERE sr.weight_kg = (" +
       "          SELECT MAX(sr2.weight_kg) FROM strength_records sr2 WHERE sr2.member_id = sr.member_id AND sr2.exercise_id = sr.exercise_id" +
       "        )) AS best_recorded_at" +
       "   FROM strength_records sr JOIN member_profiles m ON m.id = sr.member_id" +
       "  WHERE sr.exercise_id = $1 AND m.anonymized_at IS NULL AND m.status <> 'exited'" +
-      "  GROUP BY sr.member_id, m.full_name, sr.exercise_id" +
+      "  GROUP BY sr.member_id, m.full_name, m.ranking_alias, sr.exercise_id" +
       ")" +
-      " SELECT ROW_NUMBER() OVER (ORDER BY best_weight_kg DESC, lower(member_name), member_id) AS position," +
-      "        member_id, member_name, best_weight_kg, best_recorded_at" +
-      "   FROM best ORDER BY best_weight_kg DESC, lower(member_name), member_id",
+      " SELECT ROW_NUMBER() OVER (ORDER BY best_weight_kg DESC, lower(display_name), member_id) AS position," +
+      "        member_id, member_name, display_name, best_weight_kg, best_recorded_at" +
+      "   FROM best ORDER BY best_weight_kg DESC, lower(display_name), member_id",
       [selectedExerciseId]
     );
 
@@ -48,12 +48,69 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
       ? rankings.rows.find((item) => String(item.member_id) === String(actor.memberId)) ?? null
       : null;
     const visibleRankings = rankings.rows.map((item) => {
-      if (actor.roles.includes("admin") || String(item.member_id) === String(actor.memberId)) return item;
-      const { member_id: _memberId, ...publicRow } = item as Record<string, unknown>;
-      return publicRow;
+      const row = { ...item };
+      if (!actor.roles.includes("admin")) {
+        delete row.member_name;
+        if (String(row.member_id) !== String(actor.memberId)) {
+          delete row.member_id;
+        }
+      }
+      return row;
     });
 
-    return reply.send({ exercises: exercises.rows, exercise, rankings: visibleRankings, me: own });
+    const visibleMe = own ? { ...own } : null;
+    if (visibleMe && !actor.roles.includes("admin")) {
+      delete visibleMe.member_name;
+    }
+
+    return reply.send({ exercises: exercises.rows, exercise, rankings: visibleRankings, me: visibleMe });
+  });
+
+  app.get<{ Querystring: RankingQuery }>("/api/v1/admin/strength-aliases", {
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
+    const aliases = await db.query(
+      "SELECT id AS member_id, ranking_alias FROM member_profiles WHERE anonymized_at IS NULL AND ranking_alias IS NOT NULL ORDER BY lower(ranking_alias), id"
+    );
+    return reply.send({ aliases: aliases.rows });
+  });
+
+  app.put<{ Params: { memberId: string }; Body: { alias: string } }>("/api/v1/admin/strength-aliases/:memberId", {
+    schema: {
+      params: { type: "object", required: ["memberId"], additionalProperties: false, properties: { memberId: { type: "string", format: "uuid" } } },
+      body: { type: "object", required: ["alias"], additionalProperties: false, properties: { alias: { type: "string", minLength: 2, maxLength: 24 } } }
+    }
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
+    if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
+    const trimmedAlias = request.body.alias.trim();
+    if (trimmedAlias.length < 2 || trimmedAlias.length > 24) return bad(reply, "Alias length invalid.");
+
+    try {
+      await transactionalDb.transaction(async (tx) => {
+        const member = await tx.query("SELECT id, ranking_alias FROM member_profiles WHERE id = $1 AND anonymized_at IS NULL FOR UPDATE", [request.params.memberId]);
+        if (!member.rows[0]) throw Object.assign(new Error("Not found"), { statusCode: 404 });
+        const beforeAlias = member.rows[0].ranking_alias;
+        if (beforeAlias !== trimmedAlias) {
+          await tx.query("UPDATE member_profiles SET ranking_alias = $1 WHERE id = $2", [trimmedAlias, request.params.memberId]);
+          await tx.query(
+            "INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, before_data, after_data) VALUES ($1,'member.ranking_alias_set','member',$2,$3,$4::jsonb,$5::jsonb)",
+            [actor.userId, request.params.memberId, request.id, JSON.stringify({ rankingAlias: beforeAlias }), JSON.stringify({ rankingAlias: trimmedAlias })]
+          );
+        }
+      });
+      return reply.send({ ok: true });
+    } catch (e: any) {
+      if (e.statusCode === 404) return reply.code(404).send({ error: "not_found", message: "Member not found." });
+      if (e.code === "23505") return reply.code(409).send({ error: "alias_taken", message: "Alias taken." });
+      throw e;
+    }
   });
 
   app.get<{ Querystring: RankingQuery }>("/api/v1/admin/strength-records", {
@@ -81,8 +138,11 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
       exerciseId: { type: "string", format: "uuid" },
       weightKg: { type: "number", exclusiveMinimum: 0, maximum: 2000 },
       recordedAt: { type: "string", format: "date-time" },
-      notes: { type: "string", maxLength: 500 }
-    } } }
+       notes: { type: "string", maxLength: 500 },
+       alias: { type: "string", minLength: 2, maxLength: 24 }
+     } } }
+
+
   }, async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const actor = await resolveActor(request, db);
@@ -106,6 +166,32 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
         );
         const row = inserted.rows[0];
         if (!row) throw new Error("Strength record insert did not return a row.");
+
+        if (request.body.alias !== undefined) {
+          const trimmedAlias = request.body.alias.trim();
+          if (trimmedAlias.length < 2 || trimmedAlias.length > 24) throw Object.assign(new Error("Invalid alias length."), { statusCode: 400, errorCode: "invalid_alias" });
+
+          const before = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1 FOR UPDATE", [request.body.memberId]);
+          const beforeAlias = before.rows[0]?.ranking_alias;
+          if (beforeAlias !== trimmedAlias) {
+            try {
+              await tx.query("UPDATE member_profiles SET ranking_alias = $1 WHERE id = $2", [trimmedAlias, request.body.memberId]);
+              await tx.query(
+                "INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, before_data, after_data) VALUES ($1,'member.ranking_alias_set','member',$2,$3,$4::jsonb,$5::jsonb)",
+                [actor.userId, request.body.memberId, request.id, JSON.stringify({ rankingAlias: beforeAlias }), JSON.stringify({ rankingAlias: trimmedAlias })]
+              );
+            } catch (e: any) {
+              if (e.code === "23505") throw Object.assign(new Error("Alias taken."), { statusCode: 409 });
+              throw e;
+            }
+          }
+        } else {
+          const check = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1", [request.body.memberId]);
+          if (check.rows[0]?.ranking_alias === null) {
+              throw Object.assign(new Error("Alias required."), { statusCode: 400 });
+          }
+        }
+
         await tx.query(
           "INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, after_data) VALUES ($1,'strength_record.created','strength_record',$2,$3,$4::jsonb)",
           [actor.userId, row.id, request.id, JSON.stringify({ memberId: row.member_id, exerciseId: row.exercise_id, weightKg: row.weight_kg })]
@@ -114,8 +200,14 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
       });
       return reply.code(201).send({ record });
     } catch (error) {
-      if (typeof error === "object" && error !== null && "statusCode" in error && Number((error as { statusCode?: unknown }).statusCode) === 404) {
-        return reply.code(404).send({ error: "not_found", message: "El miembro o ejercicio solicitado no existe." });
+      if (typeof error === "object" && error !== null && "statusCode" in error) {
+        const code = Number((error as { statusCode?: unknown }).statusCode);
+        if (code === 404) return reply.code(404).send({ error: "not_found", message: "El miembro o ejercicio solicitado no existe." });
+        if (code === 400) {
+          const invalid = (error as { errorCode?: string }).errorCode === "invalid_alias";
+          return reply.code(400).send(invalid ? { error: "invalid_alias", message: "El apodo debe tener entre 2 y 24 caracteres." } : { error: "alias_required", message: "El miembro necesita un apodo para el ranking." });
+        }
+        if (code === 409) return reply.code(409).send({ error: "alias_taken", message: "Alias taken." });
       }
       throw error;
     }

@@ -8,7 +8,9 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | --- | --- | --- | --- | --- |
 | `GET /api/v1/strength-rankings` | Sesión válida (administración, profesor o miembro) | Ranking independiente por ejercicio; excluye perfiles anonimizados y personas dadas de baja; devuelve la posición del propio miembro cuando corresponde | No; `Cache-Control: no-store` | `strength-rankings.integration.test.ts` |
 | `GET /api/v1/admin/strength-records` | Administración | Historial de marcas para corrección administrativa | No; `Cache-Control: no-store` | `strength-rankings.integration.test.ts` |
-| `POST /api/v1/admin/strength-records` | Administración | Miembro y ejercicio válidos; peso > 0 y ≤ 2000 kg | CSRF + transacción + auditoría | `strength-rankings.integration.test.ts` |
+| `POST /api/v1/admin/strength-records` | Administración | Miembro y ejercicio válidos; peso > 0 y ≤ 2000 kg; apodo (opcional) válido | CSRF + transacción + auditoría | `strength-rankings.integration.test.ts` |
+| `GET /api/v1/admin/strength-aliases` | Administración | Listado de miembros con apodo | No; `Cache-Control: no-store` | `ranking-alias.integration.test.ts` |
+| `PUT /api/v1/admin/strength-aliases/:memberId` | Administración | Edición de apodo de miembro | CSRF + transacción + auditoría | `ranking-alias.integration.test.ts` |
 | `PATCH /api/v1/admin/strength-records/:id` | Administración | Corrige peso, fecha o nota de una marca existente | CSRF + transacción + auditoría antes/después | `strength-rankings.integration.test.ts` |
 | `DELETE /api/v1/admin/strength-records/:id` | Administración | Elimina una marca incorrecta; el ranking se recalcula desde el historial restante | CSRF + transacción + auditoría | `strength-rankings.integration.test.ts` |
 | `GET /api/v1/admin/institution-settings` | Administración | Configuración institucional de la instalación | No; `Cache-Control: no-store` | `institutional-settings.test.ts` (contrato estático; ejecución CI pendiente) |

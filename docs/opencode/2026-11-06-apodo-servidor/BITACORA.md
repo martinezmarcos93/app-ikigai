@@ -1,0 +1,1 @@
+17:35, Tarea 2 (Game), commit: d207ba4, Hecha. Implementado uso de alias en rankings de juegos.
