@@ -205,6 +205,8 @@
     },
     listAdminStrengthRecords: (exerciseId) => request(`/admin/strength-records${exerciseId ? `?exerciseId=${encodeURIComponent(String(exerciseId))}` : ""}`),
     createStrengthRecord: body => request("/admin/strength-records", { method: "POST", body }),
+    listStrengthAliases: () => request("/admin/strength-aliases"),
+    setStrengthAlias: (memberId, alias) => request(`/admin/strength-aliases/${id(memberId)}`, { method: "PUT", body: { alias } }),
     updateStrengthRecord: (recordId, body) => request(`/admin/strength-records/${id(recordId)}`, { method: "PATCH", body }),
     deleteStrengthRecord: recordId => request(`/admin/strength-records/${id(recordId)}`, { method: "DELETE", body: {} }),
     // Juego Iron Pixel y premios: el puntaje lo calcula el servidor a partir de las repeticiones.

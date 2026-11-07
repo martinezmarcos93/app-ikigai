@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [], releaseNotesSeen: null, strengthExercises: [], selectedStrengthExercise: "", strengthRankings: [], strengthRecords: [] };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [], releaseNotesSeen: null, strengthExercises: [], selectedStrengthExercise: "", strengthRankings: [], strengthRecords: [], strengthAliases: {} };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -147,7 +147,7 @@
     state.lastCredentials = "";
     // Al cerrar sesion no queda nada de la persona anterior: ni en memoria ni en el DOM (clave temporal recien creada,
     // tablas de miembros, cuenta corriente) para quien use el mismo aparato despues.
-    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [], releaseNotesSeen: null, strengthExercises: [], selectedStrengthExercise: "", strengthRankings: [], strengthRecords: [] });
+    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [], releaseNotesSeen: null, strengthExercises: [], selectedStrengthExercise: "", strengthRankings: [], strengthRecords: [], strengthAliases: {} });
     $("#pageContent").replaceChildren();
     if (window.IkigaiTour) window.IkigaiTour.stop();
     $("#portalPanel").classList.remove("password-pending");
@@ -621,6 +621,10 @@
     setPage("Ranking");
     setLoading("Consultando marcas y posiciones…");
     const first = await api.listStrengthRankings(state.selectedStrengthExercise || undefined);
+    if (isAdmin()) {
+      const aliases = await api.listStrengthAliases();
+      state.strengthAliases = Object.fromEntries((aliases.aliases || []).map(item => [item.member_id, item.ranking_alias]));
+    }
     state.strengthExercises = first.exercises || [];
     state.selectedStrengthExercise = first.exercise?.id || state.strengthExercises[0]?.id || "";
     state.strengthRankings = first.rankings || [];
@@ -664,30 +668,37 @@
 
     const podium = `
       <section class="ranking-podium" aria-label="Top 3">
-        ${top.map((item, index) => `
+        ${top.map((item, index) => {
+          const memberName = item.member_name;
+          return `
           <article class="ranking-podium-card ranking-place-${index + 1}">
             <span class="ranking-medal">${["🥇","🥈","🥉"][index]}</span>
             <span class="ranking-place">#${esc(item.position)}</span>
-            <strong>${esc(item.member_name)}</strong>
+            <strong>${esc(item.display_name)}</strong>
+            ${isAdmin() && memberName ? `<small>${esc(memberName)}</small>` : ""}
             <b>${esc(item.best_weight_kg)} kg</b>
             ${isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : ""}
-          </article>`).join("")}
+          </article>`;
+        }).join("")}
       </section>`;
 
     const own = first.me ? `
       <section class="ranking-self panel">
         <div><p class="eyebrow">TU POSICIÓN</p><strong>#${esc(first.me.position)} de ${state.strengthRankings.length}</strong></div>
-        <div><span>${esc(exercise?.name || "Ejercicio")}</span><b>${esc(first.me.best_weight_kg)} kg</b></div>
+        <div><span>${esc(first.me.display_name || "")}${isAdmin() && first.me.member_name ? `<small>${esc(first.me.member_name)}</small>` : ""}<small>${esc(exercise?.name || "Ejercicio")}</small></span><b>${esc(first.me.best_weight_kg)} kg</b></div>
       </section>` : "";
 
     const list = table(
       ["Posición","Miembro","Mejor marca","Acceso"],
-      rest.map(item => row([
+      rest.map(item => {
+        const memberName = item.member_name;
+        return row([
         `<strong>#${esc(item.position)}</strong>`,
-        esc(item.member_name),
+        `<strong>${esc(item.display_name)}</strong>${isAdmin() && memberName ? `<small>${esc(memberName)}</small>` : ""}`,
         `<strong>${esc(item.best_weight_kg)} kg</strong>`,
         isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : "—"
-      ]))
+      ]);
+      })
     );
 
     let admin = "";
@@ -705,7 +716,8 @@
     if (!isAdmin() || !exercise) return "";
     const members = state.members.filter(member => member.status !== "exited" && member.full_name !== "Persona anonimizada");
     return form("Registrar nueva marca", "create-strength-record",
-      selectField("Miembro", "memberId", memberOptions(members), members[0]?.id || "", true, true) +
+      `<div class="field full-span"><label for="f-memberId">Miembro</label><select id="f-memberId" name="memberId" data-action="strength-member" required>${memberOptions(members).map(item => `<option value="${esc(item.value)}"${String(item.value) === String(members[0]?.id || "") ? " selected" : ""}>${esc(item.label)}</option>`).join("")}</select></div>` +
+      field("Apodo en el ranking", "alias", "text", { maxLength: 24, value: state.strengthAliases[members[0]?.id] || "", placeholder: state.strengthAliases[members[0]?.id] ? "" : "Obligatorio la primera vez" }) +
       selectField("Ejercicio", "exerciseId", state.strengthExercises.map(item => ({ value: item.id, label: item.name })), exercise.id, true, true) +
       field("Peso (kg)", "weightKg", "number", { required: true, min: 0.01, max: 2000, step: "0.01", placeholder: "Ej. 82.5" }) +
       field("Fecha y hora", "recordedAt", "datetime-local") +
@@ -726,10 +738,17 @@
           `${esc(record.weight_kg)} kg`,
           date(record.recorded_at),
           `<button class="button ghost small" type="button" data-action="edit-strength-record" data-id="${esc(record.id)}" data-weight="${esc(record.weight_kg)}" data-notes="${esc(record.notes || "")}">Editar</button>
+           <button class="button ghost small" type="button" data-action="edit-strength-alias" data-member-id="${esc(record.member_id)}">Apodo</button>
            <button class="button ghost small danger" type="button" data-action="delete-strength-record" data-id="${esc(record.id)}">Eliminar</button>`
         ])))}
       </section>`;
   }
+
+  const strengthAliasError = error => ({
+    alias_required: "Este miembro todavía no tiene apodo: escribí uno.",
+    alias_taken: "Ese apodo ya lo usa otro miembro.",
+    invalid_alias: "El apodo debe tener entre 2 y 24 caracteres."
+  }[error?.code]);
 
   async function renderRoutines() {
     if (!(isAdmin() || isCoach())) throw new Error("Esta sección es exclusiva de administración y profesores.");
@@ -1320,6 +1339,7 @@
         memberId: v("memberId"),
         exerciseId: v("exerciseId"),
         weightKg,
+        ...(v("alias") ? { alias: v("alias") } : {}),
         ...(recordedAtRaw ? { recordedAt: new Date(recordedAtRaw).toISOString() } : {}),
         ...(v("notes") ? { notes: v("notes") } : {})
       };
@@ -1328,7 +1348,7 @@
         state.selectedStrengthExercise = payload.exerciseId;
         await renderView("strength-rankings");
         showNotice("Marca registrada y ranking actualizado.", "success");
-      } catch (error) { showError(error); }
+      } catch (error) { showNotice(strengthAliasError(error) || error.message || "Ocurrió un error inesperado."); }
       return;
     }
     if (kind === "institution-settings") {
@@ -1664,6 +1684,17 @@
         await renderView("strength-rankings");
         showNotice("Marca corregida y ranking actualizado.", "success");
       }
+      else if (action.dataset.action === "edit-strength-alias") {
+        if (!isAdmin()) throw new Error("Esta acción es exclusiva de administración.");
+        const memberId = action.dataset.memberId;
+        const rawAlias = window.prompt("Nuevo apodo en el ranking:", state.strengthAliases[memberId] || "");
+        if (rawAlias === null) return;
+        try {
+          await api.setStrengthAlias(memberId, rawAlias);
+          await renderView("strength-rankings");
+          showNotice("Apodo actualizado.", "success");
+        } catch (error) { showNotice(strengthAliasError(error) || error.message || "Ocurrió un error inesperado."); }
+      }
       else if (action.dataset.action === "delete-strength-record") {
         if (!isAdmin()) throw new Error("Esta acción es exclusiva de administración.");
         if (!window.confirm("¿Eliminar esta marca del historial? La acción quedará auditada.")) return;
@@ -1837,6 +1868,14 @@
 
 
   document.addEventListener("change", async event => {
+    const memberSelect = event.target.closest("select[data-action='strength-member']");
+    if (memberSelect) {
+      const aliasField = $("[name='alias']", memberSelect.form);
+      const alias = state.strengthAliases[memberSelect.value] || "";
+      aliasField.value = alias;
+      aliasField.placeholder = alias ? "" : "Obligatorio la primera vez";
+      return;
+    }
     const select = event.target.closest("select[data-action='strength-exercise']");
     if (!select) return;
     state.selectedStrengthExercise = select.value;
