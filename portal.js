@@ -669,7 +669,7 @@
     const podium = `
       <section class="ranking-podium" aria-label="Top 3">
         ${top.map((item, index) => {
-          const memberName = item["member_" + "name"];
+          const memberName = item.member_name;
           return `
           <article class="ranking-podium-card ranking-place-${index + 1}">
             <span class="ranking-medal">${["🥇","🥈","🥉"][index]}</span>
@@ -691,7 +691,7 @@
     const list = table(
       ["Posición","Miembro","Mejor marca","Acceso"],
       rest.map(item => {
-        const memberName = item["member_" + "name"];
+        const memberName = item.member_name;
         return row([
         `<strong>#${esc(item.position)}</strong>`,
         `<strong>${esc(item.display_name)}</strong>${isAdmin() && memberName ? `<small>${esc(memberName)}</small>` : ""}`,
