@@ -292,13 +292,13 @@ button, .button, .nav-link, input[type="checkbox"], input[type="radio"] { touch-
 .ranking-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:20px}
 .ranking-exercise-field{min-width:min(320px,100%)}
 .ranking-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:16px 0}
-.ranking-podium-card{min-height:170px;border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px}
+.ranking-podium-card{min-height:170px;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px}
 .ranking-podium-card strong{font-size:1.08rem}
 .ranking-podium-card b{font-size:1.5rem}
 .ranking-podium-card .button{margin-top:8px}
 .ranking-medal{font-size:2rem;line-height:1}
 .ranking-place{font-size:.78rem;letter-spacing:.08em;color:var(--muted)}
-.ranking-place-1{transform:translateY(-8px);border-color:var(--brand)}
+.ranking-place-1{transform:translateY(-8px);border-color:var(--red)}
 .ranking-place-1 b{font-size:1.7rem}
 .ranking-self{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:16px}
 .ranking-self strong{display:block;font-size:1.5rem}
@@ -307,6 +307,7 @@ button, .button, .nav-link, input[type="checkbox"], input[type="radio"] { touch-
 .ranking-self b{font-size:1.35rem;margin-top:3px}
 .ranking-self small,.ranking-podium-card small,.panel td small{display:block;color:var(--muted);font-size:.78rem;font-weight:400}
 .ranking-empty{margin-bottom:16px}
+.ranking-header .section-subtitle{margin-top:12px}
 @media (max-width:700px){
   .ranking-toolbar,.ranking-self{align-items:stretch;flex-direction:column}
   .ranking-exercise-field{min-width:0}
