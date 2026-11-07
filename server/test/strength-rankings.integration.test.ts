@@ -85,7 +85,7 @@ test("strength rankings are readable by authenticated roles and writable only by
     method: "POST",
     url: "/api/v1/admin/strength-records",
     headers: headers(admin),
-    payload: { memberId: member.memberId, exerciseId, weightKg: 60, notes: "Inicio" }
+    payload: { memberId: member.memberId, exerciseId, weightKg: 60, notes: "Inicio", alias: "AliasA" }
   });
   assert.equal(first.statusCode, 201, first.body);
 

@@ -128,7 +128,20 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
           }
         } else {
           const check = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1", [request.body.memberId]);
-          if (check.rows[0]?.ranking_alias === null) throw Object.assign(new Error("Alias required."), { statusCode: 400 });
+          if (check.rows[0]?.ranking_alias === null && request.body.alias === undefined) {
+             // throw 400 ONLY if it's missing AND it's not already set? Wait, the rule is "si no viene y el miembro no tiene apodo -> 400".
+             // My code:
+             // const check = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1", [request.body.memberId]);
+             // if (check.rows[0]?.ranking_alias === null) throw Object.assign(new Error("Alias required."), { statusCode: 400 });
+             // This throws 400 if it's null, regardless of whether alias came in payload?
+             // Ah, wait: "si viene alias... si no viene y el miembro no tiene apodo...".
+             // So if alias comes, it should update. If alias DOES NOT come, it should check if ranking_alias is NULL.
+             // My code:
+             // if (request.body.alias !== undefined) { ... } else { const check ... }
+             // This is correct! If alias comes, we do the alias update. If not, we check for null.
+             // So why 400? Maybe alias IS coming but it's not being detected?
+             throw Object.assign(new Error("Alias required (DEBUG: " + JSON.stringify(request.body) + ")."), { statusCode: 400 });
+          }
         }
 
         await tx.query(

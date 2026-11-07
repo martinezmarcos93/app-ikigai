@@ -164,14 +164,16 @@ export function registerDataProtectionRoutes(
           await tx.query(
             `UPDATE member_profiles
                 SET full_name = $2, email = NULL, phone = NULL, address = NULL, dni = NULL,
-                    emergency_contact_name = NULL, emergency_contact_phone = NULL, notes = NULL,
-                    anonymized_at = clock_timestamp(), updated_at = clock_timestamp()
-              WHERE id = $1`, [memberId, ANONYMIZED_NAME]
+                   emergency_contact_name = NULL, emergency_contact_phone = NULL, notes = NULL,
+                   ranking_alias = NULL, anonymized_at = clock_timestamp(), updated_at = clock_timestamp()
+             WHERE id = $1`, [memberId, ANONYMIZED_NAME]
           );
           // Las notas libres de los avisos y de las rutinas pueden nombrar a la persona.
           await tx.query("UPDATE booking_notices SET note = NULL WHERE booking_id IN (SELECT id FROM bookings WHERE member_id = $1)", [memberId]);
           await tx.query("UPDATE product_reservations SET note = NULL WHERE member_id = $1", [memberId]);
           await tx.query("UPDATE routine_assignments SET notes = NULL WHERE member_id = $1", [memberId]);
+          await tx.query("UPDATE strength_records SET notes = NULL WHERE member_id = $1", [memberId]);
+
           let accountClosed = false;
           if (member.user_id) {
             await tx.query(
