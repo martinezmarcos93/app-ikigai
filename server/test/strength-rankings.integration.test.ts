@@ -57,7 +57,12 @@ test("strength rankings are readable by authenticated roles and writable only by
   const other = await createActor(pool, `Ranking Other ${suffix}`, "member");
   const coach = await createActor(pool, `Ranking Coach ${suffix}`, "coach");
 
-  const exercise = await pool.query("SELECT id FROM strength_exercises WHERE code='PP'");
+  // Ejercicio propio del test: así el ranking arranca vacío aunque la base ya tenga marcas de otras corridas.
+  const code = `IT ${suffix.slice(0, 8).toUpperCase()}`;
+  const exercise = await pool.query(
+    "INSERT INTO strength_exercises (code, name, display_order) VALUES ($1, $2, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM strength_exercises)) RETURNING id",
+    [code, `Ejercicio de prueba ${suffix}`]
+  );
   assert.ok(exercise.rows[0]);
   const exerciseId = String(exercise.rows[0].id);
 
@@ -107,12 +112,12 @@ test("strength rankings are readable by authenticated roles and writable only by
   });
   assert.equal(ranking.statusCode, 200);
   // As member, own member_id is visible, others are hidden
-  assert.equal(ranking.json().rankings[0].position, 1);
-  assert.equal(ranking.json().rankings[0].best_weight_kg, 70);
+  assert.equal(Number(ranking.json().rankings[0].position), 1);
+  assert.equal(Number(ranking.json().rankings[0].best_weight_kg), 70);
   assert.equal(String(ranking.json().rankings[0].member_id), member.memberId);
 
-  assert.equal(ranking.json().rankings[1].position, 2);
-  assert.equal(ranking.json().rankings[1].best_weight_kg, 65);
+  assert.equal(Number(ranking.json().rankings[1].position), 2);
+  assert.equal(Number(ranking.json().rankings[1].best_weight_kg), 65);
   assert.equal("member_id" in ranking.json().rankings[1], false);
 
   // As admin, all member_ids are visible
@@ -122,12 +127,12 @@ test("strength rankings are readable by authenticated roles and writable only by
     headers: headers(admin),
   });
   assert.equal(adminRanking.statusCode, 200);
-  assert.equal(adminRanking.json().rankings[0].position, 1);
-  assert.equal(adminRanking.json().rankings[0].best_weight_kg, 70);
+  assert.equal(Number(adminRanking.json().rankings[0].position), 1);
+  assert.equal(Number(adminRanking.json().rankings[0].best_weight_kg), 70);
   assert.equal(String(adminRanking.json().rankings[0].member_id), member.memberId);
 
-  assert.equal(adminRanking.json().rankings[1].position, 2);
-  assert.equal(adminRanking.json().rankings[1].best_weight_kg, 65);
+  assert.equal(Number(adminRanking.json().rankings[1].position), 2);
+  assert.equal(Number(adminRanking.json().rankings[1].best_weight_kg), 65);
   assert.equal(String(adminRanking.json().rankings[1].member_id), other.memberId);
   assert.equal(String(ranking.json().me.member_id), member.memberId);
   assert.equal(Number(ranking.json().me.best_weight_kg), 70);
