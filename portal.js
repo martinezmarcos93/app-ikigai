@@ -1961,25 +1961,21 @@
 
   // ---- Novedades de la versión (globos que cada persona ve una sola vez) ----
   // Para anunciar otra actualización: cambiar RELEASE_NOTES_VERSION y los pasos. Quien ya cerró la anterior ve la nueva.
-  const RELEASE_NOTES_VERSION = "2026-10-25";
+  const RELEASE_NOTES_VERSION = "2026-11-07";
   function releaseNoteSteps() {
     const steps = [{ view: null, target: ".portal-brand", title: "¡Hay novedades en Ikigai!", text: "Sumamos cosas nuevas a la app. Te las mostramos en un minuto." }];
-    const game = isAdmin()
-      ? "Iron Pixel: un juego de pesas en pixel art para todos. Los miembros suman puntos para canjear por una barra de cereal, y el mejor puntaje de cada semana se lleva una de regalo."
-      : isCoach() && !isMember()
-        ? "Iron Pixel: un juego de pesas en pixel art. Podés jugar y ver el ranking; los puntos y premios son para los miembros."
-        : "Iron Pixel: levantá la barra en 30 segundos y sumá puntos. Juntando puntos te llevás una barra de cereal, y el mejor puntaje de la semana gana una de regalo.";
-    steps.push({ view: null, target: ".nav-link[data-view='game']", title: "Nuevo: Iron Pixel", text: game });
-    if (isAdmin()) steps.push({ view: null, target: ".nav-link[data-view='rewards']", title: "Nuevo: Premios", text: "Acá ves los puntos de cada miembro, entregás la barrita cuando la retiran (descuenta los puntos solo) y registrás el premio de la semana. También definís cuántos puntos vale cada premio." });
     steps.push({
-      view: null, target: ".nav-link[data-view='catalog']", title: "Nuevo: Productos",
+      view: null, target: ".nav-link[data-view='strength-rankings']", title: "Nuevo: Ranking de fuerza",
       text: isAdmin()
-        ? "Cargá lo que vende el gimnasio (proteína, creatina, barras…) con precio y stock. Los miembros reservan desde la app y vos marcás la entrega cuando pagan y retiran."
-        : isMember() && !isCoach()
-          ? "Mirá lo que vende el gimnasio (proteína, creatina, barras y más) y reservá lo que quieras. Lo pagás y lo retirás en recepción."
-          : "Ahora podés ver el catálogo de productos que vende el gimnasio."
+        ? "Cargá la mejor marca de cada miembro en ocho ejercicios. Elegís a la persona y le ponés un apodo: en el ranking todos ven el apodo, nunca el nombre real."
+        : "Mirá quién levanta más en cada ejercicio y en qué puesto estás vos. En el ranking cada persona aparece con su apodo."
     });
-    if (isAdmin() || isCoach()) steps.push({ view: null, target: ".nav-link[data-view='routines']", title: "Rutinas: ahora también los profes", text: "Los profesores pueden cargar ejercicios, armar rutinas y crear versiones nuevas, además de asignarlas a sus alumnos." });
+    steps.push({
+      view: null, target: ".nav-link[data-view='game']", title: "Iron Pixel 2: ahora es un circuito",
+      text: isAdmin() || (isCoach() && !isMember())
+        ? "El juego pasó a ser un circuito de cuatro pruebas (press, dominadas, curl y bicicleta) con combos y peso. Los puntos y el ranking semanal siguen igual, con el tope diario de siempre."
+        : "Cuatro pruebas seguidas: press, dominadas, curl y bicicleta. Encadená aciertos para subir el combo y elegí el peso para multiplicar puntos. El ranking de la semana arranca de cero."
+    });
     return steps;
   }
   function maybeShowReleaseNotes() {

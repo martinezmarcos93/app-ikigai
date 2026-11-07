@@ -263,6 +263,9 @@ button, .button, .nav-link, input[type="checkbox"], input[type="radio"] { touch-
 .product-reserve select, .product-reserve input { background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; }
 
 /* Iron Pixel V2 (ADR-002): estilos del juego acotados bajo .ip2; generados desde updates/iron-pixel-v2.html */
+/* Ajustes para vivir dentro del portal: las columnas de las grillas pueden achicarse por debajo de su contenido. */
+.ip2 .layout > *, .ip2 .side > *, .ip2 .hud > * { min-width: 0; }
+.ip2 table { min-width: 0; width: 100%; }
 .ip2 {
 color-scheme: dark;
         --bg: #09090b;
@@ -398,7 +401,7 @@ background: #29292f;
 }
 .ip2 .hud {
 display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 1px;
         background: var(--line);
 }
@@ -641,7 +644,10 @@ outline: 3px solid white;
 padding: 10px;
 }
 .ip2 .layout {
-grid-template-columns: 1fr;
+grid-template-columns: minmax(0, 1fr);
+}
+.ip2 .hud .stat:first-child {
+grid-column: 1 / -1;
 }
 .ip2 .side {
 grid-template-columns: repeat(2, minmax(0, 1fr));
