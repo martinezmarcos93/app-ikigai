@@ -20,7 +20,7 @@ Incorporar una sección de Ranking visible para toda persona autenticada, con un
 ## Fase 1 — Modelo y API
 **Estado: implementada en esta rama.**
 
-- [x] Migración 0012 con catálogo de ejercicios y marcas históricas.
+- [x] Migración 0015 con catálogo de ejercicios y marcas históricas.
 - [x] Catálogo inicial con los ocho ejercicios definidos.
 - [x] Endpoint para usuarios autenticados.
 - [x] Posición propia calculada por el servidor.
