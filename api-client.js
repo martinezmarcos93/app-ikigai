@@ -209,7 +209,7 @@
           exerciseIds.some(key => typeof result.exercises[key] !== "string" || result.exercises[key].length > 300 || !/^[PGF]*$/.test(result.exercises[key]))) {
         throw new ApiError(0, "invalid_game_result", "El resultado de la partida no es válido.");
       }
-      return request(`/game/runs/${id(runId)}/finish`, { method: "POST", body: { version: 2, weight: result.weight, exercises: result.exercises } });
+      return request(`/game/runs/${id(runId)}/finish`, { method: "POST", body: { version: 2, weight: result.weight, exercises: Object.fromEntries(exerciseIds.map(key => [key, result.exercises[key]])) } });
     },
     getRewardsOverview: () => request("/admin/rewards"),
     redeemReward: (memberId, expectedBalance) => request("/admin/rewards/redeem", { method: "POST", body: { memberId, expectedBalance } }),
