@@ -50,6 +50,7 @@ test("ranking alias integration tests", {
   t.after(async () => { await app.close(); await pool.end(); });
 
   const suffix = randomUUID();
+  const tag = suffix.slice(0, 8);
   const admin = await createActor(pool, `Admin ${suffix}`, "admin");
   const member1 = await createActor(pool, `Member 1 ${suffix}`, "member");
   const member2 = await createActor(pool, `Member 2 ${suffix}`, "member");
@@ -75,7 +76,7 @@ test("ranking alias integration tests", {
     method: "POST",
     url: "/api/v1/admin/strength-records",
     headers: headers(admin),
-    payload: { memberId: member1.memberId, exerciseId, weightKg: 10, alias: "Toro" }
+    payload: { memberId: member1.memberId, exerciseId, weightKg: 10, alias: `Toro ${tag}` }
   });
   assert.equal(okReq1.statusCode, 201);
 
@@ -92,7 +93,7 @@ test("ranking alias integration tests", {
     method: "POST",
     url: "/api/v1/admin/strength-records",
     headers: headers(admin),
-    payload: { memberId: member2.memberId, exerciseId, weightKg: 10, alias: "toro" }
+    payload: { memberId: member2.memberId, exerciseId, weightKg: 10, alias: `toro ${tag}` }
   });
   assert.equal(failReq.statusCode, 409);
   assert.equal(failReq.json().error, "alias_taken");
@@ -105,7 +106,7 @@ test("ranking alias integration tests", {
   });
   assert.equal(readMember.statusCode, 200);
   const rankings = readMember.json().rankings;
-  assert.equal(rankings[0].display_name, "Toro");
+  assert.equal(rankings[0].display_name, `Toro ${tag}`);
   assert.ok(!("member_name" in rankings[0]));
   assert.ok("member_id" in rankings[0]); // el propio
 
@@ -123,7 +124,7 @@ test("ranking alias integration tests", {
     method: "PUT",
     url: `/api/v1/admin/strength-aliases/${member1.memberId}`,
     headers: headers(member1),
-    payload: { alias: "Nuevo" }
+    payload: { alias: `Nuevo ${tag}` }
   });
   assert.equal(putMember.statusCode, 403);
 
@@ -131,17 +132,26 @@ test("ranking alias integration tests", {
     method: "PUT",
     url: `/api/v1/admin/strength-aliases/${member1.memberId}`,
     headers: headers(admin),
-    payload: { alias: "Nuevo" }
+    payload: { alias: `Nuevo ${tag}` }
   });
   assert.equal(putAdmin.statusCode, 200);
 
+  // Un apodo que al recortarse queda de 1 carácter se rechaza como inválido (no rompe el CHECK de la base).
+  const shortAlias = await app.inject({ method: "PUT", url: `/api/v1/admin/strength-aliases/${member1.memberId}`, headers: headers(admin), payload: { alias: "  a " } });
+  assert.equal(shortAlias.statusCode, 400, shortAlias.body);
+  const shortOnCreate = await app.inject({ method: "POST", url: "/api/v1/admin/strength-records", headers: headers(admin), payload: { memberId: member1.memberId, exerciseId, weightKg: 11, alias: "  a " } });
+  assert.equal(shortOnCreate.statusCode, 400, shortOnCreate.body);
+  assert.equal(shortOnCreate.json().error, "invalid_alias");
+
   // 7. ranking de Iron Pixel: name sea el apodo
-  await pool.query("INSERT INTO game_runs (user_id, member_id, status, finished_at, score, points_awarded) VALUES ($1, $2, 'finished', now(), 100, 10)", [member1.userId, member1.memberId]);
+  await pool.query("INSERT INTO game_runs (user_id, member_id, status, finished_at, score, points_awarded) VALUES ($1, $2, 'finished', now(), 100000, 10)", [member1.userId, member1.memberId]);
   const gameSummary = await app.inject({
     method: "GET",
     url: "/api/v1/game/summary",
     headers: { cookie: `ikigai_session=${member1.token}` }
   });
   assert.equal(gameSummary.statusCode, 200);
-  assert.equal(gameSummary.json().week.ranking[0].name, "Nuevo");
+  const mine = gameSummary.json().week.ranking.find((r: { me: boolean }) => r.me);
+  assert.ok(mine, "el miembro figura en el ranking de Iron Pixel");
+  assert.equal(mine.name, `Nuevo ${tag}`);
 });

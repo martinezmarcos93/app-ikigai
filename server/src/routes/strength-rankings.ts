@@ -169,7 +169,7 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
 
         if (request.body.alias !== undefined) {
           const trimmedAlias = request.body.alias.trim();
-          if (trimmedAlias.length < 2 || trimmedAlias.length > 24) throw Object.assign(new Error("Invalid alias length."), { statusCode: 400 });
+          if (trimmedAlias.length < 2 || trimmedAlias.length > 24) throw Object.assign(new Error("Invalid alias length."), { statusCode: 400, errorCode: "invalid_alias" });
 
           const before = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1 FOR UPDATE", [request.body.memberId]);
           const beforeAlias = before.rows[0]?.ranking_alias;
@@ -203,7 +203,10 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
       if (typeof error === "object" && error !== null && "statusCode" in error) {
         const code = Number((error as { statusCode?: unknown }).statusCode);
         if (code === 404) return reply.code(404).send({ error: "not_found", message: "El miembro o ejercicio solicitado no existe." });
-        if (code === 400) return reply.code(400).send({ error: "alias_required", message: "Alias required." });
+        if (code === 400) {
+          const invalid = (error as { errorCode?: string }).errorCode === "invalid_alias";
+          return reply.code(400).send(invalid ? { error: "invalid_alias", message: "El apodo debe tener entre 2 y 24 caracteres." } : { error: "alias_required", message: "El miembro necesita un apodo para el ranking." });
+        }
         if (code === 409) return reply.code(409).send({ error: "alias_taken", message: "Alias taken." });
       }
       throw error;
