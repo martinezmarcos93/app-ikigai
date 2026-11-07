@@ -933,6 +933,7 @@
   // ---------------- Iron Pixel (juego) y premios ----------------
   // Mensajes en castellano para los errores propios del juego (el servidor responde códigos estables).
   const GAME_ERRORS = {
+    outdated_client: "Hay una versión nueva del juego: recargá la página.",
     daily_run_limit: "Llegaste al máximo de partidas de hoy. ¡Volvé mañana!",
     run_closed: "Esa partida ya estaba cerrada.",
     run_rejected: "No se pudo validar el resultado de la partida, así que no suma puntos.",
@@ -1000,9 +1001,9 @@
         try { runId = (await api.startGameRun()).run.id; }
         catch (error) { throw gameError(error); }
       },
-      onFinish: async ({ reps, perfectReps }) => {
+      onFinish: async resultData => {
         let result;
-        try { result = await api.finishGameRun(runId, reps, perfectReps); }
+        try { result = await api.finishGameRun(runId, resultData); }
         catch (error) { throw gameError(error); }
         finally { runId = null; }
         // Refresca saldo y ranking sin reiniciar el juego.
