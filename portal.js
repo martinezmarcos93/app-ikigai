@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [], releaseNotesSeen: null };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [], releaseNotesSeen: null, strengthExercises: [], selectedStrengthExercise: "", strengthRankings: [], strengthRecords: [] };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases", game:"Iron Pixel", rewards:"Premios", catalog:"Productos" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases", "strength-rankings":"Ranking", game:"Iron Pixel", rewards:"Premios", catalog:"Productos" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -147,7 +147,7 @@
     state.lastCredentials = "";
     // Al cerrar sesion no queda nada de la persona anterior: ni en memoria ni en el DOM (clave temporal recien creada,
     // tablas de miembros, cuenta corriente) para quien use el mismo aparato despues.
-    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [], releaseNotesSeen: null });
+    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [], releaseNotesSeen: null, strengthExercises: [], selectedStrengthExercise: "", strengthRankings: [], strengthRecords: [] });
     $("#pageContent").replaceChildren();
     if (window.IkigaiTour) window.IkigaiTour.stop();
     $("#portalPanel").classList.remove("password-pending");
@@ -617,6 +617,120 @@
   }
   const routineTable = exercises => table(["#", "Ejercicio", "Series", "Repeticiones", "Descanso", "Indicaciones"], exercises.map(e =>
     row([esc(e.position), esc(e.name), esc(e.sets || "—"), esc(e.reps || "—"), e.restSeconds != null ? `${esc(e.restSeconds)} s` : "—", esc(e.notes || "")])));
+  async function renderStrengthRankings() {
+    setPage("Ranking");
+    setLoading("Consultando marcas y posiciones…");
+    const first = await api.listStrengthRankings(state.selectedStrengthExercise || undefined);
+    state.strengthExercises = first.exercises || [];
+    state.selectedStrengthExercise = first.exercise?.id || state.strengthExercises[0]?.id || "";
+    state.strengthRankings = first.rankings || [];
+    const exercise = first.exercise; // Asegurarse de que `exercise` esté definido antes del selector.
+    const selector = `
+      <section class="panel ranking-header">
+        <div class="ranking-toolbar">
+          <div><p class="eyebrow">FUERZA</p><h2 class="section-title">Ranking por ejercicio</h2></div>
+          <div class="field ranking-exercise-field">
+            <label for="strengthExerciseSelect">Ejercicio</label>
+            <select id="strengthExerciseSelect" data-action="strength-exercise">
+              ${state.strengthExercises.map(item => `<option value="${esc(item.id)}"${String(item.id) === String(state.selectedStrengthExercise) ? " selected" : ""}>${esc(item.name)}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <p class="section-subtitle">La posición se calcula con la mejor marca registrada de cada miembro en este ejercicio. Unidad: ${esc(exercise?.unit || "kg")}.</p>
+      </section>`;
+
+    if (!state.strengthRankings.length) {
+      const emptyMessage = isAdmin()
+        ? "Elegí un ejercicio y registrá las primeras marcas desde administración."
+        : "Todavía nadie tiene marcas en este ejercicio.";
+      $("#pageContent").innerHTML = `
+        ${selector}
+        <section class="panel ranking-empty">
+          <h2 class="section-title">Todavía no hay marcas registradas</h2>
+          <p class="section-subtitle">${emptyMessage}</p>
+        </section>
+        ${isAdmin() ? renderStrengthAdminForm(first.exercise) : ""}
+      `;
+      if (isAdmin()) {
+        const records = await api.listAdminStrengthRecords(state.selectedStrengthExercise || undefined);
+        state.strengthRecords = records.records || [];
+        $("#pageContent").insertAdjacentHTML("beforeend", renderStrengthAdminRecords());
+      }
+      return;
+    }
+
+    const top = state.strengthRankings.slice(0, 3);
+    const rest = state.strengthRankings.slice(3);
+
+    const podium = `
+      <section class="ranking-podium" aria-label="Top 3">
+        ${top.map((item, index) => `
+          <article class="ranking-podium-card ranking-place-${index + 1}">
+            <span class="ranking-medal">${["🥇","🥈","🥉"][index]}</span>
+            <span class="ranking-place">#${esc(item.position)}</span>
+            <strong>${esc(item.member_name)}</strong>
+            <b>${esc(item.best_weight_kg)} kg</b>
+            ${isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : ""}
+          </article>`).join("")}
+      </section>`;
+
+    const own = first.me ? `
+      <section class="ranking-self panel">
+        <div><p class="eyebrow">TU POSICIÓN</p><strong>#${esc(first.me.position)} de ${state.strengthRankings.length}</strong></div>
+        <div><span>${esc(exercise?.name || "Ejercicio")}</span><b>${esc(first.me.best_weight_kg)} kg</b></div>
+      </section>` : "";
+
+    const list = table(
+      ["Posición","Miembro","Mejor marca","Acceso"],
+      rest.map(item => row([
+        `<strong>#${esc(item.position)}</strong>`,
+        esc(item.member_name),
+        `<strong>${esc(item.best_weight_kg)} kg</strong>`,
+        isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : "—"
+      ]))
+    );
+
+    let admin = "";
+    if (isAdmin()) {
+      const records = await api.listAdminStrengthRecords(state.selectedStrengthExercise || undefined);
+      state.strengthRecords = records.records || [];
+      admin = renderStrengthAdminForm(exercise) + renderStrengthAdminRecords();
+    }
+
+    $("#pageContent").innerHTML = selector + podium + own +
+      `<section class="panel"><h2 class="section-title">Clasificación completa</h2>${list}</section>` + admin;
+  }
+
+  function renderStrengthAdminForm(exercise) {
+    if (!isAdmin() || !exercise) return "";
+    const members = state.members.filter(member => member.status !== "exited" && member.full_name !== "Persona anonimizada");
+    return form("Registrar nueva marca", "create-strength-record",
+      selectField("Miembro", "memberId", memberOptions(members), members[0]?.id || "", true, true) +
+      selectField("Ejercicio", "exerciseId", state.strengthExercises.map(item => ({ value: item.id, label: item.name })), exercise.id, true, true) +
+      field("Peso (kg)", "weightKg", "number", { required: true, min: 0.01, max: 2000, step: "0.01", placeholder: "Ej. 82.5" }) +
+      field("Fecha y hora", "recordedAt", "datetime-local") +
+      field("Nota", "notes", "text", { maxLength: 500, wide: true }),
+      "Registrar marca",
+      "Las marcas se conservan como historial. El ranking usa la mejor marca de cada miembro."
+    );
+  }
+
+  function renderStrengthAdminRecords() {
+    if (!isAdmin()) return "";
+    return `
+      <section class="panel">
+        <h2 class="section-title">Historial administrativo</h2>
+        ${table(["Miembro","Ejercicio","Peso","Fecha","Acciones"], state.strengthRecords.map(record => row([
+          esc(record.member_name),
+          esc(record.exercise_name),
+          `${esc(record.weight_kg)} kg`,
+          date(record.recorded_at),
+          `<button class="button ghost small" type="button" data-action="edit-strength-record" data-id="${esc(record.id)}" data-weight="${esc(record.weight_kg)}" data-notes="${esc(record.notes || "")}">Editar</button>
+           <button class="button ghost small danger" type="button" data-action="delete-strength-record" data-id="${esc(record.id)}">Eliminar</button>`
+        ])))}
+      </section>`;
+  }
+
   async function renderRoutines() {
     if (!(isAdmin() || isCoach())) throw new Error("Esta sección es exclusiva de administración y profesores.");
     setPage("Rutinas");
@@ -1152,6 +1266,7 @@
       else if (view === "invitations") await renderAccess();
       else if (view === "my-password") renderPasswordChange();
       else if (view === "routines") await renderRoutines();
+      else if (view === "strength-rankings") await renderStrengthRankings();
       else if (view === "announcements") await renderAnnouncements();
       else if (view === "institution-settings") await renderInstitutionSettings();
       else if (view === "game") await renderGame();
@@ -1195,6 +1310,26 @@
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
       }
+      return;
+    }
+    if (kind === "create-strength-record") {
+      if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+      const weightKg = Number(v("weightKg"));
+      if (!Number.isFinite(weightKg) || weightKg <= 0) { showNotice("Ingresá un peso válido."); return; }
+      const recordedAtRaw = v("recordedAt");
+      const payload = {
+        memberId: v("memberId"),
+        exerciseId: v("exerciseId"),
+        weightKg,
+        ...(recordedAtRaw ? { recordedAt: new Date(recordedAtRaw).toISOString() } : {}),
+        ...(v("notes") ? { notes: v("notes") } : {})
+      };
+      try {
+        await api.createStrengthRecord(payload);
+        state.selectedStrengthExercise = payload.exerciseId;
+        await renderView("strength-rankings");
+        showNotice("Marca registrada y ranking actualizado.", "success");
+      } catch (error) { showError(error); }
       return;
     }
     if (kind === "institution-settings") {
@@ -1518,6 +1653,25 @@
         await renderView("members");
         showNotice(result.alreadyAnonymized ? "Esa persona ya estaba anonimizada." : "Persona anonimizada. Se conservó su historial de cuenta y asistencia sin identidad.", "success");
       }
+      else if (action.dataset.action === "edit-strength-record") {
+        if (!isAdmin()) throw new Error("Esta acción es exclusiva de administración.");
+        const rawWeight = window.prompt("Nuevo peso en kg:", action.dataset.weight || "");
+        if (rawWeight === null) return;
+        const weightKg = Number(rawWeight.replace(",", "."));
+        if (!Number.isFinite(weightKg) || weightKg <= 0) { showNotice("El peso no es válido."); return; }
+        const notes = window.prompt("Nota (opcional):", action.dataset.notes || "");
+        if (notes === null) return;
+        await api.updateStrengthRecord(action.dataset.id, { weightKg, notes });
+        await renderView("strength-rankings");
+        showNotice("Marca corregida y ranking actualizado.", "success");
+      }
+      else if (action.dataset.action === "delete-strength-record") {
+        if (!isAdmin()) throw new Error("Esta acción es exclusiva de administración.");
+        if (!window.confirm("¿Eliminar esta marca del historial? La acción quedará auditada.")) return;
+        await api.deleteStrengthRecord(action.dataset.id);
+        await renderView("strength-rankings");
+        showNotice("Marca eliminada y ranking actualizado.", "success");
+      }
       else if (action.dataset.action === "refresh-schedule") {
         await renderView("schedule");
       }
@@ -1680,6 +1834,14 @@
       }
       else if (action.dataset.action === "start-tour") { startTour(); }
     } catch (error) { showError(error); }
+  });
+
+
+  document.addEventListener("change", async event => {
+    const select = event.target.closest("select[data-action='strength-exercise']");
+    if (!select) return;
+    state.selectedStrengthExercise = select.value;
+    try { await renderView("strength-rankings"); } catch (error) { showError(error); }
   });
 
   document.addEventListener("submit", async event => {

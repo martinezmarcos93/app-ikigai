@@ -199,6 +199,14 @@
     createRoutineVersion: (routineId, body) => request(`/routines/${id(routineId)}/versions`, { method: "POST", body }),
     listRoutineAssignments: memberId => request(`/members/${id(memberId)}/routine-assignments`),
     assignRoutine: (memberId, body) => request(`/members/${id(memberId)}/routine-assignments`, { method: "POST", body }),
+    listStrengthRankings: (exerciseId) => {
+      const query = exerciseId ? `?exerciseId=${encodeURIComponent(String(exerciseId))}` : "";
+      return request(`/strength-rankings${query}`);
+    },
+    listAdminStrengthRecords: (exerciseId) => request(`/admin/strength-records${exerciseId ? `?exerciseId=${encodeURIComponent(String(exerciseId))}` : ""}`),
+    createStrengthRecord: body => request("/admin/strength-records", { method: "POST", body }),
+    updateStrengthRecord: (recordId, body) => request(`/admin/strength-records/${id(recordId)}`, { method: "PATCH", body }),
+    deleteStrengthRecord: recordId => request(`/admin/strength-records/${id(recordId)}`, { method: "DELETE", body: {} }),
     // Juego Iron Pixel V2: el servidor calcula el puntaje a partir de las secuencias.
     getGameSummary: () => request("/game/summary"),
     startGameRun: () => request("/game/runs", { method: "POST", body: {} }),

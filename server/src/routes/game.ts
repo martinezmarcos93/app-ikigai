@@ -39,6 +39,7 @@ interface RankingRow extends Record<string, unknown> {
   run_id: string;
   score: number;
   full_name: string;
+  ranking_alias: string | null;
 }
 interface FinishBody { version?: number; weight?: string; exercises?: Record<string, string>; reps?: number; perfectReps?: number }
 interface RedeemBody { memberId: string; expectedBalance: number }
@@ -109,7 +110,7 @@ async function weeklyRanking(db: Database, weekStartSql: string, values: unknown
           AND gr.finished_at >= bounds.starts AND gr.finished_at < bounds.ends
         ORDER BY gr.member_id, gr.score DESC, gr.finished_at ASC
      )
-     SELECT b.member_id, b.run_id, b.score, mp.full_name
+     SELECT b.member_id, b.run_id, b.score, mp.full_name, mp.ranking_alias
        FROM best b JOIN member_profiles mp ON mp.id = b.member_id
       WHERE mp.anonymized_at IS NULL
       ORDER BY b.score DESC, b.finished_at ASC, b.member_id
@@ -117,6 +118,11 @@ async function weeklyRanking(db: Database, weekStartSql: string, values: unknown
     values
   );
   return result.rows.map((r) => ({ ...r, score: Number(r.score) }));
+}
+
+// Helper para display_name
+function getDisplayName(r: RankingRow): string {
+  return r.ranking_alias ?? rankingName(r.full_name);
 }
 
 export function registerGameRoutes(
@@ -159,15 +165,25 @@ export function registerGameRoutes(
         balance: me?.balance ?? null,
         earnedToday: me?.earnedToday ?? null
       },
-      week: {
-        start: String(lastWeekStart.rows[0]?.current ?? ""),
-        ranking: ranking.map((r, i) => ({ position: i + 1, name: rankingName(r.full_name), score: r.score, me: r.member_id === actor.memberId }))
-      },
-      lastWeek: {
-        start: String(lastWeekStart.rows[0]?.previous ?? ""),
-        winner: winner ? { name: rankingName(winner.full_name), score: winner.score, me: winner.member_id === actor.memberId } : null,
-        delivered: Boolean(delivered.rows[0])
-      }
+        week: {
+          start: String(lastWeekStart.rows[0]?.current ?? ""),
+          ranking: ranking.map((r, i) => ({
+            position: i + 1,
+            name: getDisplayName(r),
+            score: r.score,
+            me: r.member_id === actor.memberId
+          }))
+        },
+        lastWeek: {
+          start: String(lastWeekStart.rows[0]?.previous ?? ""),
+          winner: winner ? {
+            name: getDisplayName(winner),
+            score: winner.score,
+            me: winner.member_id === actor.memberId
+          } : null,
+          delivered: Boolean(delivered.rows[0])
+        }
+
     });
   });
 
