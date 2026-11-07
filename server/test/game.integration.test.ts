@@ -93,17 +93,20 @@ test("PostgreSQL game: score validated by the server, points capped per day, red
   assert.equal(tooFast.json().reason, "too_fast");
   const spam = await play(ana, { bench: "G".repeat(121), pull: "", curl: "", bike: "" });
   assert.equal(spam.statusCode, 422);
-  assert.equal(spam.json().reason, "implausible_reps");
+  assert.equal(spam.json().reason, "implausible_bench");
+  // La partida falsa más larga que acepta el esquema (4 × 300) se rechaza sin romper el CHECK de reps (≤ 1000).
+  const huge = await play(ana, { bench: "P".repeat(300), pull: "P".repeat(300), curl: "P".repeat(300), bike: "P".repeat(300) });
+  assert.equal(huge.statusCode, 422, huge.body);
 
   // Una partida no se puede cerrar dos veces ni la cierra otra persona.
   const started = await app.inject({ method: "POST", url: "/api/v1/game/runs", headers: headers(ana) });
   const runId = String(started.json().run.id);
   const foreign = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(coach), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } } });
   assert.equal(foreign.statusCode, 404);
-  await pool.query("UPDATE game_runs SET started_at = clock_timestamp() - interval '31 seconds' WHERE id = $1", [runId]);
-  const once = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } });
+  await pool.query("UPDATE game_runs SET started_at = clock_timestamp() - interval '140 seconds' WHERE id = $1", [runId]);
+  const once = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } } });
   assert.equal(once.statusCode, 200);
-  const twice = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } });
+  const twice = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } } });
   assert.equal(twice.statusCode, 409);
 
   // El profe juega pero no suma puntos canjeables ni entra al ranking.

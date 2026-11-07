@@ -236,7 +236,7 @@ export function registerGameRoutes(
         if (!verdict.ok) {
           await tx.query(
             "UPDATE game_runs SET status = 'rejected', finished_at = clock_timestamp(), reps = $2, perfect_reps = $3, weight = $4, detail = $5::jsonb, reject_reason = $6 WHERE id = $1",
-            [run.id, Math.min(reps, 32767), Math.min(perfectReps, reps, 32767), body.weight, JSON.stringify(exercises), verdict.reason]
+            [run.id, Math.min(reps, 1000), Math.min(perfectReps, reps, 1000), body.weight, JSON.stringify(exercises), verdict.reason]
           );
           return { rejected: verdict.reason };
         }
