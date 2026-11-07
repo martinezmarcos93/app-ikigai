@@ -66,6 +66,53 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
     return reply.send({ exercises: exercises.rows, exercise, rankings: visibleRankings, me: visibleMe });
   });
 
+  app.get<{ Querystring: RankingQuery }>("/api/v1/admin/strength-aliases", {
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
+    const aliases = await db.query(
+      "SELECT id AS member_id, ranking_alias FROM member_profiles WHERE anonymized_at IS NULL AND ranking_alias IS NOT NULL ORDER BY lower(ranking_alias), id"
+    );
+    return reply.send({ aliases: aliases.rows });
+  });
+
+  app.put<{ Params: { memberId: string }; Body: { alias: string } }>("/api/v1/admin/strength-aliases/:memberId", {
+    schema: {
+      params: { type: "object", required: ["memberId"], additionalProperties: false, properties: { memberId: { type: "string", format: "uuid" } } },
+      body: { type: "object", required: ["alias"], additionalProperties: false, properties: { alias: { type: "string", minLength: 2, maxLength: 24 } } }
+    }
+  }, async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const actor = await resolveActor(request, db);
+    if (!actor) return reply.code(401).send({ error: "unauthenticated", message: "A valid session is required." });
+    if (!actor.roles.includes("admin")) return reply.code(403).send({ error: "forbidden", message: "Administrator permission is required." });
+    if (!requireCsrf(request, reply, actor.sessionToken, config)) return;
+    const trimmedAlias = request.body.alias.trim();
+    if (trimmedAlias.length < 2 || trimmedAlias.length > 24) return bad(reply, "Alias length invalid.");
+
+    try {
+      await transactionalDb.transaction(async (tx) => {
+        const member = await tx.query("SELECT id, ranking_alias FROM member_profiles WHERE id = $1 AND anonymized_at IS NULL FOR UPDATE", [request.params.memberId]);
+        if (!member.rows[0]) throw Object.assign(new Error("Not found"), { statusCode: 404 });
+        const beforeAlias = member.rows[0].ranking_alias;
+        if (beforeAlias !== trimmedAlias) {
+          await tx.query("UPDATE member_profiles SET ranking_alias = $1 WHERE id = $2", [trimmedAlias, request.params.memberId]);
+          await tx.query(
+            "INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, before_data, after_data) VALUES ($1,'member.ranking_alias_set','member',$2,$3,$4::jsonb,$5::jsonb)",
+            [actor.userId, request.params.memberId, request.id, JSON.stringify({ rankingAlias: beforeAlias }), JSON.stringify({ rankingAlias: trimmedAlias })]
+          );
+        }
+      });
+      return reply.send({ ok: true });
+    } catch (e: any) {
+      if (e.statusCode === 404) return reply.code(404).send({ error: "not_found", message: "Member not found." });
+      if (e.code === "23505") return reply.code(409).send({ error: "alias_taken", message: "Alias taken." });
+      throw e;
+    }
+  });
+
   app.get<{ Querystring: RankingQuery }>("/api/v1/admin/strength-records", {
     schema: { querystring: { type: "object", additionalProperties: false, properties: { exerciseId: { type: "string", format: "uuid" } } } }
   }, async (request, reply) => {
