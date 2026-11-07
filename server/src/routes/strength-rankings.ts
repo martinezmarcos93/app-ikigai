@@ -30,17 +30,17 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
 
     const rankings = await db.query(
       "WITH best AS (" +
-      " SELECT sr.member_id, m.full_name AS member_name, MAX(sr.weight_kg) AS best_weight_kg," +
+      " SELECT sr.member_id, m.full_name AS member_name, COALESCE(m.ranking_alias, 'Miembro') AS display_name, MAX(sr.weight_kg) AS best_weight_kg," +
       "        MAX(sr.recorded_at) FILTER (WHERE sr.weight_kg = (" +
       "          SELECT MAX(sr2.weight_kg) FROM strength_records sr2 WHERE sr2.member_id = sr.member_id AND sr2.exercise_id = sr.exercise_id" +
       "        )) AS best_recorded_at" +
       "   FROM strength_records sr JOIN member_profiles m ON m.id = sr.member_id" +
       "  WHERE sr.exercise_id = $1 AND m.anonymized_at IS NULL AND m.status <> 'exited'" +
-      "  GROUP BY sr.member_id, m.full_name, sr.exercise_id" +
+      "  GROUP BY sr.member_id, m.full_name, m.ranking_alias, sr.exercise_id" +
       ")" +
-      " SELECT ROW_NUMBER() OVER (ORDER BY best_weight_kg DESC, lower(member_name), member_id) AS position," +
-      "        member_id, member_name, best_weight_kg, best_recorded_at" +
-      "   FROM best ORDER BY best_weight_kg DESC, lower(member_name), member_id",
+      " SELECT ROW_NUMBER() OVER (ORDER BY best_weight_kg DESC, lower(display_name), member_id) AS position," +
+      "        member_id, member_name, display_name, best_weight_kg, best_recorded_at" +
+      "   FROM best ORDER BY best_weight_kg DESC, lower(display_name), member_id",
       [selectedExerciseId]
     );
 
@@ -48,12 +48,22 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
       ? rankings.rows.find((item) => String(item.member_id) === String(actor.memberId)) ?? null
       : null;
     const visibleRankings = rankings.rows.map((item) => {
-      if (actor.roles.includes("admin") || String(item.member_id) === String(actor.memberId)) return item;
-      const { member_id: _memberId, ...publicRow } = item as Record<string, unknown>;
-      return publicRow;
+      const row = { ...item };
+      if (!actor.roles.includes("admin")) {
+        delete row.member_name;
+        if (String(row.member_id) !== String(actor.memberId)) {
+          delete row.member_id;
+        }
+      }
+      return row;
     });
 
-    return reply.send({ exercises: exercises.rows, exercise, rankings: visibleRankings, me: own });
+    const visibleMe = own ? { ...own } : null;
+    if (visibleMe && !actor.roles.includes("admin")) {
+      delete visibleMe.member_name;
+    }
+
+    return reply.send({ exercises: exercises.rows, exercise, rankings: visibleRankings, me: visibleMe });
   });
 
   app.get<{ Querystring: RankingQuery }>("/api/v1/admin/strength-records", {
@@ -112,6 +122,8 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
 
         if (request.body.alias !== undefined) {
           const trimmedAlias = request.body.alias.trim();
+          if (trimmedAlias.length < 2 || trimmedAlias.length > 24) throw Object.assign(new Error("Invalid alias length."), { statusCode: 400 });
+
           const before = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1 FOR UPDATE", [request.body.memberId]);
           const beforeAlias = before.rows[0]?.ranking_alias;
           if (beforeAlias !== trimmedAlias) {
@@ -128,19 +140,8 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
           }
         } else {
           const check = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1", [request.body.memberId]);
-          if (check.rows[0]?.ranking_alias === null && request.body.alias === undefined) {
-             // throw 400 ONLY if it's missing AND it's not already set? Wait, the rule is "si no viene y el miembro no tiene apodo -> 400".
-             // My code:
-             // const check = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1", [request.body.memberId]);
-             // if (check.rows[0]?.ranking_alias === null) throw Object.assign(new Error("Alias required."), { statusCode: 400 });
-             // This throws 400 if it's null, regardless of whether alias came in payload?
-             // Ah, wait: "si viene alias... si no viene y el miembro no tiene apodo...".
-             // So if alias comes, it should update. If alias DOES NOT come, it should check if ranking_alias is NULL.
-             // My code:
-             // if (request.body.alias !== undefined) { ... } else { const check ... }
-             // This is correct! If alias comes, we do the alias update. If not, we check for null.
-             // So why 400? Maybe alias IS coming but it's not being detected?
-             throw Object.assign(new Error("Alias required (DEBUG: " + JSON.stringify(request.body) + ")."), { statusCode: 400 });
+          if (check.rows[0]?.ranking_alias === null) {
+              throw Object.assign(new Error("Alias required."), { statusCode: 400 });
           }
         }
 
