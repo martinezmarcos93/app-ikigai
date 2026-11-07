@@ -624,27 +624,7 @@
     state.strengthExercises = first.exercises || [];
     state.selectedStrengthExercise = first.exercise?.id || state.strengthExercises[0]?.id || "";
     state.strengthRankings = first.rankings || [];
-    if (!state.strengthRankings.length) {
-      $("#pageContent").innerHTML = `
-        <section class="panel ranking-empty">
-          <p class="eyebrow">RANKING</p>
-          <h2 class="section-title">Todavía no hay marcas registradas</h2>
-          <p class="section-subtitle">Elegí un ejercicio y registrá las primeras marcas desde administración.</p>
-          ${isAdmin() ? `<button class="button primary small" type="button" data-view="strength-rankings">Actualizar</button>` : ""}
-        </section>
-        ${isAdmin() ? renderStrengthAdminForm(first.exercise) : ""}
-      `;
-      if (isAdmin()) {
-        const records = await api.listAdminStrengthRecords(state.selectedStrengthExercise || undefined);
-        state.strengthRecords = records.records || [];
-        $("#pageContent").insertAdjacentHTML("beforeend", renderStrengthAdminRecords());
-      }
-      return;
-    }
-
-    const exercise = first.exercise;
-    const top = state.strengthRankings.slice(0, 3);
-    const rest = state.strengthRankings.slice(3);
+    const exercise = first.exercise; // Asegurarse de que `exercise` esté definido antes del selector.
     const selector = `
       <section class="panel ranking-header">
         <div class="ranking-toolbar">
@@ -658,6 +638,29 @@
         </div>
         <p class="section-subtitle">La posición se calcula con la mejor marca registrada de cada miembro en este ejercicio. Unidad: ${esc(exercise?.unit || "kg")}.</p>
       </section>`;
+
+    if (!state.strengthRankings.length) {
+      const emptyMessage = isAdmin()
+        ? "Elegí un ejercicio y registrá las primeras marcas desde administración."
+        : "Todavía nadie tiene marcas en este ejercicio.";
+      $("#pageContent").innerHTML = `
+        ${selector}
+        <section class="panel ranking-empty">
+          <h2 class="section-title">Todavía no hay marcas registradas</h2>
+          <p class="section-subtitle">${emptyMessage}</p>
+        </section>
+        ${isAdmin() ? renderStrengthAdminForm(first.exercise) : ""}
+      `;
+      if (isAdmin()) {
+        const records = await api.listAdminStrengthRecords(state.selectedStrengthExercise || undefined);
+        state.strengthRecords = records.records || [];
+        $("#pageContent").insertAdjacentHTML("beforeend", renderStrengthAdminRecords());
+      }
+      return;
+    }
+
+    const top = state.strengthRankings.slice(0, 3);
+    const rest = state.strengthRankings.slice(3);
 
     const podium = `
       <section class="ranking-podium" aria-label="Top 3">
