@@ -16,7 +16,7 @@ const config = loadConfig({
 });
 
 async function createActor(pool: pg.Pool, name: string, role: "admin" | "member" | "coach") {
-  const email = \`strength-ranking-it-\${randomUUID()}@example.test\`;
+  const email = `strength-ranking-it-${randomUUID()}@example.test`;
   const user = await pool.query(
     "INSERT INTO users (email,password_hash,auth_provider,status) VALUES ($1,$2,'local','active') RETURNING id",
     [email, "integration-test-placeholder-hash"]
@@ -40,7 +40,7 @@ async function createActor(pool: pg.Pool, name: string, role: "admin" | "member"
 }
 
 function headers(actor: { token: string; csrfToken: string }) {
-  return { origin, cookie: \`ikigai_session=\${actor.token}\`, "x-csrf-token": actor.csrfToken };
+  return { origin, cookie: `ikigai_session=${actor.token}`, "x-csrf-token": actor.csrfToken };
 }
 
 test("strength rankings are readable by authenticated roles and writable only by admin", {
@@ -52,20 +52,20 @@ test("strength rankings are readable by authenticated roles and writable only by
   t.after(async () => { await app.close(); await pool.end(); });
 
   const suffix = randomUUID();
-  const admin = await createActor(pool, \`Ranking Admin \${suffix}\`, "admin");
-  const member = await createActor(pool, \`Ranking Member \${suffix}\`, "member");
-  const other = await createActor(pool, \`Ranking Other \${suffix}\`, "member");
-  const coach = await createActor(pool, \`Ranking Coach \${suffix}\`, "coach");
+  const admin = await createActor(pool, `Ranking Admin ${suffix}`, "admin");
+  const member = await createActor(pool, `Ranking Member ${suffix}`, "member");
+  const other = await createActor(pool, `Ranking Other ${suffix}`, "member");
+  const coach = await createActor(pool, `Ranking Coach ${suffix}`, "coach");
 
   const exercise = await pool.query("SELECT id FROM strength_exercises WHERE code='PP'");
   assert.ok(exercise.rows[0]);
   const exerciseId = String(exercise.rows[0].id);
 
-  const memberRead = await app.inject({ method: "GET", url: \`/api/v1/strength-rankings?exerciseId=\${exerciseId}\`, headers: { cookie: \`ikigai_session=\${member.token}\` } });
+  const memberRead = await app.inject({ method: "GET", url: `/api/v1/strength-rankings?exerciseId=${exerciseId}`, headers: { cookie: `ikigai_session=${member.token}` } });
   assert.equal(memberRead.statusCode, 200, memberRead.body);
   assert.equal(memberRead.json().rankings.length, 0);
 
-  const coachRead = await app.inject({ method: "GET", url: \`/api/v1/strength-rankings?exerciseId=\${exerciseId}\`, headers: { cookie: \`ikigai_session=\${coach.token}\` } });
+  const coachRead = await app.inject({ method: "GET", url: `/api/v1/strength-rankings?exerciseId=${exerciseId}`, headers: { cookie: `ikigai_session=${coach.token}` } });
   assert.equal(coachRead.statusCode, 200);
 
   const memberWrite = await app.inject({
@@ -102,8 +102,8 @@ test("strength rankings are readable by authenticated roles and writable only by
 
   const ranking = await app.inject({
     method: "GET",
-    url: \`/api/v1/strength-rankings?exerciseId=\${exerciseId}\`,
-    headers: { cookie: \`ikigai_session=\${member.token}\` }
+    url: `/api/v1/strength-rankings?exerciseId=${exerciseId}`,
+    headers: { cookie: `ikigai_session=${member.token}` }
   });
   assert.equal(ranking.statusCode, 200);
   assert.deepEqual(
@@ -115,7 +115,7 @@ test("strength rankings are readable by authenticated roles and writable only by
 
   const records = await app.inject({
     method: "GET",
-    url: \`/api/v1/admin/strength-records?exerciseId=\${exerciseId}\`,
+    url: `/api/v1/admin/strength-records?exerciseId=${exerciseId}`,
     headers: headers(admin)
   });
   assert.equal(records.statusCode, 200);
@@ -124,7 +124,7 @@ test("strength rankings are readable by authenticated roles and writable only by
   const recordId = String(second.json().record.id);
   const update = await app.inject({
     method: "PATCH",
-    url: \`/api/v1/admin/strength-records/\${recordId}\`,
+    url: `/api/v1/admin/strength-records/${recordId}`,
     headers: headers(admin),
     payload: { weightKg: 72 }
   });
@@ -132,7 +132,7 @@ test("strength rankings are readable by authenticated roles and writable only by
 
   const remove = await app.inject({
     method: "DELETE",
-    url: \`/api/v1/admin/strength-records/\${recordId}\`,
+    url: `/api/v1/admin/strength-records/${recordId}`,
     headers: headers(admin),
     payload: {}
   });
