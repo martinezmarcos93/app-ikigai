@@ -1,17 +1,15 @@
 <!-- PUNTO-DE-CONTROL -->
-**Tarea actual:** ninguna en curso. Ranking de fuerza con apodos + Iron Pixel V2 en producción desde el 07/11/2026 (API Render `9434080`, portal Cloudflare `43d72fdc`). Mensaje para el grupo del gimnasio entregado a Marcos.
+**Tarea actual:** ninguna en curso. Incidente del 07/11 resuelto: el login daba "HTTP 429" a todos.
 
-**Estado verificado (07/11, cierre):** `main` limpio y al día; servidor 137/137 con PostgreSQL limpio, cliente 30/30, Worker 10/10, first-run OK. «Publish Worker» en verde: el secreto `CLOUDFLARE_API_TOKEN` ya funciona (cada push a `main` publica el portal).
+**Causa y arreglo (07/11):** el Cloudflare de Render empezó a desafiar ("Just a moment...", `cf-mitigated: challenge`) los pedidos del Worker a `ikigai-api-q17j.onrender.com`. Se creó el dominio propio `api.ikigai-training.com` (custom domain en Render + CNAME en Cloudflare, nube gris) y el Worker apunta ahí (`API_ORIGIN`, versión `34cfc804`). Verificado: `/api/v1/health` 200 y login 401 JSON a través de `app.ikigai-training.com`. Rama `fix/worker-api-dominio-propio`, sin merge a `main`.
 
-**Próximo paso:** próxima actualización (ver preguntas). Primero, con el próximo push que toque `server/`, confirmar en Render → Events que el deploy se dispara solo (Marcos reconectó la app de Render en GitHub el 07/11; sin verificar todavía).
+**Próximo paso:** merge de la rama a `main` (OK de Marcos); probar con usuarios reales en un celular.
 
-**Bloqueos:** ninguno.
+**Bloqueos / pendientes:**
+- Rotar la contraseña de Neon (`neondb_owner`) y actualizar `DATABASE_URL` en Render: quedó expuesta en una sesión de chat.
+- Secreto `CLOUDFLARE_API_TOKEN` (cuenta doomhammer) en GitHub: sin él, el workflow «Publish Worker» falla en cada push y hay que publicar con `bash deploy/worker/publicar.sh`.
+- Render no despliega solo (desde el 12/10): reconectar la app de Render en GitHub.
+- 8 apodos en espera y 11 sin correspondencia (ver la planilla del gimnasio).
 
-**Pendientes de otros:**
-- Agustín: confirmar los 8 apodos en espera y los 11 sin correspondencia; se cargan con `server/scripts/import-strength-marks.ts` (CSV fuera del repo).
-- Marcos recuperar su usuario de la app (doomhammer): no se resolvió en esta sesión.
-
-**Decisiones:** Marcos decidió no rotar la contraseña de Neon (07/11).
-
-**Preguntas abiertas (próxima actualización):** ¿Dominadas se mide en repeticiones (valores 1–10)? Hoy dice kg. ¿Empates comparten puesto?
+**Preguntas abiertas:** ¿Dominadas se mide en repeticiones (valores 1–10)? Hoy el ranking dice kg. ¿Empates comparten puesto?
 <!-- /PUNTO-DE-CONTROL -->

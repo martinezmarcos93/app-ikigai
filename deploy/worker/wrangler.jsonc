@@ -16,7 +16,7 @@
     "run_worker_first": ["/api/*", "/healthz"]
   },
   "vars": {
-    "API_ORIGIN": "https://ikigai-api-q17j.onrender.com"
+    "API_ORIGIN": "https://api.ikigai-training.com"
   },
   "routes": [{ "pattern": "app.ikigai-training.com", "custom_domain": true }],
   "triggers": {
