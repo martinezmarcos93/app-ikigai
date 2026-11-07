@@ -768,6 +768,7 @@ transition: none !important;
 .ranking-self div:last-child{text-align:right}
 .ranking-self span,.ranking-self b{display:block}
 .ranking-self b{font-size:1.35rem;margin-top:3px}
+.ranking-self small,.ranking-podium-card small,.panel td small{display:block;color:var(--muted);font-size:.78rem;font-weight:400}
 .ranking-empty{margin-bottom:16px}
 @media (max-width:700px){
   .ranking-toolbar,.ranking-self{align-items:stretch;flex-direction:column}
