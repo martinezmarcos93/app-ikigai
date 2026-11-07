@@ -57,7 +57,7 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/members/:id/routine-assignments` | Administración o profesor asignado | Profesor no puede asignar a un miembro fuera de su alcance | CSRF + transacción + auditoría | `routines.integration.test.ts` |
 | `GET /api/v1/game/summary` | Cualquier sesión | Del resto de los miembros solo se ve nombre + inicial y mejor puntaje semanal | No | `game.integration.test.ts` |
 | `POST /api/v1/game/runs` | Cualquier sesión | Máximo 60 partidas por día; una partida abierta por persona; solo miembros sin rol de staff compiten | CSRF + transacción | `game.integration.test.ts` |
-| `POST /api/v1/game/runs/:id/finish` | Dueño de la partida | El servidor valida duración y repeticiones posibles y calcula puntaje y puntos (tope diario) | CSRF + transacción + libro de puntos solo-agregar | `game.integration.test.ts` |
+| `POST /api/v1/game/runs/:id/finish` | Dueño de la partida | Esquema V2 estricto: versión, peso y las cuatro secuencias `^[PGF]*$`; valida duración y techos por ejercicio, calcula puntaje con combos y puntos con tope diario; un cuerpo V1 recibe `409 outdated_client` | CSRF + transacción + libro de puntos solo-agregar | `game-v2.integration.test.ts` |
 | `GET /api/v1/admin/rewards` | Administración | Saldos, canjes y ganadores semanales | No | `game.integration.test.ts` |
 | `POST /api/v1/admin/rewards/redeem` | Administración | Saldo esperado obligatorio (evita doble canje); saldo suficiente | CSRF + transacción + auditoría | `game.integration.test.ts` |
 | `POST /api/v1/admin/rewards/weekly-prizes` | Administración | Solo semanas cerradas; ganador calculado por el servidor; una entrega por semana | CSRF + transacción + auditoría | `game.integration.test.ts` |
