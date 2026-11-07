@@ -80,6 +80,10 @@ Set `CORS_ORIGINS` to exact comma-separated origins. Production startup fails cl
 
 `GYM_TIMEZONE` (zona IANA, por defecto `America/Argentina/Buenos_Aires`) define en qué hora local están las plantillas de clase. Un valor inválido hace fallar el arranque. Cambiarla no mueve las clases ya generadas.
 
+### Iron Pixel V2
+
+`POST /api/v1/game/runs` inicia una partida V2. El cierre envía `version: 2`, `weight` (`light`, `medium` o `heavy`) y las secuencias ordenadas `bench`, `pull`, `curl` y `bike` con resultados `P`, `G` o `F`. El servidor valida duración y techos, calcula el puntaje con combos, guarda las secuencias y limita los puntos al tope diario. Cuerpos de cierre V1 reciben `409 outdated_client`. El ranking semanal y los récords personales cuentan solo partidas V2.
+
 ## Database migration
 
 Set `DATABASE_URL` to a dedicated development database, then run:
