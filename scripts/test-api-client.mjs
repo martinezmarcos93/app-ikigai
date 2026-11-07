@@ -247,6 +247,32 @@ test("institution settings contract sends an authenticated PATCH without caching
   assert.equal(JSON.parse(calls[2].options.body).institution_name, "Gimnasio ficticio");
 });
 
+test("strength alias contracts use the expected URL, method, and body", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({
+        csrfToken: "csrf-strength-alias-test",
+        user: { id: "admin-test", roles: ["admin"] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ aliases: [] }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  });
+
+  await api.login("admin@example.com", "fictional-password");
+  await api.listStrengthAliases();
+  await api.setStrengthAlias("member/with space", "Fuerza Uno");
+
+  assert.equal(new URL(calls[1].url).pathname, "/api/v1/admin/strength-aliases");
+  assert.equal(calls[1].options.method, "GET");
+  assert.equal(new URL(calls[2].url).pathname, "/api/v1/admin/strength-aliases/member%2Fwith%20space");
+  assert.equal(calls[2].options.method, "PUT");
+  assert.deepEqual(JSON.parse(calls[2].options.body), { alias: "Fuerza Uno" });
+});
+
 
 
 test("booking creation and cancellation use the server contract with CSRF and no-store", async () => {
@@ -276,6 +302,119 @@ test("booking creation and cancellation use the server contract with CSRF and no
   assert.equal(calls[2].options.method, "POST");
   assert.equal(calls[2].options.headers["X-CSRF-Token"], "csrf-booking-token");
   assert.equal(calls[2].options.cache, "no-store");
+});
+
+
+test("finishGameRun contract sends valid payloads with version 2", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-finish-token", user: { id: "u" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+
+  await api.login("user@example.test", "password");
+  const runId = "run/123";
+  const result = { weight: "medium", exercises: { bench: "PPG", pull: "", curl: "F", bike: "GP" } };
+  await api.finishGameRun(runId, result);
+
+  const [, finishCall] = calls;
+  assert.match(finishCall.url, /\/api\/v1\/game\/runs\/run%2F123\/finish$/);
+  assert.equal(finishCall.options.method, "POST");
+  assert.equal(finishCall.options.headers["X-CSRF-Token"], "csrf-finish-token");
+  assert.deepEqual(JSON.parse(finishCall.options.body), { version: 2, weight: "medium", exercises: { bench: "PPG", pull: "", curl: "F", bike: "GP" } });
+});
+
+test("finishGameRun filters out extra exercise keys", async () => {
+  const calls = [];
+  const api = loadClient(async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-finish-token", user: { id: "u" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+
+  await api.login("user@example.test", "password");
+  await api.finishGameRun("run-1", { weight: "light", exercises: { bench: "P", pull: "G", curl: "F", bike: "", extra: "P" } });
+  const finishCall = calls.find(call => call.url.endsWith("/finish"));
+  assert.deepEqual(JSON.parse(finishCall.options.body), { version: 2, weight: "light", exercises: { bench: "P", pull: "G", curl: "F", bike: "" } });
+});
+
+test("finishGameRun rejects invalid weight", async () => {
+  const api = loadClient(async (url) => {
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-finish-token", user: { id: "u" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("user@example.test", "password");
+  assert.throws(() => api.finishGameRun("run-1", { weight: "ultra", exercises: {} }), error => error.code === "invalid_game_result");
+});
+
+test("finishGameRun rejects missing exercises", async () => {
+  const api = loadClient(async (url) => {
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-finish-token", user: { id: "u" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("user@example.test", "password");
+  assert.throws(() => api.finishGameRun("run-1", { weight: "medium", exercises: { bench: "PPG" } }), error => error.code === "invalid_game_result");
+});
+
+test("finishGameRun rejects invalid exercise sequence", async () => {
+  const api = loadClient(async (url) => {
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-finish-token", user: { id: "u" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("user@example.test", "password");
+  assert.throws(() => api.finishGameRun("run-1", { weight: "medium", exercises: { bench: "PXG", pull: "", curl: "", bike: "" } }), error => error.code === "invalid_game_result");
+});
+
+test("finishGameRun validates sequence length", async () => {
+  const api = loadClient(async (url) => {
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-finish-token", user: { id: "u" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("user@example.test", "password");
+  
+  const valid = "P".repeat(300);
+  assert.doesNotThrow(() => api.finishGameRun("run-1", { weight: "medium", exercises: { bench: valid, pull: "", curl: "", bike: "" } }));
+  
+  const invalid = "P".repeat(301);
+  assert.throws(() => api.finishGameRun("run-1", { weight: "medium", exercises: { bench: invalid, pull: "", curl: "", bike: "" } }), error => error.code === "invalid_game_result");
+});
+
+test("finishGameRun rejects null result", async () => {
+  const api = loadClient(async (url) => {
+    if (String(url).endsWith("/auth/login")) {
+      return new Response(JSON.stringify({ csrfToken: "csrf-finish-token", user: { id: "u" } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  await api.login("user@example.test", "password");
+  assert.throws(() => api.finishGameRun("run-1", null), error => error.code === "invalid_game_result");
 });
 
 console.log("Portal API client contract checks loaded.");

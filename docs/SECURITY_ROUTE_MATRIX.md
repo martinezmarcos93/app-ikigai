@@ -4,9 +4,15 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 
 ## Matriz por endpoint
 
-
 | Endpoint | Identidad / rol permitido | Control de alcance o condición | Escritura protegida | Cobertura de prueba existente |
 | --- | --- | --- | --- | --- |
+| `GET /api/v1/strength-rankings` | Sesión válida (administración, profesor o miembro) | Ranking independiente por ejercicio; excluye perfiles anonimizados y personas dadas de baja; devuelve la posición del propio miembro cuando corresponde | No; `Cache-Control: no-store` | `strength-rankings.integration.test.ts` |
+| `GET /api/v1/admin/strength-records` | Administración | Historial de marcas para corrección administrativa | No; `Cache-Control: no-store` | `strength-rankings.integration.test.ts` |
+| `POST /api/v1/admin/strength-records` | Administración | Miembro y ejercicio válidos; peso > 0 y ≤ 2000 kg; apodo (opcional) válido | CSRF + transacción + auditoría | `strength-rankings.integration.test.ts` |
+| `GET /api/v1/admin/strength-aliases` | Administración | Listado de miembros con apodo | No; `Cache-Control: no-store` | `ranking-alias.integration.test.ts` |
+| `PUT /api/v1/admin/strength-aliases/:memberId` | Administración | Edición de apodo de miembro | CSRF + transacción + auditoría | `ranking-alias.integration.test.ts` |
+| `PATCH /api/v1/admin/strength-records/:id` | Administración | Corrige peso, fecha o nota de una marca existente | CSRF + transacción + auditoría antes/después | `strength-rankings.integration.test.ts` |
+| `DELETE /api/v1/admin/strength-records/:id` | Administración | Elimina una marca incorrecta; el ranking se recalcula desde el historial restante | CSRF + transacción + auditoría | `strength-rankings.integration.test.ts` |
 | `GET /api/v1/admin/institution-settings` | Administración | Configuración institucional de la instalación | No; `Cache-Control: no-store` | `institutional-settings.test.ts` (contrato estático; ejecución CI pendiente) |
 | `PATCH /api/v1/admin/institution-settings` | Administración | Esquema estricto; campos vacíos representan no configurado | CSRF + transacción + auditoría minimizada; `no-store` | `institutional-settings.test.ts` (contrato estático; ejecución CI pendiente) |
 | `POST /api/v1/admin/users/link-coach` | Administración | Sólo cuenta admin activa; email de perfil y cuenta debe coincidir; perfil no vinculado a otra cuenta | CSRF + transacción + auditoría; añade coach sin revocar admin | `admin-role-link.test.ts` (contrato estático; ejecución CI pendiente) |
@@ -57,7 +63,7 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/members/:id/routine-assignments` | Administración o profesor asignado | Profesor no puede asignar a un miembro fuera de su alcance | CSRF + transacción + auditoría | `routines.integration.test.ts` |
 | `GET /api/v1/game/summary` | Cualquier sesión | Del resto de los miembros solo se ve nombre + inicial y mejor puntaje semanal | No | `game.integration.test.ts` |
 | `POST /api/v1/game/runs` | Cualquier sesión | Máximo 60 partidas por día; una partida abierta por persona; solo miembros sin rol de staff compiten | CSRF + transacción | `game.integration.test.ts` |
-| `POST /api/v1/game/runs/:id/finish` | Dueño de la partida | El servidor valida duración y repeticiones posibles y calcula puntaje y puntos (tope diario) | CSRF + transacción + libro de puntos solo-agregar | `game.integration.test.ts` |
+| `POST /api/v1/game/runs/:id/finish` | Dueño de la partida | Esquema V2 estricto: versión, peso y las cuatro secuencias `^[PGF]*$`; valida duración y techos por ejercicio, calcula puntaje con combos y puntos con tope diario; un cuerpo V1 recibe `409 outdated_client` | CSRF + transacción + libro de puntos solo-agregar | `game-v2.integration.test.ts` |
 | `GET /api/v1/admin/rewards` | Administración | Saldos, canjes y ganadores semanales | No | `game.integration.test.ts` |
 | `POST /api/v1/admin/rewards/redeem` | Administración | Saldo esperado obligatorio (evita doble canje); saldo suficiente | CSRF + transacción + auditoría | `game.integration.test.ts` |
 | `POST /api/v1/admin/rewards/weekly-prizes` | Administración | Solo semanas cerradas; ganador calculado por el servidor; una entrega por semana | CSRF + transacción + auditoría | `game.integration.test.ts` |

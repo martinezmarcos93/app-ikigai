@@ -2,7 +2,7 @@
   "use strict";
   const api = window.IkigaiApi;
   const $ = (selector, root = document) => root.querySelector(selector);
-  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [], releaseNotesSeen: null };
+  const state = { user: null, members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", currentView: "dashboard", lastCredentials: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", mustChange: false, tourDone: true, memberOffset: 0, memberPageSize: 25, memberTotal: 0, products: [], releaseNotesSeen: null, strengthExercises: [], selectedStrengthExercise: "", strengthRankings: [], strengthRecords: [], strengthAliases: {} };
   const labels = {
     trial: "Prueba", active: "Activo", suspended: "Suspendido", debtor: "Deudor", exited: "Baja",
     scheduled: "Programada", weekly: "Semanal", monthly: "Mensual", quarterly: "Trimestral", annual: "Anual", custom: "Personalizado",
@@ -83,7 +83,7 @@
   const serviceOptions = () => state.services.map(s => ({ value: s.id, label: `${s.name}${s.current_price != null ? " · " + money(s.current_price) : ""}` }));
   const coachOptions = () => state.coaches.map(c => ({ value: c.id, label: `${c.full_name} · ${c.discipline}` }));
   const selected = (options, current) => options.some(x => String(x.value) === String(current)) ? String(current) : String(options[0]?.value || "");
-  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases", game:"Iron Pixel", rewards:"Premios", catalog:"Productos" };
+  const pageNames = { dashboard:"Resumen", members:"Miembros", services:"Servicios", memberships:"Membresías", accounts:"Cuenta corriente", coaches:"Profesores", invitations:"Accesos", "my-password":"Mi contraseña", routines:"Rutinas", announcements:"Avisos", "schedule-templates":"Horarios y clases", "strength-rankings":"Ranking", game:"Iron Pixel", rewards:"Premios", catalog:"Productos" };
 
   async function loadMembers() {
     if (isAdmin()) {
@@ -147,7 +147,7 @@
     state.lastCredentials = "";
     // Al cerrar sesion no queda nada de la persona anterior: ni en memoria ni en el DOM (clave temporal recien creada,
     // tablas de miembros, cuenta corriente) para quien use el mismo aparato despues.
-    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [], releaseNotesSeen: null });
+    Object.assign(state, { members: [], services: [], coaches: [], selectedMember: "", selectedCoach: "", unreadAnnouncements: 0, exercises: [], routines: [], assignable: [], routineMember: "", memberOffset: 0, memberTotal: 0, products: [], releaseNotesSeen: null, strengthExercises: [], selectedStrengthExercise: "", strengthRankings: [], strengthRecords: [], strengthAliases: {} });
     $("#pageContent").replaceChildren();
     if (window.IkigaiTour) window.IkigaiTour.stop();
     $("#portalPanel").classList.remove("password-pending");
@@ -617,6 +617,139 @@
   }
   const routineTable = exercises => table(["#", "Ejercicio", "Series", "Repeticiones", "Descanso", "Indicaciones"], exercises.map(e =>
     row([esc(e.position), esc(e.name), esc(e.sets || "—"), esc(e.reps || "—"), e.restSeconds != null ? `${esc(e.restSeconds)} s` : "—", esc(e.notes || "")])));
+  async function renderStrengthRankings() {
+    setPage("Ranking");
+    setLoading("Consultando marcas y posiciones…");
+    const first = await api.listStrengthRankings(state.selectedStrengthExercise || undefined);
+    if (isAdmin()) {
+      const aliases = await api.listStrengthAliases();
+      state.strengthAliases = Object.fromEntries((aliases.aliases || []).map(item => [item.member_id, item.ranking_alias]));
+    }
+    state.strengthExercises = first.exercises || [];
+    state.selectedStrengthExercise = first.exercise?.id || state.strengthExercises[0]?.id || "";
+    state.strengthRankings = first.rankings || [];
+    const exercise = first.exercise; // Asegurarse de que `exercise` esté definido antes del selector.
+    const selector = `
+      <section class="panel ranking-header">
+        <div class="ranking-toolbar">
+          <div><p class="eyebrow">FUERZA</p><h2 class="section-title">Ranking por ejercicio</h2></div>
+          <div class="field ranking-exercise-field">
+            <label for="strengthExerciseSelect">Ejercicio</label>
+            <select id="strengthExerciseSelect" data-action="strength-exercise">
+              ${state.strengthExercises.map(item => `<option value="${esc(item.id)}"${String(item.id) === String(state.selectedStrengthExercise) ? " selected" : ""}>${esc(item.name)}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <p class="section-subtitle">La posición se calcula con la mejor marca registrada de cada miembro en este ejercicio. Unidad: ${esc(exercise?.unit || "kg")}.</p>
+      </section>`;
+
+    if (!state.strengthRankings.length) {
+      const emptyMessage = isAdmin()
+        ? "Elegí un ejercicio y registrá las primeras marcas desde administración."
+        : "Todavía nadie tiene marcas en este ejercicio.";
+      $("#pageContent").innerHTML = `
+        ${selector}
+        <section class="panel ranking-empty">
+          <h2 class="section-title">Todavía no hay marcas registradas</h2>
+          <p class="section-subtitle">${emptyMessage}</p>
+        </section>
+        ${isAdmin() ? renderStrengthAdminForm(first.exercise) : ""}
+      `;
+      if (isAdmin()) {
+        const records = await api.listAdminStrengthRecords(state.selectedStrengthExercise || undefined);
+        state.strengthRecords = records.records || [];
+        $("#pageContent").insertAdjacentHTML("beforeend", renderStrengthAdminRecords());
+      }
+      return;
+    }
+
+    const top = state.strengthRankings.slice(0, 3);
+    const rest = state.strengthRankings.slice(3);
+
+    const podium = `
+      <section class="ranking-podium" aria-label="Top 3">
+        ${top.map((item, index) => {
+          const memberName = item.member_name;
+          return `
+          <article class="ranking-podium-card ranking-place-${index + 1}">
+            <span class="ranking-medal">${["🥇","🥈","🥉"][index]}</span>
+            <span class="ranking-place">#${esc(item.position)}</span>
+            <strong>${esc(item.display_name)}</strong>
+            ${isAdmin() && memberName ? `<small>${esc(memberName)}</small>` : ""}
+            <b>${esc(item.best_weight_kg)} kg</b>
+            ${isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : ""}
+          </article>`;
+        }).join("")}
+      </section>`;
+
+    const own = first.me ? `
+      <section class="ranking-self panel">
+        <div><p class="eyebrow">TU POSICIÓN</p><strong>#${esc(first.me.position)} de ${state.strengthRankings.length}</strong></div>
+        <div><span>${esc(first.me.display_name || "")}${isAdmin() && first.me.member_name ? `<small>${esc(first.me.member_name)}</small>` : ""}<small>${esc(exercise?.name || "Ejercicio")}</small></span><b>${esc(first.me.best_weight_kg)} kg</b></div>
+      </section>` : "";
+
+    const list = table(
+      ["Posición","Miembro","Mejor marca","Acceso"],
+      rest.map(item => {
+        const memberName = item.member_name;
+        return row([
+        `<strong>#${esc(item.position)}</strong>`,
+        `<strong>${esc(item.display_name)}</strong>${isAdmin() && memberName ? `<small>${esc(memberName)}</small>` : ""}`,
+        `<strong>${esc(item.best_weight_kg)} kg</strong>`,
+        isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : "—"
+      ]);
+      })
+    );
+
+    let admin = "";
+    if (isAdmin()) {
+      const records = await api.listAdminStrengthRecords(state.selectedStrengthExercise || undefined);
+      state.strengthRecords = records.records || [];
+      admin = renderStrengthAdminForm(exercise) + renderStrengthAdminRecords();
+    }
+
+    $("#pageContent").innerHTML = selector + podium + own +
+      `<section class="panel"><h2 class="section-title">Clasificación completa</h2>${list}</section>` + admin;
+  }
+
+  function renderStrengthAdminForm(exercise) {
+    if (!isAdmin() || !exercise) return "";
+    const members = state.members.filter(member => member.status !== "exited" && member.full_name !== "Persona anonimizada");
+    return form("Registrar nueva marca", "create-strength-record",
+      `<div class="field full-span"><label for="f-memberId">Miembro</label><select id="f-memberId" name="memberId" data-action="strength-member" required>${memberOptions(members).map(item => `<option value="${esc(item.value)}"${String(item.value) === String(members[0]?.id || "") ? " selected" : ""}>${esc(item.label)}</option>`).join("")}</select></div>` +
+      field("Apodo en el ranking", "alias", "text", { maxLength: 24, value: state.strengthAliases[members[0]?.id] || "", placeholder: state.strengthAliases[members[0]?.id] ? "" : "Obligatorio la primera vez" }) +
+      selectField("Ejercicio", "exerciseId", state.strengthExercises.map(item => ({ value: item.id, label: item.name })), exercise.id, true, true) +
+      field("Peso (kg)", "weightKg", "number", { required: true, min: 0.01, max: 2000, step: "0.01", placeholder: "Ej. 82.5" }) +
+      field("Fecha y hora", "recordedAt", "datetime-local") +
+      field("Nota", "notes", "text", { maxLength: 500, wide: true }),
+      "Registrar marca",
+      "Las marcas se conservan como historial. El ranking usa la mejor marca de cada miembro."
+    );
+  }
+
+  function renderStrengthAdminRecords() {
+    if (!isAdmin()) return "";
+    return `
+      <section class="panel">
+        <h2 class="section-title">Historial administrativo</h2>
+        ${table(["Miembro","Ejercicio","Peso","Fecha","Acciones"], state.strengthRecords.map(record => row([
+          esc(record.member_name),
+          esc(record.exercise_name),
+          `${esc(record.weight_kg)} kg`,
+          date(record.recorded_at),
+          `<button class="button ghost small" type="button" data-action="edit-strength-record" data-id="${esc(record.id)}" data-weight="${esc(record.weight_kg)}" data-notes="${esc(record.notes || "")}">Editar</button>
+           <button class="button ghost small" type="button" data-action="edit-strength-alias" data-member-id="${esc(record.member_id)}">Apodo</button>
+           <button class="button ghost small danger" type="button" data-action="delete-strength-record" data-id="${esc(record.id)}">Eliminar</button>`
+        ])))}
+      </section>`;
+  }
+
+  const strengthAliasError = error => ({
+    alias_required: "Este miembro todavía no tiene apodo: escribí uno.",
+    alias_taken: "Ese apodo ya lo usa otro miembro.",
+    invalid_alias: "El apodo debe tener entre 2 y 24 caracteres."
+  }[error?.code]);
+
   async function renderRoutines() {
     if (!(isAdmin() || isCoach())) throw new Error("Esta sección es exclusiva de administración y profesores.");
     setPage("Rutinas");
@@ -933,6 +1066,7 @@
   // ---------------- Iron Pixel (juego) y premios ----------------
   // Mensajes en castellano para los errores propios del juego (el servidor responde códigos estables).
   const GAME_ERRORS = {
+    outdated_client: "Hay una versión nueva del juego: recargá la página.",
     daily_run_limit: "Llegaste al máximo de partidas de hoy. ¡Volvé mañana!",
     run_closed: "Esa partida ya estaba cerrada.",
     run_rejected: "No se pudo validar el resultado de la partida, así que no suma puntos.",
@@ -1000,9 +1134,9 @@
         try { runId = (await api.startGameRun()).run.id; }
         catch (error) { throw gameError(error); }
       },
-      onFinish: async ({ reps, perfectReps }) => {
+      onFinish: async resultData => {
         let result;
-        try { result = await api.finishGameRun(runId, reps, perfectReps); }
+        try { result = await api.finishGameRun(runId, resultData); }
         catch (error) { throw gameError(error); }
         finally { runId = null; }
         // Refresca saldo y ranking sin reiniciar el juego.
@@ -1151,6 +1285,7 @@
       else if (view === "invitations") await renderAccess();
       else if (view === "my-password") renderPasswordChange();
       else if (view === "routines") await renderRoutines();
+      else if (view === "strength-rankings") await renderStrengthRankings();
       else if (view === "announcements") await renderAnnouncements();
       else if (view === "institution-settings") await renderInstitutionSettings();
       else if (view === "game") await renderGame();
@@ -1194,6 +1329,27 @@
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
       }
+      return;
+    }
+    if (kind === "create-strength-record") {
+      if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+      const weightKg = Number(v("weightKg"));
+      if (!Number.isFinite(weightKg) || weightKg <= 0) { showNotice("Ingresá un peso válido."); return; }
+      const recordedAtRaw = v("recordedAt");
+      const payload = {
+        memberId: v("memberId"),
+        exerciseId: v("exerciseId"),
+        weightKg,
+        ...(v("alias") ? { alias: v("alias") } : {}),
+        ...(recordedAtRaw ? { recordedAt: new Date(recordedAtRaw).toISOString() } : {}),
+        ...(v("notes") ? { notes: v("notes") } : {})
+      };
+      try {
+        await api.createStrengthRecord(payload);
+        state.selectedStrengthExercise = payload.exerciseId;
+        await renderView("strength-rankings");
+        showNotice("Marca registrada y ranking actualizado.", "success");
+      } catch (error) { showNotice(strengthAliasError(error) || error.message || "Ocurrió un error inesperado."); }
       return;
     }
     if (kind === "institution-settings") {
@@ -1517,6 +1673,36 @@
         await renderView("members");
         showNotice(result.alreadyAnonymized ? "Esa persona ya estaba anonimizada." : "Persona anonimizada. Se conservó su historial de cuenta y asistencia sin identidad.", "success");
       }
+      else if (action.dataset.action === "edit-strength-record") {
+        if (!isAdmin()) throw new Error("Esta acción es exclusiva de administración.");
+        const rawWeight = window.prompt("Nuevo peso en kg:", action.dataset.weight || "");
+        if (rawWeight === null) return;
+        const weightKg = Number(rawWeight.replace(",", "."));
+        if (!Number.isFinite(weightKg) || weightKg <= 0) { showNotice("El peso no es válido."); return; }
+        const notes = window.prompt("Nota (opcional):", action.dataset.notes || "");
+        if (notes === null) return;
+        await api.updateStrengthRecord(action.dataset.id, { weightKg, notes });
+        await renderView("strength-rankings");
+        showNotice("Marca corregida y ranking actualizado.", "success");
+      }
+      else if (action.dataset.action === "edit-strength-alias") {
+        if (!isAdmin()) throw new Error("Esta acción es exclusiva de administración.");
+        const memberId = action.dataset.memberId;
+        const rawAlias = window.prompt("Nuevo apodo en el ranking:", state.strengthAliases[memberId] || "");
+        if (rawAlias === null) return;
+        try {
+          await api.setStrengthAlias(memberId, rawAlias);
+          await renderView("strength-rankings");
+          showNotice("Apodo actualizado.", "success");
+        } catch (error) { showNotice(strengthAliasError(error) || error.message || "Ocurrió un error inesperado."); }
+      }
+      else if (action.dataset.action === "delete-strength-record") {
+        if (!isAdmin()) throw new Error("Esta acción es exclusiva de administración.");
+        if (!window.confirm("¿Eliminar esta marca del historial? La acción quedará auditada.")) return;
+        await api.deleteStrengthRecord(action.dataset.id);
+        await renderView("strength-rankings");
+        showNotice("Marca eliminada y ranking actualizado.", "success");
+      }
       else if (action.dataset.action === "refresh-schedule") {
         await renderView("schedule");
       }
@@ -1681,6 +1867,22 @@
     } catch (error) { showError(error); }
   });
 
+
+  document.addEventListener("change", async event => {
+    const memberSelect = event.target.closest("select[data-action='strength-member']");
+    if (memberSelect) {
+      const aliasField = $("[name='alias']", memberSelect.form);
+      const alias = state.strengthAliases[memberSelect.value] || "";
+      aliasField.value = alias;
+      aliasField.placeholder = alias ? "" : "Obligatorio la primera vez";
+      return;
+    }
+    const select = event.target.closest("select[data-action='strength-exercise']");
+    if (!select) return;
+    state.selectedStrengthExercise = select.value;
+    try { await renderView("strength-rankings"); } catch (error) { showError(error); }
+  });
+
   document.addEventListener("submit", async event => {
     const formNode = event.target.closest("form[data-form]");
     if (!formNode) return;
@@ -1759,25 +1961,21 @@
 
   // ---- Novedades de la versión (globos que cada persona ve una sola vez) ----
   // Para anunciar otra actualización: cambiar RELEASE_NOTES_VERSION y los pasos. Quien ya cerró la anterior ve la nueva.
-  const RELEASE_NOTES_VERSION = "2026-10-25";
+  const RELEASE_NOTES_VERSION = "2026-11-07";
   function releaseNoteSteps() {
     const steps = [{ view: null, target: ".portal-brand", title: "¡Hay novedades en Ikigai!", text: "Sumamos cosas nuevas a la app. Te las mostramos en un minuto." }];
-    const game = isAdmin()
-      ? "Iron Pixel: un juego de pesas en pixel art para todos. Los miembros suman puntos para canjear por una barra de cereal, y el mejor puntaje de cada semana se lleva una de regalo."
-      : isCoach() && !isMember()
-        ? "Iron Pixel: un juego de pesas en pixel art. Podés jugar y ver el ranking; los puntos y premios son para los miembros."
-        : "Iron Pixel: levantá la barra en 30 segundos y sumá puntos. Juntando puntos te llevás una barra de cereal, y el mejor puntaje de la semana gana una de regalo.";
-    steps.push({ view: null, target: ".nav-link[data-view='game']", title: "Nuevo: Iron Pixel", text: game });
-    if (isAdmin()) steps.push({ view: null, target: ".nav-link[data-view='rewards']", title: "Nuevo: Premios", text: "Acá ves los puntos de cada miembro, entregás la barrita cuando la retiran (descuenta los puntos solo) y registrás el premio de la semana. También definís cuántos puntos vale cada premio." });
     steps.push({
-      view: null, target: ".nav-link[data-view='catalog']", title: "Nuevo: Productos",
+      view: null, target: ".nav-link[data-view='strength-rankings']", title: "Nuevo: Ranking de fuerza",
       text: isAdmin()
-        ? "Cargá lo que vende el gimnasio (proteína, creatina, barras…) con precio y stock. Los miembros reservan desde la app y vos marcás la entrega cuando pagan y retiran."
-        : isMember() && !isCoach()
-          ? "Mirá lo que vende el gimnasio (proteína, creatina, barras y más) y reservá lo que quieras. Lo pagás y lo retirás en recepción."
-          : "Ahora podés ver el catálogo de productos que vende el gimnasio."
+        ? "Cargá la mejor marca de cada miembro en ocho ejercicios. Elegís a la persona y le ponés un apodo: en el ranking todos ven el apodo, nunca el nombre real."
+        : "Mirá quién levanta más en cada ejercicio y en qué puesto estás vos. En el ranking cada persona aparece con su apodo."
     });
-    if (isAdmin() || isCoach()) steps.push({ view: null, target: ".nav-link[data-view='routines']", title: "Rutinas: ahora también los profes", text: "Los profesores pueden cargar ejercicios, armar rutinas y crear versiones nuevas, además de asignarlas a sus alumnos." });
+    steps.push({
+      view: null, target: ".nav-link[data-view='game']", title: "Iron Pixel 2: ahora es un circuito",
+      text: isAdmin() || (isCoach() && !isMember())
+        ? "El juego pasó a ser un circuito de cuatro pruebas (press, dominadas, curl y bicicleta) con combos y peso. Los puntos y el ranking semanal siguen igual, con el tope diario de siempre."
+        : "Cuatro pruebas seguidas: press, dominadas, curl y bicicleta. Encadená aciertos para subir el combo y elegí el peso para multiplicar puntos. El ranking de la semana arranca de cero."
+    });
     return steps;
   }
   function maybeShowReleaseNotes() {

@@ -68,6 +68,9 @@ The API listens on `http://127.0.0.1:3001` by default. Without `DATABASE_URL`, d
 - `PUT /api/v1/class-sessions/:id/attendance`: administrator or assigned coach records/corrects attendance transactionally (each record may carry `arrivedLate`, only valid for an attendee); duplicate bookings are rejected and every change is audited.
 - `GET /api/v1/members/:id/attendance`: administrator or the member reads the member's own attendance history.
 - `GET /api/v1/exercises` and `POST /api/v1/exercises`: coaches/admin browse active exercises; only administration creates them.
+- `GET /api/v1/strength-rankings?exerciseId=...`: any authenticated user can read the strength ranking for one exercise; the response includes the exercise catalog, ordered positions and the current member's own position when linked. The displayed name uses the member's `ranking_alias` when set, otherwise falls back to the default "Miembro".
+- `GET /api/v1/admin/strength-records?exerciseId=...`: administrator-only history of recorded strength marks.
+- `POST /api/v1/admin/strength-records`, `PATCH /api/v1/admin/strength-records/:id` and `DELETE /api/v1/admin/strength-records/:id`: administrator-only creation/correction/deletion of historical strength marks, with CSRF, transactions and audit events. Optionally sets/updates the member's `ranking_alias`.
 - `GET /api/v1/routines`: administration/coaches browse active routines at their latest immutable version.
 - `POST /api/v1/routines` and `POST /api/v1/routines/:id/versions`: administrator-only routine creation/versioning, with all exercise references validated inside the transaction.
 - `GET/POST /api/v1/members/:id/routine-assignments`: member-owned routine history and assignment by administration or a coach with member scope. Assignment records reference immutable routine versions.
@@ -79,6 +82,10 @@ Set `CORS_ORIGINS` to exact comma-separated origins. Production startup fails cl
 ## Time zone
 
 `GYM_TIMEZONE` (zona IANA, por defecto `America/Argentina/Buenos_Aires`) define en qué hora local están las plantillas de clase. Un valor inválido hace fallar el arranque. Cambiarla no mueve las clases ya generadas.
+
+### Iron Pixel V2
+
+`POST /api/v1/game/runs` inicia una partida V2. El cierre envía `version: 2`, `weight` (`light`, `medium` o `heavy`) y las secuencias ordenadas `bench`, `pull`, `curl` y `bike` con resultados `P`, `G` o `F`. El servidor valida duración y techos, calcula el puntaje con combos, guarda las secuencias y limita los puntos al tope diario. Cuerpos de cierre V1 reciben `409 outdated_client`. El ranking semanal y los récords personales cuentan solo partidas V2.
 
 ## Database migration
 

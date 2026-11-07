@@ -199,14 +199,27 @@
     createRoutineVersion: (routineId, body) => request(`/routines/${id(routineId)}/versions`, { method: "POST", body }),
     listRoutineAssignments: memberId => request(`/members/${id(memberId)}/routine-assignments`),
     assignRoutine: (memberId, body) => request(`/members/${id(memberId)}/routine-assignments`, { method: "POST", body }),
-    // Juego Iron Pixel y premios: el puntaje lo calcula el servidor a partir de las repeticiones.
+    listStrengthRankings: (exerciseId) => {
+      const query = exerciseId ? `?exerciseId=${encodeURIComponent(String(exerciseId))}` : "";
+      return request(`/strength-rankings${query}`);
+    },
+    listAdminStrengthRecords: (exerciseId) => request(`/admin/strength-records${exerciseId ? `?exerciseId=${encodeURIComponent(String(exerciseId))}` : ""}`),
+    createStrengthRecord: body => request("/admin/strength-records", { method: "POST", body }),
+    listStrengthAliases: () => request("/admin/strength-aliases"),
+    setStrengthAlias: (memberId, alias) => request(`/admin/strength-aliases/${id(memberId)}`, { method: "PUT", body: { alias } }),
+    updateStrengthRecord: (recordId, body) => request(`/admin/strength-records/${id(recordId)}`, { method: "PATCH", body }),
+    deleteStrengthRecord: recordId => request(`/admin/strength-records/${id(recordId)}`, { method: "DELETE", body: {} }),
+    // Juego Iron Pixel V2: el servidor calcula el puntaje a partir de las secuencias.
     getGameSummary: () => request("/game/summary"),
     startGameRun: () => request("/game/runs", { method: "POST", body: {} }),
-    finishGameRun: (runId, reps, perfectReps) => {
-      if (![reps, perfectReps].every(n => Number.isSafeInteger(n) && n >= 0 && n <= 1000)) {
+    finishGameRun: (runId, result) => {
+      const validWeights = ["light", "medium", "heavy"];
+      const exerciseIds = ["bench", "pull", "curl", "bike"];
+      if (!result || !validWeights.includes(result.weight) || !result.exercises ||
+          exerciseIds.some(key => typeof result.exercises[key] !== "string" || result.exercises[key].length > 300 || !/^[PGF]*$/.test(result.exercises[key]))) {
         throw new ApiError(0, "invalid_game_result", "El resultado de la partida no es válido.");
       }
-      return request(`/game/runs/${id(runId)}/finish`, { method: "POST", body: { reps, perfectReps } });
+      return request(`/game/runs/${id(runId)}/finish`, { method: "POST", body: { version: 2, weight: result.weight, exercises: Object.fromEntries(exerciseIds.map(key => [key, result.exercises[key]])) } });
     },
     getRewardsOverview: () => request("/admin/rewards"),
     redeemReward: (memberId, expectedBalance) => request("/admin/rewards/redeem", { method: "POST", body: { memberId, expectedBalance } }),

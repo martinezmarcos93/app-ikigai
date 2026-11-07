@@ -3,7 +3,7 @@ import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
 import {
   GAME_SECONDS, GYM_TIME_ZONE, MAX_PERFECT_REPS, MAX_REPS, MAX_RUNS_PER_DAY, REP_COOLDOWN_MS,
-  competes, judgeRun, pointsForRun, rankingName
+  V2_EXERCISES, V2_EXERCISE_SECONDS, V2_TRANSITION_SECONDS, competes, judgeRun, judgeRunV2, pointsForRun, rankingName
 } from "../domain/game.js";
 import { resolveActor } from "../security/actor.js";
 import { requireCsrf } from "../security/csrf.js";
@@ -39,8 +39,9 @@ interface RankingRow extends Record<string, unknown> {
   run_id: string;
   score: number;
   full_name: string;
+  ranking_alias: string | null;
 }
-interface FinishBody { reps: number; perfectReps: number }
+interface FinishBody { version?: number; weight?: string; exercises?: Record<string, string>; reps?: number; perfectReps?: number }
 interface RedeemBody { memberId: string; expectedBalance: number }
 interface PrizeBody { weekStart: string }
 interface SettingsBody {
@@ -105,11 +106,11 @@ async function weeklyRanking(db: Database, weekStartSql: string, values: unknown
      ), best AS (
        SELECT DISTINCT ON (gr.member_id) gr.member_id, gr.id AS run_id, gr.score, gr.finished_at
          FROM game_runs gr CROSS JOIN bounds
-        WHERE gr.status = 'finished' AND gr.member_id IS NOT NULL
+        WHERE gr.status = 'finished' AND gr.game_version = 2 AND gr.member_id IS NOT NULL
           AND gr.finished_at >= bounds.starts AND gr.finished_at < bounds.ends
         ORDER BY gr.member_id, gr.score DESC, gr.finished_at ASC
      )
-     SELECT b.member_id, b.run_id, b.score, mp.full_name
+     SELECT b.member_id, b.run_id, b.score, mp.full_name, mp.ranking_alias
        FROM best b JOIN member_profiles mp ON mp.id = b.member_id
       WHERE mp.anonymized_at IS NULL
       ORDER BY b.score DESC, b.finished_at ASC, b.member_id
@@ -117,6 +118,11 @@ async function weeklyRanking(db: Database, weekStartSql: string, values: unknown
     values
   );
   return result.rows.map((r) => ({ ...r, score: Number(r.score) }));
+}
+
+// Helper para display_name
+function getDisplayName(r: RankingRow): string {
+  return r.ranking_alias ?? rankingName(r.full_name);
 }
 
 export function registerGameRoutes(
@@ -141,7 +147,7 @@ export function registerGameRoutes(
       db.query(
         `SELECT COALESCE(MAX(score), 0)::int AS best,
                 COALESCE(MAX(score) FILTER (WHERE finished_at >= (${WEEK_START_NOW})::timestamp AT TIME ZONE ${TZ}), 0)::int AS best_week
-           FROM game_runs WHERE user_id = $1 AND status = 'finished'`,
+           FROM game_runs WHERE user_id = $1 AND status = 'finished' AND game_version = 2`,
         [actor.userId]
       )
     ]);
@@ -159,15 +165,25 @@ export function registerGameRoutes(
         balance: me?.balance ?? null,
         earnedToday: me?.earnedToday ?? null
       },
-      week: {
-        start: String(lastWeekStart.rows[0]?.current ?? ""),
-        ranking: ranking.map((r, i) => ({ position: i + 1, name: rankingName(r.full_name), score: r.score, me: r.member_id === actor.memberId }))
-      },
-      lastWeek: {
-        start: String(lastWeekStart.rows[0]?.previous ?? ""),
-        winner: winner ? { name: rankingName(winner.full_name), score: winner.score, me: winner.member_id === actor.memberId } : null,
-        delivered: Boolean(delivered.rows[0])
-      }
+        week: {
+          start: String(lastWeekStart.rows[0]?.current ?? ""),
+          ranking: ranking.map((r, i) => ({
+            position: i + 1,
+            name: getDisplayName(r),
+            score: r.score,
+            me: r.member_id === actor.memberId
+          }))
+        },
+        lastWeek: {
+          start: String(lastWeekStart.rows[0]?.previous ?? ""),
+          winner: winner ? {
+            name: getDisplayName(winner),
+            score: winner.score,
+            me: winner.member_id === actor.memberId
+          } : null,
+          delivered: Boolean(delivered.rows[0])
+        }
+
     });
   });
 
@@ -190,12 +206,12 @@ export function registerGameRoutes(
           throw new GameError(429, "daily_run_limit", "You reached today's game limit. Come back tomorrow.");
         }
         await tx.query("UPDATE game_runs SET status = 'abandoned', finished_at = clock_timestamp() WHERE user_id = $1 AND status = 'started'", [actor.userId]);
-        const inserted = await tx.query("INSERT INTO game_runs (user_id, member_id) VALUES ($1, $2) RETURNING id, started_at", [actor.userId, memberId]);
+        const inserted = await tx.query("INSERT INTO game_runs (user_id, member_id, game_version) VALUES ($1, $2, 2) RETURNING id, started_at", [actor.userId, memberId]);
         const row = inserted.rows[0];
         if (!row) throw new Error("Game run insert did not return a row.");
         return row;
       });
-      return reply.code(201).send({ run: { id: run.id, startedAt: run.started_at }, gameSeconds: GAME_SECONDS, competes: Boolean(memberId) });
+      return reply.code(201).send({ run: { id: run.id, startedAt: run.started_at }, gameSeconds: V2_EXERCISE_SECONDS, transitionSeconds: V2_TRANSITION_SECONDS, competes: Boolean(memberId) });
     } catch (error) { return sendError(reply, error); }
   });
 
@@ -203,10 +219,12 @@ export function registerGameRoutes(
   app.post<{ Params: { id: string }; Body: FinishBody }>("/api/v1/game/runs/:id/finish", {
     schema: {
       params: idParams,
-      body: {
-        type: "object", required: ["reps", "perfectReps"], additionalProperties: false,
-        properties: { reps: { type: "integer", minimum: 0, maximum: 1000 }, perfectReps: { type: "integer", minimum: 0, maximum: 1000 } }
-      }
+      body: { oneOf: [
+        { type: "object", required: ["version", "weight", "exercises"], additionalProperties: false, properties: {
+          version: { const: 2 }, weight: { type: "string", enum: ["light", "medium", "heavy"] }, exercises: { type: "object", required: [...V2_EXERCISES], additionalProperties: false, properties: Object.fromEntries(V2_EXERCISES.map((key) => [key, { type: "string", pattern: "^[PGF]*$", maxLength: 300 }])) }
+        } },
+        { type: "object", required: ["reps", "perfectReps"], additionalProperties: false, properties: { reps: { type: "integer", minimum: 0, maximum: 1000 }, perfectReps: { type: "integer", minimum: 0, maximum: 1000 } } }
+      ] }
     },
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } }
   }, async (request, reply) => {
@@ -225,12 +243,16 @@ export function registerGameRoutes(
         const run = found.rows[0];
         if (!run) throw new GameError(404, "not_found", "The requested resource was not found.");
         if (run.status !== "started") throw new GameError(409, "run_closed", "This game was already closed.");
-        const { reps, perfectReps } = request.body;
-        const verdict = judgeRun(Number(run.elapsed_ms), reps, perfectReps);
+        const body = request.body;
+        if (body.version !== 2 || !body.weight || !body.exercises) throw new GameError(409, "outdated_client", "Reload the game to get the current version.");
+        const exercises = body.exercises as Record<(typeof V2_EXERCISES)[number], string>;
+        const verdict = judgeRunV2(Number(run.elapsed_ms), body.weight, exercises);
+        const reps = verdict.ok ? verdict.reps : V2_EXERCISES.reduce((sum, key) => sum + exercises[key].length, 0);
+        const perfectReps = verdict.ok ? verdict.perfectReps : V2_EXERCISES.reduce((sum, key) => sum + [...exercises[key]].filter((g) => g === "P").length, 0);
         if (!verdict.ok) {
           await tx.query(
-            "UPDATE game_runs SET status = 'rejected', finished_at = clock_timestamp(), reps = $2, perfect_reps = $3, reject_reason = $4 WHERE id = $1",
-            [run.id, Math.min(reps, 1000), Math.min(perfectReps, reps, 1000), verdict.reason]
+            "UPDATE game_runs SET status = 'rejected', finished_at = clock_timestamp(), reps = $2, perfect_reps = $3, weight = $4, detail = $5::jsonb, reject_reason = $6 WHERE id = $1",
+            [run.id, Math.min(reps, 1000), Math.min(perfectReps, reps, 1000), body.weight, JSON.stringify(exercises), verdict.reason]
           );
           return { rejected: verdict.reason };
         }
@@ -245,8 +267,8 @@ export function registerGameRoutes(
           earned = before + pointsAwarded;
         }
         await tx.query(
-          "UPDATE game_runs SET status = 'finished', finished_at = clock_timestamp(), reps = $2, perfect_reps = $3, score = $4, points_awarded = $5 WHERE id = $1",
-          [run.id, reps, perfectReps, verdict.score, pointsAwarded]
+          "UPDATE game_runs SET status = 'finished', finished_at = clock_timestamp(), reps = $2, perfect_reps = $3, score = $4, points_awarded = $5, weight = $6, detail = $7::jsonb WHERE id = $1",
+          [run.id, reps, perfectReps, verdict.score, pointsAwarded, body.weight, JSON.stringify(exercises)]
         );
         if (run.member_id) {
           if (pointsAwarded > 0) {

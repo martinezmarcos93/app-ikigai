@@ -7,6 +7,7 @@ import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { PostgresDatabase } from "../src/db/postgres.js";
 import { csrfTokenFor } from "../src/security/csrf.js";
+import { pointsForRun } from "../src/domain/game.js";
 
 const integrationEnabled = process.env.IKIGAI_INTEGRATION_TESTS === "1" && Boolean(process.env.DATABASE_URL);
 const origin = "https://game-integration.example.com";
@@ -49,53 +50,70 @@ test("PostgreSQL game: score validated by the server, points capped per day, red
   const coach = await createActor(pool, `Profe ${suffix}`, ["coach"]);
   const ana = await createActor(pool, `Ana Zeta${suffix}`, ["member"]);
 
-  async function play(actor: typeof ana, reps: number, perfectReps: number, ageSeconds = 31) {
+  function scoreFor(exercises: { bench: string; pull: string; curl: string; bike: string }) {
+    let score = 0;
+    for (const sequence of Object.values(exercises)) {
+      let combo = 0;
+      for (const grade of sequence) {
+        combo = grade === "F" ? 0 : combo + 1;
+        score += Math.floor((grade === "P" ? 25 : grade === "G" ? 10 : 2) * Math.min(3, 1 + 0.5 * Math.floor(combo / 3)));
+      }
+    }
+    return score;
+  }
+  async function play(actor: typeof ana, exercises: { bench: string; pull: string; curl: string; bike: string }, ageSeconds = 140) {
     const started = await app.inject({ method: "POST", url: "/api/v1/game/runs", headers: headers(actor) });
     assert.equal(started.statusCode, 201, started.body);
     const runId = String(started.json().run.id);
     // Simula que pasaron los 30 segundos de juego.
     await pool.query("UPDATE game_runs SET started_at = clock_timestamp() - make_interval(secs => $2) WHERE id = $1", [runId, ageSeconds]);
-    return app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(actor), payload: { reps, perfectReps } });
+    return app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(actor), payload: { version: 2, weight: "light", exercises } });
   }
 
   // Una partida normal acredita el puntaje como puntos.
-  const first = await play(ana, 40, 10);
+  const firstExercises = { bench: "PPP", pull: "", curl: "", bike: "" };
+  const first = await play(ana, firstExercises);
   assert.equal(first.statusCode, 200, first.body);
-  assert.equal(first.json().score, 500);
-  assert.equal(first.json().pointsAwarded, 500);
-  assert.equal(first.json().balance, 500);
+  assert.equal(first.json().score, scoreFor(firstExercises));
+  assert.equal(first.json().pointsAwarded, pointsForRun(first.json().score, 0, 1000));
+  assert.equal(first.json().balance, first.json().pointsAwarded);
 
-  // El tope diario recorta: 500 + 700 → solo 500 más.
-  const second = await play(ana, 50, 20);
-  assert.equal(second.json().score, 700);
-  assert.equal(second.json().pointsAwarded, 500);
+  // El tope diario recorta el puntaje de la segunda partida.
+  const secondExercises = { bench: "P".repeat(120), pull: "", curl: "", bike: "" };
+  const second = await play(ana, secondExercises);
+  assert.equal(second.json().score, scoreFor(secondExercises));
+  assert.equal(second.json().pointsAwarded, pointsForRun(second.json().score, first.json().pointsAwarded, 1000));
   assert.equal(second.json().balance, 1000);
-  const third = await play(ana, 30, 0);
+  const third = await play(ana, { bench: "GGG", pull: "", curl: "", bike: "" });
   assert.equal(third.json().pointsAwarded, 0);
 
   // Partidas imposibles: se rechazan y no suman nada.
-  const tooFast = await play(ana, 20, 0, 5);
+  const tooFast = await play(ana, { bench: "GG", pull: "", curl: "", bike: "" }, 5);
   assert.equal(tooFast.statusCode, 422);
   assert.equal(tooFast.json().reason, "too_fast");
-  const spam = await play(ana, 500, 0);
+  const spam = await play(ana, { bench: "G".repeat(121), pull: "", curl: "", bike: "" });
   assert.equal(spam.statusCode, 422);
-  assert.equal(spam.json().reason, "implausible_reps");
+  assert.equal(spam.json().reason, "implausible_bench");
+  // La partida falsa más larga que acepta el esquema (4 × 300) se rechaza sin romper el CHECK de reps (≤ 1000).
+  const huge = await play(ana, { bench: "P".repeat(300), pull: "P".repeat(300), curl: "P".repeat(300), bike: "P".repeat(300) });
+  assert.equal(huge.statusCode, 422, huge.body);
 
   // Una partida no se puede cerrar dos veces ni la cierra otra persona.
   const started = await app.inject({ method: "POST", url: "/api/v1/game/runs", headers: headers(ana) });
   const runId = String(started.json().run.id);
-  const foreign = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(coach), payload: { reps: 1, perfectReps: 0 } });
+  const foreign = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(coach), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } } });
   assert.equal(foreign.statusCode, 404);
-  await pool.query("UPDATE game_runs SET started_at = clock_timestamp() - interval '31 seconds' WHERE id = $1", [runId]);
-  const once = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { reps: 1, perfectReps: 0 } });
+  await pool.query("UPDATE game_runs SET started_at = clock_timestamp() - interval '140 seconds' WHERE id = $1", [runId]);
+  const once = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } } });
   assert.equal(once.statusCode, 200);
-  const twice = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { reps: 1, perfectReps: 0 } });
+  const twice = await app.inject({ method: "POST", url: `/api/v1/game/runs/${runId}/finish`, headers: headers(ana), payload: { version: 2, weight: "light", exercises: { bench: "G", pull: "", curl: "", bike: "" } } });
   assert.equal(twice.statusCode, 409);
 
   // El profe juega pero no suma puntos canjeables ni entra al ranking.
-  const coachRun = await play(coach, 60, 30);
+  const coachExercises = { bench: "P".repeat(18) + "G".repeat(12), pull: "", curl: "", bike: "" };
+  const coachRun = await play(coach, coachExercises);
   assert.equal(coachRun.statusCode, 200);
-  assert.equal(coachRun.json().score, 900);
+  assert.equal(coachRun.json().score, scoreFor(coachExercises));
   assert.equal(coachRun.json().competes, false);
   assert.equal(coachRun.json().balance, null);
 
@@ -104,14 +122,14 @@ test("PostgreSQL game: score validated by the server, points capped per day, red
   const body = summary.json();
   assert.equal(body.competes, true);
   assert.equal(body.me.balance, 1000);
-  assert.equal(body.me.personalBest, 700);
+  assert.equal(body.me.personalBest, scoreFor(secondExercises));
   const mine = body.week.ranking.find((r: { me: boolean }) => r.me);
   assert.ok(mine, "Ana figura en el ranking");
   assert.equal(mine.name, `Ana Z.`);
-  assert.equal(mine.score, 700);
+  assert.equal(mine.score, scoreFor(secondExercises));
   const coachSummary = await app.inject({ method: "GET", url: "/api/v1/game/summary", headers: headers(coach) });
   assert.equal(coachSummary.json().competes, false);
-  assert.equal(coachSummary.json().me.personalBest, 900);
+  assert.equal(coachSummary.json().me.personalBest, scoreFor(coachExercises));
   assert.ok(!coachSummary.json().week.ranking.some((r: { me: boolean }) => r.me));
 
   // Canje: solo administración, con saldo suficiente y sin doble toque.
@@ -139,8 +157,8 @@ test("PostgreSQL game: score validated by the server, points capped per day, red
   const pastWeek = "2001-01-01";
   await pool.query("DELETE FROM weekly_prizes WHERE week_start = $1", [pastWeek]);
   await pool.query(
-    `INSERT INTO game_runs (user_id, member_id, status, started_at, finished_at, reps, perfect_reps, score)
-     VALUES ($1, $2, 'finished', '2001-01-03 15:00-03', '2001-01-03 15:00:31-03', 99, 30, 99999)`,
+    `INSERT INTO game_runs (user_id, member_id, status, started_at, finished_at, reps, perfect_reps, score, game_version)
+     VALUES ($1, $2, 'finished', '2001-01-03 15:00-03', '2001-01-03 15:00:31-03', 99, 30, 99999, 2)`,
     [ana.userId, ana.memberId]
   );
   const prize = await app.inject({ method: "POST", url: "/api/v1/admin/rewards/weekly-prizes", headers: headers(admin), payload: { weekStart: pastWeek } });
