@@ -5,7 +5,7 @@ import { resolveActor } from "../security/actor.js";
 import { requireCsrf } from "../security/csrf.js";
 
 interface RankingQuery { exerciseId?: string }
-interface RecordBody { memberId: string; exerciseId: string; weightKg: number; recordedAt?: string; notes?: string }
+interface RecordBody { memberId: string; exerciseId: string; weightKg: number; recordedAt?: string; notes?: string; alias?: string }
 interface RecordParams { id: string }
 interface UpdateBody { weightKg?: number; recordedAt?: string; notes?: string }
 
@@ -81,8 +81,11 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
       exerciseId: { type: "string", format: "uuid" },
       weightKg: { type: "number", exclusiveMinimum: 0, maximum: 2000 },
       recordedAt: { type: "string", format: "date-time" },
-      notes: { type: "string", maxLength: 500 }
-    } } }
+       notes: { type: "string", maxLength: 500 },
+       alias: { type: "string", minLength: 2, maxLength: 24 }
+     } } }
+
+
   }, async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const actor = await resolveActor(request, db);
@@ -106,6 +109,28 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
         );
         const row = inserted.rows[0];
         if (!row) throw new Error("Strength record insert did not return a row.");
+
+        if (request.body.alias !== undefined) {
+          const trimmedAlias = request.body.alias.trim();
+          const before = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1 FOR UPDATE", [request.body.memberId]);
+          const beforeAlias = before.rows[0]?.ranking_alias;
+          if (beforeAlias !== trimmedAlias) {
+            try {
+              await tx.query("UPDATE member_profiles SET ranking_alias = $1 WHERE id = $2", [trimmedAlias, request.body.memberId]);
+              await tx.query(
+                "INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, before_data, after_data) VALUES ($1,'member.ranking_alias_set','member',$2,$3,$4::jsonb,$5::jsonb)",
+                [actor.userId, request.body.memberId, request.id, JSON.stringify({ rankingAlias: beforeAlias }), JSON.stringify({ rankingAlias: trimmedAlias })]
+              );
+            } catch (e: any) {
+              if (e.code === "23505") throw Object.assign(new Error("Alias taken."), { statusCode: 409 });
+              throw e;
+            }
+          }
+        } else {
+          const check = await tx.query("SELECT ranking_alias FROM member_profiles WHERE id = $1", [request.body.memberId]);
+          if (check.rows[0]?.ranking_alias === null) throw Object.assign(new Error("Alias required."), { statusCode: 400 });
+        }
+
         await tx.query(
           "INSERT INTO audit_events (actor_user_id, action, entity_type, entity_id, request_id, after_data) VALUES ($1,'strength_record.created','strength_record',$2,$3,$4::jsonb)",
           [actor.userId, row.id, request.id, JSON.stringify({ memberId: row.member_id, exerciseId: row.exercise_id, weightKg: row.weight_kg })]
@@ -114,8 +139,11 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
       });
       return reply.code(201).send({ record });
     } catch (error) {
-      if (typeof error === "object" && error !== null && "statusCode" in error && Number((error as { statusCode?: unknown }).statusCode) === 404) {
-        return reply.code(404).send({ error: "not_found", message: "El miembro o ejercicio solicitado no existe." });
+      if (typeof error === "object" && error !== null && "statusCode" in error) {
+        const code = Number((error as { statusCode?: unknown }).statusCode);
+        if (code === 404) return reply.code(404).send({ error: "not_found", message: "El miembro o ejercicio solicitado no existe." });
+        if (code === 400) return reply.code(400).send({ error: "alias_required", message: "Alias required." });
+        if (code === 409) return reply.code(409).send({ error: "alias_taken", message: "Alias taken." });
       }
       throw error;
     }
