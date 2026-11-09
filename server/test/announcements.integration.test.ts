@@ -56,19 +56,23 @@ test("avisos: administracion publica, cada rol ve lo suyo, se marcan como leidos
   const soloMiembros = (await publicar(admin.headers, { title: "Cuota", body: "Recordatorio de cuota.", audience: "members" })).json().announcement;
   const soloProfes = (await publicar(admin.headers, { title: "Reunion", body: "Reunion de profesores el jueves.", audience: "coaches" })).json().announcement;
 
-  const titulos = async (who: { headers: Record<string, string> }) => (await ver(who)).announcements.map((a: { title: string }) => a.title).sort();
+  // Solo los avisos de este test: otros archivos de test corren en paralelo y tambien publican.
+  const propios = new Set([general.id, soloMiembros.id, soloProfes.id]);
+  const mios = async (who: { headers: Record<string, string> }) => (await ver(who)).announcements.filter((a: { id: string }) => propios.has(a.id));
+  const titulos = async (who: { headers: Record<string, string> }) => (await mios(who)).map((a: { title: string }) => a.title).sort();
+  const sinLeer = async (who: { headers: Record<string, string> }) => (await mios(who)).filter((a: { read: boolean }) => !a.read).length;
   assert.deepEqual(await titulos(member), ["Cuota", "Feriado"]);
   assert.deepEqual(await titulos(coach), ["Feriado", "Reunion"]);
   assert.deepEqual(await titulos(admin), ["Cuota", "Feriado", "Reunion"]);
-  assert.equal((await ver(member)).unread, 2);
+  assert.equal(await sinLeer(member), 2);
 
   // Leer: solo lo que le corresponde, idempotente, y por persona.
   const leer = (who: { headers: Record<string, string> }, id: string) => app.inject({ method: "POST", url: `/api/v1/announcements/${id}/read`, headers: who.headers });
   assert.equal((await leer(member, soloProfes.id)).statusCode, 404, "un miembro no puede tocar un aviso de profesores");
   assert.equal((await leer(member, general.id)).statusCode, 204);
   assert.equal((await leer(member, general.id)).statusCode, 204);
-  assert.equal((await ver(member)).unread, 1);
-  assert.equal((await ver(coach)).unread, 2, "la lectura de otra persona no cuenta");
+  assert.equal(await sinLeer(member), 1);
+  assert.equal(await sinLeer(coach), 2, "la lectura de otra persona no cuenta");
   assert.equal((await app.inject({ method: "POST", url: `/api/v1/announcements/${general.id}/read`, headers: { ...member.headers, "x-csrf-token": "x" } })).statusCode, 403);
 
   // La auditoria guarda los destinatarios, no el texto.

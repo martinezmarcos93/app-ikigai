@@ -92,6 +92,10 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/admin/announcements` | Administración | Título, texto y destinatarios (todos, miembros o profesores) | CSRF + rate limit + auditoría (sólo destinatarios, no el texto) | `announcements.integration.test.ts` |
 | `POST /api/v1/announcements/:id/read` | Cualquier usuario autenticado | Sólo avisos que le corresponden; idempotente | CSRF | `announcements.integration.test.ts` |
 | `POST /api/v1/admin/announcements/:id/archive` | Administración | Deja de mostrarse; no se borra | CSRF + rate limit + auditoría | `announcements.integration.test.ts` |
+| `GET /api/v1/push/config` | Cualquier usuario autenticado | Si el servidor tiene push y su clave pública VAPID | No | `push.integration.test.ts` |
+| `POST /api/v1/push/subscriptions` | Cualquier usuario autenticado | Registra el dispositivo propio; sólo endpoints de servicios de push conocidos (Google, Apple, Mozilla, Microsoft) | CSRF + rate limit | `push.integration.test.ts` |
+| `POST /api/v1/push/subscriptions/remove` | Cualquier usuario autenticado | Sólo da de baja suscripciones propias | CSRF + rate limit | `push.integration.test.ts` |
+| `POST /api/v1/push/test` | Cualquier usuario autenticado | Notificación de prueba a los dispositivos propios | CSRF + rate limit | `push.integration.test.ts` |
 | `GET /api/v1/coach/members` | Profesor | Sólo miembros con quienes tiene clases (mismo alcance que asistencia y rutinas); nombre y estado | No | `announcements.integration.test.ts` |
 | `GET /api/v1/admin/accounts` | Administración | Miembros y profesores con su usuario y estado de acceso (nunca claves) | No | `accounts.integration.test.ts` |
 | `POST /api/v1/admin/accounts` | Administración | Crea el usuario y una clave temporal aleatoria de un solo uso visible; exige cambio en el primer ingreso; un perfil, una cuenta | CSRF + transacción + rate limit + auditoría (sin la clave) | `accounts.integration.test.ts` |

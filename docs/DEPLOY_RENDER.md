@@ -37,10 +37,15 @@ No usar `sh -c "…"` en el campo: Render no interpreta las comillas y el servic
 | `PASSWORD_RESET_DELIVERY_URL` | `https://recuperacion-no-configurada.invalid/ikigai` |
 | `PASSWORD_RESET_DELIVERY_TOKEN` | `openssl rand -hex 32` (secreto) |
 | `PASSWORD_RESET_PUBLIC_URL` | `https://app.ikigai-training.com/reset-password.html` |
+| `VAPID_PUBLIC_KEY` | salida de `cd server && npm run push:keys` (notificaciones push de avisos) |
+| `VAPID_PRIVATE_KEY` | ídem (secreto) |
+| `VAPID_SUBJECT` | `mailto:` de contacto del gimnasio o de MMAC (lo piden Google y Apple para contactar si hay abuso) |
 
 En producción el servidor se niega a arrancar sin las tres variables `PASSWORD_RESET_*` (si falta alguna sale con error de configuración).
 La recuperación por correo no está configurada: las claves se entregan por administración (usuario y clave temporal). El valor `.invalid`
 es el mismo que usa la demo (`deploy/demo-gratis.sh`) y hace que un pedido de recuperación falle sin enviar nada.
+
+Las tres `VAPID_*` van juntas o ninguna: sin ellas los avisos se ven solo dentro del portal. Si se cambian las claves, cada dispositivo tiene que volver a tocar «Activar notificaciones».
 
 `PORT` lo define Render solo (no configurarlo).
 

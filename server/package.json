@@ -16,7 +16,8 @@
     "test": "tsx --test test/*.test.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "admin:create": "tsx scripts/create-admin.ts",
-    "seed:inicial": "tsx scripts/seed-inicial.ts"
+    "seed:inicial": "tsx scripts/seed-inicial.ts",
+    "push:keys": "tsx scripts/generate-vapid-keys.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.1.0",
