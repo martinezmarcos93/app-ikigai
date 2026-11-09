@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import worker, { isApiPath, proxyToApi, wakeApi } from "../src/index.js";
+import worker, { isApiPath, isInternalPath, proxyToApi, runDaily, wakeApi, DAILY_CRON } from "../src/index.js";
 
 const env = { API_ORIGIN: "https://api.example.test", ASSETS: { fetch: async () => new Response("asset") } };
 const req = (path, init = {}) => new Request(`https://app.example.test${path}`, init);
@@ -96,4 +96,27 @@ test("la carpeta publica sale de la misma lista blanca que Docker y no incluye l
   for (const f of ["portal.html", "portal.js", "api-client.js", "sw.js", "manifest.webmanifest", "assets", "_headers", ".well-known/assetlinks.json"]) assert.ok(existsSync(join(pub, f)), f);
   for (const f of ["demo.html", "app.js", "styles.css", "server", "docs", "landing", "deploy", ".env"]) assert.ok(!existsSync(join(pub, f)), `no debe publicarse: ${f}`);
   assert.match(readFileSync(join(pub, "_headers"), "utf8"), /Content-Security-Policy: default-src 'self'; script-src 'self'/);
+});
+
+test("la ruta interna de cobros no se reenvia desde internet, aunque venga disfrazada", async () => {
+  for (const p of ["/api/v1/internal/daily", "/api/v1/INTERNAL/daily", "/api/v1/%69nternal/daily", "/api//v1/internal/daily", "/api/v1//internal/daily", "/api/v2/internal", "/api/v1/%E0%A4%A"])
+    assert.equal(isInternalPath(p), true, p);
+  for (const p of ["/api/v1/announcements", "/api/v1/internals", "/api/v1/admin/internal-notes"]) assert.equal(isInternalPath(p), false, p);
+  let called = false;
+  const res = await proxyToApi(new Request("https://app.example.com/api/v1/%69nternal/daily", { method: "POST" }), { API_ORIGIN: "https://api.example.com" }, async () => { called = true; return new Response("x"); });
+  assert.equal(res.status, 404);
+  assert.equal(called, false);
+});
+
+test("la tarea diaria llama a la API con el token y el cron diario la dispara", async () => {
+  const calls = [];
+  const fn = async (url, init) => { calls.push({ url: String(url), init }); return new Response("{}", { status: 200 }); };
+  const quiet = { log() {}, error() {} };
+  assert.equal(await runDaily({ API_ORIGIN: "https://api.example.com" }, fn, quiet), 0, "sin token no llama");
+  assert.equal(calls.length, 0);
+  assert.equal(await runDaily({ API_ORIGIN: "https://api.example.com", INTERNAL_JOB_TOKEN: "t".repeat(40) }, fn, quiet), 200);
+  assert.equal(calls[0].url, "https://api.example.com/api/v1/internal/daily");
+  assert.equal(calls[0].init.method, "POST");
+  assert.equal(calls[0].init.headers["x-internal-token"], "t".repeat(40));
+  assert.equal(DAILY_CRON, "0 12 * * *");
 });
