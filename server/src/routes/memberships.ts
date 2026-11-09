@@ -207,7 +207,7 @@ export function registerMembershipRoutes(
     const result = await db.query(
       `SELECT m.id, m.member_id, m.service_id, s.name AS service_name,
               m.starts_on::text AS starts_on, m.ends_on::text AS ends_on,
-              m.billing_period, m.agreed_price::numeric(12,2)::text AS agreed_price, m.status, m.created_at
+              m.billing_period, m.agreed_price::numeric(12,2)::text AS agreed_price, m.status, m.due_day, m.created_at
          FROM memberships m JOIN services s ON s.id=m.service_id
         WHERE m.member_id=$1
         ORDER BY m.starts_on DESC, m.created_at DESC`,

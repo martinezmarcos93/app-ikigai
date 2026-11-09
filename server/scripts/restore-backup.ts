@@ -10,7 +10,7 @@ import { BACKUP_TABLES, decryptBackup, parseBackupPayload } from "../src/domain/
 // Restaurar exige una base recien migrada y VACIA (npm run db:migrate): nunca pisa datos existentes.
 
 // Tablas que las migraciones ya siembran con una fila por defecto: la del respaldo la reemplaza.
-const SEEDED_BY_MIGRATIONS = new Set<string>(["institutional_settings", "reward_settings"]);
+const SEEDED_BY_MIGRATIONS = new Set<string>(["institutional_settings", "reward_settings", "billing_rules"]);
 
 const [file, ...flags] = process.argv.slice(2);
 const passphrase = process.env.IKIGAI_BACKUP_PASSPHRASE;

@@ -96,6 +96,13 @@ Esta matriz se deriva de los guards del servidor, no de la visibilidad de botone
 | `POST /api/v1/push/subscriptions` | Cualquier usuario autenticado | Registra el dispositivo propio; sólo endpoints de servicios de push conocidos (Google, Apple, Mozilla, Microsoft) | CSRF + rate limit | `push.integration.test.ts` |
 | `POST /api/v1/push/subscriptions/remove` | Cualquier usuario autenticado | Sólo da de baja suscripciones propias | CSRF + rate limit | `push.integration.test.ts` |
 | `POST /api/v1/push/test` | Cualquier usuario autenticado | Notificación de prueba a los dispositivos propios | CSRF + rate limit | `push.integration.test.ts` |
+| `GET /api/v1/admin/billing-rules` | Administración | Vencimiento general, tolerancia, % de recargo y recordatorios | No | `billing.integration.test.ts` |
+| `PATCH /api/v1/admin/billing-rules` | Administración | Al activar el recargo cuenta desde hoy (no hay recargos retroactivos) | CSRF + transacción + auditoría | `billing.integration.test.ts` |
+| `PATCH /api/v1/memberships/:id/due-day` | Administración | Día de vencimiento propio (1–28) o el general (null) | CSRF + transacción + auditoría | `billing.integration.test.ts` |
+| `GET /api/v1/admin/late-fee-proposals` | Administración | Propuestas de recargo por estado | No | `billing.integration.test.ts` |
+| `POST /api/v1/admin/late-fee-proposals/:id/approve` | Administración | Crea un único cargo en la cuenta corriente (idempotente) | CSRF + transacción + auditoría | `billing.integration.test.ts` |
+| `POST /api/v1/admin/late-fee-proposals/:id/dismiss` | Administración | Cierra sin movimiento; un recargo aprobado no se descarta (se revierte) | CSRF + transacción + auditoría | `billing.integration.test.ts` |
+| `POST /api/v1/internal/daily` | Público con token interno | Tarea diaria de cobros; sin token responde 404; el Worker público la bloquea | `INTERNAL_JOB_TOKEN` (tiempo constante) + rate limit + idempotente | `billing.integration.test.ts` |
 | `GET /api/v1/coach/members` | Profesor | Sólo miembros con quienes tiene clases (mismo alcance que asistencia y rutinas); nombre y estado | No | `announcements.integration.test.ts` |
 | `GET /api/v1/admin/accounts` | Administración | Miembros y profesores con su usuario y estado de acceso (nunca claves) | No | `accounts.integration.test.ts` |
 | `POST /api/v1/admin/accounts` | Administración | Crea el usuario y una clave temporal aleatoria de un solo uso visible; exige cambio en el primer ingreso; un perfil, una cuenta | CSRF + transacción + rate limit + auditoría (sin la clave) | `accounts.integration.test.ts` |
