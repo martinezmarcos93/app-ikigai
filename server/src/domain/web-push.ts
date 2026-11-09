@@ -98,6 +98,7 @@ export function createPushSender(keys: VapidKeys): PushSender {
         Urgency: "normal"
       },
       body,
+      redirect: "manual", // la lista de servicios permitidos no se puede saltear con una redireccion
       signal: AbortSignal.timeout(10_000)
     });
     await response.arrayBuffer().catch(() => undefined);

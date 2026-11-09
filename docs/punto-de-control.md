@@ -1,5 +1,5 @@
 <!-- PUNTO-DE-CONTROL -->
-**Tarea actual (09/11):** avisos como notificación push en el celular. Rama `feat/avisos-push` (worktree `~/src/ikigai-push`), sin commitear todavía.
+**Tarea actual (09/11):** avisos como notificación push en el celular. Rama `feat/avisos-push` (worktree `~/src/ikigai-push`), PR #45.
 
 **Hecho:** Web Push estándar sin dependencias (`server/src/domain/web-push.ts`: VAPID + cifrado RFC 8291), tabla `push_subscriptions` (0018), rutas `/api/v1/push/*`, envío al publicar un aviso (mismos destinatarios que en el portal, sin el autor, solo accesos activos), panel «Notificaciones» en Avisos, service worker v26, baja del dispositivo al cerrar sesión y al anonimizar. APK: `enableNotifications: true`. Tests 143/143 (dos corridas).
 

@@ -69,11 +69,15 @@ test("administrator can revoke another user's sessions and the operation is idem
   });
   assert.equal(denied.statusCode, 403);
 
+  // Un dispositivo con notificaciones de esa persona (p. ej. un telefono robado) se da de baja junto con las sesiones.
+  await pool.query("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES ($1,$2,$3,$4)",
+    [target.userId, `https://fcm.googleapis.com/fcm/send/${target.userId}`, "B".repeat(87), "A".repeat(22)]);
   const revoked = await app.inject({
     method: "POST",
     url: `/api/v1/admin/users/${target.userId}/sessions/revoke`,
     headers: adminHeaders
   });
+  assert.equal((await pool.query("SELECT 1 FROM push_subscriptions WHERE user_id=$1", [target.userId])).rowCount, 0);
   assert.equal(revoked.statusCode, 200);
   assert.equal(revoked.json().revokedSessions, 1);
   assert.equal(revoked.json().replayed, false);

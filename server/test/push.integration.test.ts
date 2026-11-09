@@ -45,9 +45,10 @@ test("push: suscribirse, recibir avisos segun destinatarios y limpiar dispositiv
   const db = new PostgresDatabase(pool);
   const sent: { target: PushTarget; payload: Record<string, unknown> }[] = [];
   const gone = new Set<string>();
+  const rejected = new Set<string>();
   const pushSender = async (target: PushTarget, payload: string) => {
     sent.push({ target, payload: JSON.parse(payload) });
-    return { status: gone.has(target.endpoint) ? 410 : 201 };
+    return { status: gone.has(target.endpoint) ? 410 : rejected.has(target.endpoint) ? 403 : 201 };
   };
   const app = await buildApp(config, { db, transactionalDb: db, pushSender });
   t.after(async () => { await app.close(); await pool.end(); });
@@ -105,8 +106,26 @@ test("push: suscribirse, recibir avisos segun destinatarios y limpiar dispositiv
   sent.length = 0;
   const prueba = await app.inject({ method: "POST", url: "/api/v1/push/test", headers: member.headers, payload: {} });
   assert.equal(prueba.statusCode, 200);
-  assert.deepEqual(prueba.json(), { devices: 1, sent: 1, failed: 0 });
+  assert.deepEqual(prueba.json(), { devices: 1, sent: 1, removed: 0, failed: 0 });
   assert.equal(sent[0]?.payload.kind, "test");
+  // Un rechazo del servicio de push (p. ej. clave VAPID vieja) no cuenta como enviado ni borra el dispositivo.
+  rejected.add(telMiembro.endpoint);
+  assert.deepEqual((await app.inject({ method: "POST", url: "/api/v1/push/test", headers: member.headers, payload: {} })).json(), { devices: 1, sent: 0, removed: 0, failed: 1 });
+  rejected.delete(telMiembro.endpoint);
+
+  // Un rol revocado deja de recibir los avisos de esa audiencia.
+  sent.length = 0;
+  await pool.query("UPDATE user_roles SET revoked_at=now() WHERE user_id=$1", [member.userId]);
+  assert.equal((await publicar({ title: "Revocado", body: "No le llega.", audience: "members" })).statusCode, 201);
+  await settle();
+  assert.equal(sent.length, 0);
+  await pool.query("UPDATE user_roles SET revoked_at=NULL WHERE user_id=$1", [member.userId]);
+
+  // El texto se recorta por caracteres: un emoji en el borde no queda partido.
+  sent.length = 0;
+  assert.equal((await publicar({ title: "Emoji", body: "a".repeat(176) + "💪💪💪💪💪", audience: "members" })).statusCode, 201);
+  await settle();
+  assert.equal(sent[0]?.payload.body, "a".repeat(176) + "💪...");
   const quitar = (headers: Record<string, string>, endpoint: string) => app.inject({ method: "POST", url: "/api/v1/push/subscriptions/remove", headers, payload: { endpoint } });
   assert.equal((await quitar(coach.headers, telMiembro.endpoint)).statusCode, 204);
   assert.equal((await pool.query("SELECT 1 FROM push_subscriptions WHERE endpoint=$1", [telMiembro.endpoint])).rowCount, 1, "otra persona no puede darlo de baja");

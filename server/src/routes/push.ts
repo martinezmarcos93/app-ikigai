@@ -30,9 +30,12 @@ async function deliver(db: Database, sender: PushSender, log: FastifyBaseLogger,
     else log.warn({ status, subscriptionId: row.id }, "push: el servicio de push rechazo el envio");
     return status;
   }));
-  const failed = results.filter((r) => r.status === "rejected");
-  for (const r of failed) log.error({ err: (r as PromiseRejectedResult).reason }, "push: fallo un envio");
-  return { sent: results.length - failed.length, failed: failed.length };
+  for (const r of results) if (r.status === "rejected") log.error({ err: r.reason }, "push: fallo un envio");
+  const statuses = results.map((r) => (r.status === "fulfilled" ? r.value : 0));
+  // Solo cuenta como enviado lo que el servicio de push acepto (2xx); 404/410 son dispositivos dados de baja.
+  const sent = statuses.filter((status) => status >= 200 && status < 300).length;
+  const removed = statuses.filter((status) => status === 404 || status === 410).length;
+  return { sent, removed, failed: statuses.length - sent - removed };
 }
 
 /** Avisa por push a los dispositivos de quienes deben ver el aviso (sin el autor). Nunca lanza: loguea. */
@@ -50,7 +53,8 @@ export async function notifyAnnouncement(
           AND EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = u.id AND r.revoked_at IS NULL AND r.role = ANY($2::text[]))`,
       [announcement.createdBy, rolesFor[announcement.audience]]
     );
-    const body = announcement.body.length > 180 ? `${announcement.body.slice(0, 177)}...` : announcement.body;
+    const chars = Array.from(announcement.body); // por caracteres, para no partir un emoji
+    const body = chars.length > 180 ? `${chars.slice(0, 177).join("")}...` : announcement.body;
     const payload = JSON.stringify({ kind: "announcement", id: announcement.id, title: announcement.title, body, url: "/portal.html#announcements" });
     const outcome = await deliver(db, sender, log, rows.rows, payload);
     log.info({ announcementId: announcement.id, devices: rows.rows.length, ...outcome }, "push: aviso enviado");

@@ -589,15 +589,37 @@
         ? `<p>En iPhone los avisos llegan como notificación solo con la app instalada: abrí esta página en <strong>Safari</strong>, tocá <strong>Compartir → «Agregar a pantalla de inicio»</strong>, entrá desde el ícono de Ikigai y volvé a esta sección.</p>`
         : `<p class="muted">Este navegador no admite notificaciones. Los avisos se siguen viendo acá.</p>`;
     } else if (Notification.permission === "denied") {
-      body = `<p>Las notificaciones de Ikigai están bloqueadas en este dispositivo. Habilitalas en los ajustes del teléfono (Ajustes → Apps → Ikigai → Notificaciones) y volvé a esta sección.</p>`;
+      body = `<p>Las notificaciones de Ikigai están bloqueadas en este dispositivo. Habilitalas en los ajustes del teléfono (en Android: Ajustes → Apps → Ikigai → Notificaciones; en iPhone: Ajustes → Notificaciones → Ikigai) y volvé a esta sección.</p>`;
     } else {
       let subscription = null;
       try { subscription = await currentPushSubscription(); } catch { subscription = null; }
+      // La suscripcion del navegador puede ser de otra persona (sesion vencida en un telefono compartido) o de una clave vieja:
+      // se re-sincroniza con el servidor cada vez; si no corresponde, se muestra «Activar» de nuevo.
+      if (subscription && Notification.permission === "granted") {
+        try { if (!(await syncPushSubscription(subscription, config.publicKey))) subscription = null; }
+        catch { subscription = null; }
+      }
       body = subscription && Notification.permission === "granted"
         ? `<p>Este dispositivo recibe los avisos como notificación.</p><div class="form-actions"><button class="button small" type="button" data-action="push-test">Enviar una prueba</button><button class="button ghost small" type="button" data-action="push-off">Desactivar</button></div>`
         : `<p>Recibí los avisos del gimnasio como notificación en este dispositivo, aunque no tengas la app abierta.</p><div class="form-actions"><button class="button primary small" type="button" data-action="push-on">Activar notificaciones</button></div>`;
     }
     return `<section class="panel push-panel"><div class="section-title"><span>Notificaciones</span></div>${body}</section>`;
+  }
+  function sameKey(subscription, publicKey) {
+    const current = subscription.options?.applicationServerKey;
+    if (!current) return true; // navegadores que no la exponen: se confia en el servidor
+    const a = new Uint8Array(current), b = urlBase64ToUint8Array(publicKey);
+    return a.length === b.length && a.every((value, index) => value === b[index]);
+  }
+  async function registerSubscription(subscription) {
+    const json = subscription.toJSON();
+    await api.subscribePush({ endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } });
+  }
+  // Devuelve false si la suscripcion es de una clave vieja (queda dada de baja y hay que activar de nuevo).
+  async function syncPushSubscription(subscription, publicKey) {
+    if (!sameKey(subscription, publicKey)) { await subscription.unsubscribe(); return false; }
+    await registerSubscription(subscription);
+    return true;
   }
   async function enablePush() {
     // El pedido de permiso va primero, dentro del toque: iOS lo rechaza si antes se espera otra cosa.
@@ -607,9 +629,9 @@
     if (!config.enabled || !config.publicKey) { showNotice("El servidor todavía no tiene las notificaciones configuradas."); return false; }
     const registration = await withTimeout(navigator.serviceWorker.ready, 8000);
     let subscription = await registration.pushManager.getSubscription();
+    if (subscription && !sameKey(subscription, config.publicKey)) { await subscription.unsubscribe(); subscription = null; }
     if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(config.publicKey) });
-    const json = subscription.toJSON();
-    await api.subscribePush({ endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } });
+    await registerSubscription(subscription);
     return true;
   }
   async function disablePush() {
@@ -1842,7 +1864,7 @@
       }
       else if (action.dataset.action === "push-test") {
         const result = await api.testPush();
-        showNotice(result.sent ? "Prueba enviada: en unos segundos debería llegar la notificación." : "No hay dispositivos activos para probar. Desactivá y volvé a activar.", result.sent ? "success" : "error");
+        showNotice(result.sent ? "Prueba enviada: en unos segundos debería llegar la notificación." : result.devices ? "El servicio de notificaciones rechazó la prueba. Desactivá y volvé a activar." : "No hay dispositivos activos para probar. Desactivá y volvé a activar.", result.sent ? "success" : "error");
       }
       else if (action.dataset.action === "read-all-announcements") {
         const pending = [...document.querySelectorAll(".notice-card.is-unread")].map(node => node.dataset.announcement);

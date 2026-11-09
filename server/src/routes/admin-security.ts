@@ -74,6 +74,7 @@ export function registerAdminSecurityRoutes(
           "UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL RETURNING id",
           [request.params.id]
         );
+        await tx.query("DELETE FROM push_subscriptions WHERE user_id=$1", [request.params.id]);
         await tx.query(
           "UPDATE user_invitations SET revoked_at=now() WHERE user_id=$1 AND accepted_at IS NULL AND revoked_at IS NULL",
           [request.params.id]
@@ -145,6 +146,7 @@ export function registerAdminSecurityRoutes(
           "UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL RETURNING id",
           [request.params.id]
         );
+        await tx.query("DELETE FROM push_subscriptions WHERE user_id=$1", [request.params.id]);
         const count = revoked.rowCount ?? revoked.rows.length;
         if (count > 0) {
           await tx.query(
