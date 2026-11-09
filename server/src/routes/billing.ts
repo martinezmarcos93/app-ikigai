@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
 import type { PushSender } from "../domain/web-push.js";
-import { monthLabel, runDailyBilling, todayIn } from "../domain/billing.js";
+import { balanceCents, formatPesos, fromCents, lateFeeCents, monthLabel, runDailyBilling, toCents, todayIn } from "../domain/billing.js";
 import { resolveActor } from "../security/actor.js";
 import { constantTimeStringEqual, requireCsrf } from "../security/csrf.js";
 
@@ -138,27 +138,36 @@ export function registerBillingRoutes(
     try {
       const result = await transactionalDb.transaction(async (tx) => {
         const proposal = (await tx.query(
-          "SELECT id, member_id, period::text AS period, debt_amount::text AS debt_amount, percent::text AS percent, fee_amount::text AS fee_amount, status, ledger_entry_id FROM late_fee_proposals WHERE id = $1 FOR UPDATE",
+          `SELECT p.id, p.member_id, p.period::text AS period, p.cutoff_on::text AS cutoff_on, p.debt_amount::text AS debt_amount,
+                  p.percent::text AS percent, p.status, p.ledger_entry_id,
+                  (mp.anonymized_at IS NOT NULL OR mp.status = 'exited') AS inactive
+             FROM late_fee_proposals p JOIN member_profiles mp ON mp.id = p.member_id WHERE p.id = $1 FOR UPDATE OF p`,
           [request.params.id]
-        )).rows[0] as Record<string, string> | undefined;
+        )).rows[0] as (Record<string, string> & { inactive: boolean }) | undefined;
         if (!proposal) throw new BillingError(404, "not_found", "The requested resource was not found.");
         if (proposal.status === "approved") return { ledgerEntryId: proposal.ledger_entry_id, replayed: true };
         if (proposal.status === "dismissed") throw new BillingError(409, "proposal_dismissed", "The late fee proposal was already dismissed.");
-        const description = `Recargo por mora ${monthLabel(proposal.period!)} (${proposal.percent}% de $${proposal.debt_amount})`;
+        if (proposal.inactive) throw new BillingError(409, "member_inactive", "The member has exited or was anonymized; dismiss the proposal instead.");
+        // La deuda se recalcula al aprobar: un pago cargado despues (con fecha hasta el corte) la baja o la anula. Nunca sube.
+        const debt = Math.min(await balanceCents(tx, proposal.member_id!, proposal.cutoff_on!), toCents(proposal.debt_amount!));
+        if (debt <= 0) throw new BillingError(409, "no_debt_at_cutoff", "There was no debt at the cutoff date anymore; dismiss the proposal.");
+        const debtAmount = fromCents(debt);
+        const feeAmount = fromCents(lateFeeCents(debt, proposal.percent!));
+        const description = `Recargo por mora ${monthLabel(proposal.period!)} (${Number(proposal.percent)}% de ${formatPesos(debt)})`;
         const key = `late-fee:${proposal.id}`;
-        const hash = createHash("sha256").update(JSON.stringify({ proposal: proposal.id, amount: proposal.fee_amount })).digest("hex");
+        const hash = createHash("sha256").update(JSON.stringify({ proposal: proposal.id, amount: feeAmount })).digest("hex");
         const entry = (await tx.query(
           `INSERT INTO ledger_entries (member_id, entry_type, direction, amount, description, occurred_on, applied_period, created_by, idempotency_key, request_hash)
            VALUES ($1, 'charge', 'debit', $2, $3, $4::date, $5::date, $6, $7, $8) RETURNING id`,
-          [proposal.member_id, proposal.fee_amount, description, todayIn(config.gymTimezone), proposal.period, actor.userId, key, hash]
+          [proposal.member_id, feeAmount, description, todayIn(config.gymTimezone), proposal.period, actor.userId, key, hash]
         )).rows[0];
         await tx.query(
-          "UPDATE late_fee_proposals SET status = 'approved', ledger_entry_id = $2, decided_by = $3, decided_at = now() WHERE id = $1",
-          [proposal.id, entry?.id, actor.userId]
+          "UPDATE late_fee_proposals SET status = 'approved', debt_amount = $4, fee_amount = $5, ledger_entry_id = $2, decided_by = $3, decided_at = now() WHERE id = $1",
+          [proposal.id, entry?.id, actor.userId, debtAmount, feeAmount]
         );
         await tx.query(
           "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,'billing.late_fee_approved','late_fee_proposal',$2,$3,$4::jsonb)",
-          [actor.userId, proposal.id, request.id, JSON.stringify({ memberId: proposal.member_id, period: proposal.period, feeAmount: proposal.fee_amount, ledgerEntryId: entry?.id })]
+          [actor.userId, proposal.id, request.id, JSON.stringify({ memberId: proposal.member_id, period: proposal.period, proposedDebt: proposal.debt_amount, debtAmount, feeAmount, ledgerEntryId: entry?.id })]
         );
         return { ledgerEntryId: entry?.id, replayed: false };
       });
@@ -185,7 +194,7 @@ export function registerBillingRoutes(
       return 204;
     });
     if (outcome === 404) return reply.code(404).send(notFound);
-    if (outcome === 409) return reply.code(409).send({ error: "proposal_approved", message: "An approved late fee must be reversed from the account, not dismissed." });
+    if (outcome === 409) return reply.code(409).send({ error: "proposal_approved", message: "An approved late fee is corrected with a credit adjustment in the account, not dismissed." });
     return reply.code(204).send();
   });
 

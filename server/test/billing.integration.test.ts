@@ -149,7 +149,10 @@ test("cobros: recordatorios, propuesta de recargo pasada la tolerancia y aprobac
   assert.equal((await accion(admin.headers, propuesta!.id, "approve")).statusCode, 200, "aprobar dos veces no duplica");
   assert.equal((await accion(admin.headers, propuesta!.id, "dismiss")).statusCode, 409, "un recargo aprobado se revierte, no se descarta");
   const recargos = (await pool.query("SELECT amount::text AS amount, description, applied_period::text AS period FROM ledger_entries WHERE member_id=$1 AND description LIKE 'Recargo%'", [debe.memberId])).rows;
-  assert.deepEqual(recargos, [{ amount: "5000.00", description: "Recargo por mora marzo 2026 (10.00% de $50000.00)", period: "2026-03-01" }]);
+  assert.equal(recargos.length, 1);
+  assert.equal(recargos[0]?.amount, "5000.00");
+  assert.equal(recargos[0]?.period, "2026-03-01");
+  assert.match(String(recargos[0]?.description), /^Recargo por mora marzo 2026 \(10% de \$\s?50\.000\)$/);
   assert.equal((await pool.query("SELECT 1 FROM audit_events WHERE action='billing.late_fee_approved' AND entity_id=$1", [propuesta!.id])).rowCount, 1);
 
   // Abril: propuesta nueva que se descarta sin movimiento.
@@ -176,4 +179,128 @@ test("cobros: la tarea diaria solo corre con el token interno", { skip: !integra
   assert.equal(ok.json().today, todayIn(config.gymTimezone));
   assert.equal((await daily(sinToken, { "x-internal-token": internalToken })).statusCode, 404, "sin INTERNAL_JOB_TOKEN configurado la tarea no corre");
   assert.throws(() => loadConfig({ NODE_ENV: "test", INTERNAL_JOB_TOKEN: "corto" }), /32/);
+});
+
+test("cobros: bordes del corte, pagos tardios, concurrencia y saldo a favor", { skip: !integrationEnabled }, async (t: TestContext) => {
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 8, connectionTimeoutMillis: 5_000 });
+  const db = new PostgresDatabase(pool);
+  const sent: { target: PushTarget; payload: Record<string, unknown> }[] = [];
+  const pushSender = async (target: PushTarget, payload: string) => { sent.push({ target, payload: JSON.parse(payload) }); return { status: 201 }; };
+  const app = await buildApp(config, { db, transactionalDb: db, pushSender });
+  t.after(async () => {
+    await pool.query("UPDATE billing_rules SET default_due_day=10, grace_days=2, late_fee_percent=NULL, late_fees_since=NULL, due_reminders_enabled=true WHERE id=1");
+    await app.close(); await pool.end();
+  });
+  const admin = await user(pool, "admin");
+  const admin2 = await user(pool, "admin");
+  const service = String((await pool.query("INSERT INTO services (name) VALUES ($1) RETURNING id", [`Funcional ${randomUUID()}`])).rows[0]?.id);
+  const socio = async (startsOn = "2026-01-05", dueDay: number | null = null) => {
+    const who = await user(pool, "member");
+    const tel = device();
+    await pool.query("INSERT INTO push_subscriptions (user_id,endpoint,p256dh,auth) VALUES ($1,$2,$3,$4)", [who.userId, tel.endpoint, tel.p256dh, tel.auth]);
+    await pool.query(
+      "INSERT INTO memberships (member_id,service_id,starts_on,billing_period,agreed_price,status,created_by,due_day) VALUES ($1,$2,$3,'monthly',25000,'active',$4,$5)",
+      [who.memberId, service, startsOn, admin.userId, dueDay]);
+    return { ...who, endpoint: tel.endpoint };
+  };
+  const mov = (memberId: string, type: "charge" | "payment", amount: string, on: string) => pool.query(
+    "INSERT INTO ledger_entries (member_id,entry_type,direction,amount,description,occurred_on,applied_period,created_by) VALUES ($1,$2,$3,$4,'test',$5,$6,$7)",
+    [memberId, type, type === "charge" ? "debit" : "credit", amount, on, `${on.slice(0, 7)}-01`, admin.userId]);
+  const correr = (today: string) => runDailyBilling(db, pushSender, app.log, today);
+  const propuesta = async (memberId: string, period = "2026-05-01") => (await pool.query(
+    "SELECT id, debt_amount::text AS debt, fee_amount::text AS fee, status FROM late_fee_proposals WHERE member_id=$1 AND period=$2::date", [memberId, period])).rows[0];
+  const aprobar = (headers: Record<string, string>, id: string) => app.inject({ method: "POST", url: `/api/v1/admin/late-fee-proposals/${id}/approve`, headers, payload: {} });
+  const recargos = async (memberId: string) => (await pool.query("SELECT amount::text AS amount, description FROM ledger_entries WHERE member_id=$1 AND description LIKE 'Recargo%'", [memberId])).rows;
+  const avisosA = (endpoint: string) => sent.filter((s) => s.target.endpoint === endpoint).map((s) => String(s.payload.body));
+
+  // Recargo activo desde el 12/05 = justo el corte de mayo (10 + 2): el borde cuenta.
+  await pool.query("UPDATE billing_rules SET default_due_day=10, grace_days=2, late_fee_percent=10, late_fees_since='2026-05-12', due_reminders_enabled=true WHERE id=1");
+  const edit = await app.inject({ method: "PATCH", url: "/api/v1/admin/billing-rules", headers: admin.headers, payload: { late_fee_percent: "12.5" } });
+  assert.equal(edit.json().rules.late_fees_since, "2026-05-12", "cambiar el porcentaje con el recargo activo no mueve la fecha de inicio");
+  await pool.query("UPDATE billing_rules SET late_fee_percent=10 WHERE id=1");
+
+  const pagaElDiaDelCorte = await socio();
+  await mov(pagaElDiaDelCorte.memberId, "charge", "25000", "2026-05-01");
+  await mov(pagaElDiaDelCorte.memberId, "payment", "25000", "2026-05-12");
+  const empezoElOnce = await socio("2026-05-11");
+  await mov(empezoElOnce.memberId, "charge", "25000", "2026-05-11");
+  const pagoDespues = await socio();
+  const pagoParcial = await socio();
+  const concurrente = await socio();
+  const egresado = await socio();
+  for (const s of [pagoDespues, pagoParcial, concurrente, egresado]) await mov(s.memberId, "charge", "25000", "2026-05-01");
+
+  await correr("2026-05-13");
+  assert.equal(await propuesta(pagaElDiaDelCorte.memberId), undefined, "pago el ultimo dia de tolerancia: sin recargo");
+  assert.equal(await propuesta(empezoElOnce.memberId), undefined, "se anoto despues del vencimiento: ese mes no tiene recargo");
+  for (const s of [pagoDespues, pagoParcial, concurrente, egresado]) assert.equal((await propuesta(s.memberId))?.fee, "2500.00");
+
+  // Pago cargado despues de la propuesta, con fecha hasta el corte: al aprobar se recalcula la deuda.
+  await mov(pagoDespues.memberId, "payment", "25000", "2026-05-11");
+  const sinDeuda = await aprobar(admin.headers, (await propuesta(pagoDespues.memberId))!.id);
+  assert.equal(sinDeuda.statusCode, 409);
+  assert.equal(sinDeuda.json().error, "no_debt_at_cutoff");
+  assert.deepEqual(await recargos(pagoDespues.memberId), []);
+  await mov(pagoParcial.memberId, "payment", "10000", "2026-05-12");
+  assert.equal((await aprobar(admin.headers, (await propuesta(pagoParcial.memberId))!.id)).statusCode, 201);
+  const [parcial, ...extra] = await recargos(pagoParcial.memberId);
+  assert.equal(extra.length, 0);
+  assert.equal(parcial?.amount, "1500.00");
+  assert.match(String(parcial?.description),/^Recargo por mora mayo 2026 \(10% de \$\s?15\.000\)$/);
+  assert.equal((await propuesta(pagoParcial.memberId))?.debt, "15000.00");
+
+  // Dos administradores aprueban a la vez: un solo cargo.
+  const id = (await propuesta(concurrente.memberId))!.id;
+  const codes = (await Promise.all([aprobar(admin.headers, id), aprobar(admin2.headers, id), aprobar(admin.headers, id)])).map((r) => r.statusCode).sort();
+  assert.deepEqual(codes, [200, 200, 201]);
+  assert.equal((await recargos(concurrente.memberId)).length, 1);
+
+  // Miembro egresado: no se le aprueba el recargo.
+  await pool.query("UPDATE member_profiles SET status='exited' WHERE id=$1", [egresado.memberId]);
+  const fuera = await aprobar(admin.headers, (await propuesta(egresado.memberId))!.id);
+  assert.equal(fuera.statusCode, 409);
+  assert.equal(fuera.json().error, "member_inactive");
+
+  // Recordatorios: pago anticipado a fin del mes previo, saldo a favor parcial y total.
+  await pool.query("UPDATE billing_rules SET late_fee_percent=NULL, late_fees_since=NULL WHERE id=1");
+  const anticipado = await socio("2026-01-05", 1);
+  await mov(anticipado.memberId, "charge", "25000", "2026-05-28");
+  await mov(anticipado.memberId, "payment", "25000", "2026-05-28");
+  const debeAnticipado = await socio("2026-01-05", 1); // misma situacion pero sin pagar: si le llega
+  await mov(debeAnticipado.memberId, "charge", "25000", "2026-05-28");
+  sent.length = 0;
+  await correr("2026-05-31");
+  await correr("2026-06-01");
+  assert.deepEqual(avisosA(anticipado.endpoint), [], "pago a fin de mes la cuota del mes siguiente: sin recordatorio");
+  assert.equal(avisosA(debeAnticipado.endpoint).length, 2);
+
+  const aFavorParcial = await socio();
+  await mov(aFavorParcial.memberId, "payment", "20000", "2026-06-15");
+  const aFavorTotal = await socio();
+  await mov(aFavorTotal.memberId, "payment", "30000", "2026-06-15");
+  sent.length = 0;
+  await correr("2026-07-09");
+  assert.equal(avisosA(aFavorParcial.endpoint).length, 1);
+  assert.match(avisosA(aFavorParcial.endpoint)[0]!, /^Tu cuota de \$\s?5\.000 vence mañana\.$/);
+  assert.deepEqual(avisosA(aFavorTotal.endpoint), [], "el saldo a favor cubre la cuota: sin recordatorio");
+});
+
+test("cobros: al anotarse despues del dia general, el vencimiento es el dia en que se anoto", { skip: !integrationEnabled }, async (t: TestContext) => {
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4, connectionTimeoutMillis: 5_000 });
+  const db = new PostgresDatabase(pool);
+  const app = await buildApp(config, { db, transactionalDb: db });
+  t.after(async () => { await app.close(); await pool.end(); });
+  const admin = await user(pool, "admin");
+  const serviceId = String((await pool.query("INSERT INTO services (name, current_price, active) VALUES ($1,'25000.00',true) RETURNING id", [`Yoga ${randomUUID()}`])).rows[0]?.id);
+  const crear = async (startsOn: string) => {
+    const who = await user(pool, "member");
+    const res = await app.inject({ method: "POST", url: `/api/v1/members/${who.memberId}/memberships`, headers: admin.headers,
+      payload: { serviceId, startsOn, billingPeriod: "monthly", agreedPrice: "25000.00" } });
+    assert.equal(res.statusCode, 201, res.body);
+    return res.json().membership.due_day;
+  };
+  assert.equal(await crear("2027-05-05"), null, "antes del 10: vence el 10 (el general)");
+  assert.equal(await crear("2027-05-10"), null);
+  assert.equal(await crear("2027-05-20"), 20);
+  assert.equal(await crear("2027-05-31"), 28, "dias 29-31 vencen el 28 para que exista todos los meses");
 });

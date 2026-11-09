@@ -78,7 +78,7 @@ interface MemberDue extends Record<string, unknown> {
 export interface DailySummary { today: string; members: number; reminders: number; proposals: number }
 
 /** Saldo deudor (debitos - creditos) en centavos, contando movimientos hasta una fecha inclusive. */
-async function balanceCents(db: Database, memberId: string, until: string): Promise<number> {
+export async function balanceCents(db: Database, memberId: string, until: string): Promise<number> {
   const result = await db.query<{ balance: string } & Record<string, unknown>>(
     `SELECT COALESCE(SUM(CASE WHEN direction = 'debit' THEN amount ELSE -amount END), 0)::numeric(14,2)::text AS balance
        FROM ledger_entries WHERE member_id = $1 AND occurred_on <= $2::date`,
@@ -87,16 +87,26 @@ async function balanceCents(db: Database, memberId: string, until: string): Prom
   return toCents(result.rows[0]?.balance ?? "0");
 }
 
-/** ¿Pago algo este periodo? Pago imputado al mes o hecho entre el inicio del mes y hoy. */
-async function paidThisPeriod(db: Database, memberId: string, period: string, today: string): Promise<boolean> {
-  const result = await db.query(
+/**
+ * ¿Ya esta cubierta la cuota de este vencimiento?
+ * - Pago imputado al mes o hecho entre el inicio del mes y hoy; o
+ * - la cuota ya se cargo despues del vencimiento anterior y el saldo no es deudor (pago anticipado a fin del mes previo).
+ */
+async function alreadyCovered(db: Database, memberId: string, period: string, previousDueOn: string, today: string, balance: number): Promise<boolean> {
+  const paid = await db.query(
     `SELECT 1 FROM ledger_entries
       WHERE member_id = $1 AND entry_type = 'payment'
         AND ((applied_period >= $2::date AND applied_period < $3::date) OR (occurred_on >= $2::date AND occurred_on <= $4::date))
       LIMIT 1`,
     [memberId, period, addMonths(period, 1), today]
   );
-  return result.rows.length > 0;
+  if (paid.rows.length > 0) return true;
+  if (balance > 0) return false;
+  const charged = await db.query(
+    "SELECT 1 FROM ledger_entries WHERE member_id = $1 AND entry_type = 'charge' AND occurred_on > $2::date AND occurred_on <= $3::date LIMIT 1",
+    [memberId, previousDueOn, today]
+  );
+  return charged.rows.length > 0;
 }
 
 /**
@@ -136,16 +146,19 @@ export async function runDailyBilling(
 
       if (rules.due_reminders_enabled && member.user_id) {
         const kind = today === addDays(dueOn, -1) ? "day_before" : today === dueOn ? "due_day" : null;
-        if (kind && !(await paidThisPeriod(db, member.member_id, period, today))) {
-          const balance = await balanceCents(db, member.member_id, today);
-          const agreed = toCents(member.agreed_total);
-          if (!(balance < 0 && -balance >= agreed)) {
+        const balance = kind ? await balanceCents(db, member.member_id, today) : 0;
+        const agreed = toCents(member.agreed_total);
+        const previousDueOn = dueDateFor(addMonths(period, -1), member.due_day);
+        if (kind && !(await alreadyCovered(db, member.member_id, period, previousDueOn, today, balance))) {
+          // Saldo deudor si lo hay; si no, la cuota menos el saldo a favor (si lo cubre todo, no hay aviso).
+          const amountDue = balance > 0 ? balance : agreed + balance;
+          if (amountDue > 0) {
             const inserted = await db.query(
               "INSERT INTO due_reminders_sent (member_id, period, kind) VALUES ($1, $2::date, $3) ON CONFLICT DO NOTHING RETURNING member_id",
               [member.member_id, period, kind]
             );
             if (inserted.rows.length) {
-              const amount = formatPesos(balance > 0 ? balance : agreed);
+              const amount = formatPesos(amountDue);
               const when = kind === "day_before" ? "vence mañana" : "vence hoy";
               await notifyUser(db, sender, log, member.user_id, {
                 kind: "due_reminder", title: "Ikigai Training", body: `Tu cuota de ${amount} ${when}.`, url: "/portal.html#accounts"
