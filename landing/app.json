@@ -3,9 +3,9 @@
   "portalUrl": "https://app.ikigai-training.com/portal.html",
   "apk": {
     "file": "downloads/ikigai-training.apk",
-    "version": "1.0.0",
-    "sizeMB": 2.6,
-    "sha256": "c1287709e485ea790839850fcc69c7bf72f7e521599460a479fa0a04d7324dda",
-    "date": "12/10/2026"
+    "version": "1.1.0",
+    "sizeMB": 2.7,
+    "sha256": "6e9b8256b5688c5028563a59899145a0ed97163ba640df23a7ae142bc1373ae0",
+    "date": "09/11/2026"
   }
 }
