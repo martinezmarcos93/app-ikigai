@@ -565,6 +565,59 @@
     const n = state.unreadAnnouncements;
     $("#pageContent").insertAdjacentHTML("afterbegin", `<section class="panel unread-banner" role="status"><p><strong>Tenés ${n} ${n === 1 ? "aviso sin leer" : "avisos sin leer"}.</strong></p><button class="button primary small" type="button" data-view="announcements">Ver avisos</button></section>`);
   }
+  // ---- Notificaciones push de avisos (Android: APK/Chrome; iPhone: app agregada a la pantalla de inicio, iOS 16.4+) ----
+  const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const withTimeout = (promise, ms) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
+  async function currentPushSubscription() {
+    if (!pushSupported()) return null;
+    const registration = await withTimeout(navigator.serviceWorker.ready, 4000);
+    return registration.pushManager.getSubscription();
+  }
+  function urlBase64ToUint8Array(value) {
+    const base64 = (value + "=".repeat((4 - value.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+    return Uint8Array.from(atob(base64), char => char.charCodeAt(0));
+  }
+  async function pushPanel() {
+    let config;
+    try { config = await api.pushConfig(); } catch { return ""; }
+    if (!config.enabled) return "";
+    let body;
+    if (!pushSupported()) {
+      body = isIOS() && !isStandalone()
+        ? `<p>En iPhone los avisos llegan como notificación solo con la app instalada: abrí esta página en <strong>Safari</strong>, tocá <strong>Compartir → «Agregar a pantalla de inicio»</strong>, entrá desde el ícono de Ikigai y volvé a esta sección.</p>`
+        : `<p class="muted">Este navegador no admite notificaciones. Los avisos se siguen viendo acá.</p>`;
+    } else if (Notification.permission === "denied") {
+      body = `<p>Las notificaciones de Ikigai están bloqueadas en este dispositivo. Habilitalas en los ajustes del teléfono (Ajustes → Apps → Ikigai → Notificaciones) y volvé a esta sección.</p>`;
+    } else {
+      let subscription = null;
+      try { subscription = await currentPushSubscription(); } catch { subscription = null; }
+      body = subscription && Notification.permission === "granted"
+        ? `<p>Este dispositivo recibe los avisos como notificación.</p><div class="form-actions"><button class="button small" type="button" data-action="push-test">Enviar una prueba</button><button class="button ghost small" type="button" data-action="push-off">Desactivar</button></div>`
+        : `<p>Recibí los avisos del gimnasio como notificación en este dispositivo, aunque no tengas la app abierta.</p><div class="form-actions"><button class="button primary small" type="button" data-action="push-on">Activar notificaciones</button></div>`;
+    }
+    return `<section class="panel push-panel"><div class="section-title"><span>Notificaciones</span></div>${body}</section>`;
+  }
+  async function enablePush() {
+    // El pedido de permiso va primero, dentro del toque: iOS lo rechaza si antes se espera otra cosa.
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") { showNotice("No se activaron las notificaciones: el permiso no fue concedido."); return false; }
+    const config = await api.pushConfig();
+    if (!config.enabled || !config.publicKey) { showNotice("El servidor todavía no tiene las notificaciones configuradas."); return false; }
+    const registration = await withTimeout(navigator.serviceWorker.ready, 8000);
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(config.publicKey) });
+    const json = subscription.toJSON();
+    await api.subscribePush({ endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } });
+    return true;
+  }
+  async function disablePush() {
+    const subscription = await currentPushSubscription();
+    if (!subscription) return;
+    try { await api.unsubscribePush(subscription.endpoint); }
+    finally { await subscription.unsubscribe(); }
+  }
   async function renderAnnouncements() {
     setPage("Avisos");
     setLoading("Consultando los avisos…");
@@ -586,7 +639,8 @@
       selectField("Para", "audience", [{ value: "all", label: "Todos" }, { value: "members", label: "Solo miembros" }, { value: "coaches", label: "Solo profesores" }], "all"),
       "Publicar aviso",
       "Es un aviso general, no un mensaje privado: no escribas nombres, deudas ni datos de salud de nadie.") : "";
-    $("#pageContent").innerHTML = `${publish}${unread ? `<div class="form-actions" style="margin:16px 0"><button class="button ghost small" type="button" data-action="read-all-announcements">Marcar todos como leídos</button></div>` : ""}<div class="notice-list" style="margin-top:16px">${cards}</div>`;
+    const push = await pushPanel();
+    $("#pageContent").innerHTML = `${push}${publish}${unread ? `<div class="form-actions" style="margin:16px 0"><button class="button ghost small" type="button" data-action="read-all-announcements">Marcar todos como leídos</button></div>` : ""}<div class="notice-list" style="margin-top:16px">${cards}</div>`;
   }
 
   // ---------------- Rutinas ----------------
@@ -1778,6 +1832,18 @@
         await api.markAnnouncementRead(action.dataset.id);
         await renderAnnouncements();
       }
+      else if (action.dataset.action === "push-on") {
+        if (await enablePush()) { await renderAnnouncements(); showNotice("Listo: los avisos van a llegar como notificación a este dispositivo.", "success"); }
+      }
+      else if (action.dataset.action === "push-off") {
+        await disablePush();
+        await renderAnnouncements();
+        showNotice("Notificaciones desactivadas en este dispositivo.", "success");
+      }
+      else if (action.dataset.action === "push-test") {
+        const result = await api.testPush();
+        showNotice(result.sent ? "Prueba enviada: en unos segundos debería llegar la notificación." : "No hay dispositivos activos para probar. Desactivá y volvé a activar.", result.sent ? "success" : "error");
+      }
       else if (action.dataset.action === "read-all-announcements") {
         const pending = [...document.querySelectorAll(".notice-card.is-unread")].map(node => node.dataset.announcement);
         for (const announcementId of pending) await api.markAnnouncementRead(announcementId);
@@ -1914,7 +1980,7 @@
       state.tourDone = result.tourCompleted === true;
       state.releaseNotesSeen = result.releaseNotesSeen || null;
       setAuthenticated(result.user);
-      await renderView("dashboard");
+      await renderView(startView());
       refreshUnread();
       maybeStartTour();
       maybeShowReleaseNotes();
@@ -1922,6 +1988,7 @@
     finally { button.disabled=false; button.innerHTML='Ingresar <span aria-hidden="true">↗</span>'; }
   });
   $("#logoutButton").addEventListener("click", async () => {
+    try { await disablePush(); } catch { /* sin push o sin red: igual se cierra la sesion */ }
     try { await api.logout(); } catch (error) { showError(error); }
     setUnauthenticated();
   });
@@ -1997,6 +2064,13 @@
     splash.classList.add("is-done");
     setTimeout(() => splash.remove(), 400);
   }
+  // Al tocar una notificacion se abre el portal directo en «Avisos».
+  const startView = () => (location.hash === "#announcements" ? "announcements" : "dashboard");
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", event => {
+      if (event.data?.type === "open-announcements" && state.user) renderView("announcements").catch(showError);
+    });
+  }
   async function boot() {
     // Textos de desarrollo (URL de la API local): solo se muestran en localhost, nunca a quien usa la app instalada.
     if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) document.querySelectorAll("[data-dev-only]").forEach(el => el.remove());
@@ -2014,7 +2088,7 @@
       state.tourDone = result.tourCompleted === true;
       state.releaseNotesSeen = result.releaseNotesSeen || null;
       setAuthenticated(result.user);
-      await renderView("dashboard");
+      await renderView(startView());
       refreshUnread();
       maybeStartTour();
       maybeShowReleaseNotes();
