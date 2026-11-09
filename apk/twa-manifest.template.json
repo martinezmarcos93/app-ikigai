@@ -11,7 +11,7 @@
   "navigationDividerColor": "#080808",
   "navigationDividerColorDark": "#080808",
   "backgroundColor": "#000000",
-  "enableNotifications": false,
+  "enableNotifications": true,
   "startUrl": "/portal.html",
   "iconUrl": "__ICON_BASE__/assets/pwa/icon-512.png",
   "maskableIconUrl": "__ICON_BASE__/assets/pwa/icon-maskable-512.png",

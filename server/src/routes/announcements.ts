@@ -3,6 +3,8 @@ import type { AppConfig } from "../config.js";
 import type { Database, TransactionalDatabase } from "../db.js";
 import { resolveActor, type AuthenticatedActor } from "../security/actor.js";
 import { requireCsrf } from "../security/csrf.js";
+import type { PushSender } from "../domain/web-push.js";
+import { notifyAnnouncement } from "./push.js";
 
 type Audience = "all" | "members" | "coaches";
 interface CreateBody { title: string; body: string; audience: Audience }
@@ -25,7 +27,8 @@ export function registerAnnouncementRoutes(
   app: FastifyInstance,
   db: Database,
   transactionalDb: TransactionalDatabase,
-  config: AppConfig
+  config: AppConfig,
+  pushSender?: PushSender
 ): void {
   app.get("/api/v1/announcements", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
@@ -79,6 +82,10 @@ export function registerAnnouncementRoutes(
         [actor.userId, row.id, request.id, JSON.stringify({ audience: request.body.audience })]
       );
       return row;
+    });
+    // El push sale despues de confirmar el aviso y no demora la respuesta; si falla, el aviso igual queda publicado.
+    void notifyAnnouncement(db, pushSender, request.log, {
+      id: String(announcement.id), title, body, audience: request.body.audience, createdBy: actor.userId
     });
     return reply.code(201).send({ announcement });
   });

@@ -786,3 +786,6 @@ transition: none !important;
   .ranking-place-1{transform:none}
   .ranking-self div:last-child{text-align:left}
 }
+
+/* Notificaciones push de avisos */
+.push-panel { margin-bottom: 16px; }

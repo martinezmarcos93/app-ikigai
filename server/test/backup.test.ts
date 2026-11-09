@@ -68,7 +68,7 @@ test("parseBackupPayload rechaza contenido que no es un respaldo de Ikigai", () 
 // --- Cobertura de tablas ----------------------------------------------------------------------------
 
 test("toda tabla de las migraciones esta en el respaldo o en la lista de exclusiones documentada", async () => {
-  const EXCLUIDAS = new Set(["sessions", "password_reset_tokens", "user_invitations", "rate_limit_buckets", "schema_migrations"]);
+  const EXCLUIDAS = new Set(["sessions", "password_reset_tokens", "user_invitations", "rate_limit_buckets", "schema_migrations", "push_subscriptions"]);
   const dir = new URL("../migrations/", import.meta.url);
   const created = new Set<string>();
   for (const name of (await readdir(dir)).filter((n) => n.endsWith(".sql"))) {

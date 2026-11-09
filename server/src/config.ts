@@ -1,3 +1,5 @@
+import { validateVapidKeys, type VapidKeys } from "./domain/web-push.js";
+
 export type NodeEnvironment = "development" | "test" | "production";
 
 export interface AppConfig {
@@ -12,6 +14,8 @@ export interface AppConfig {
   passwordResetDeliveryUrl?: string;
   passwordResetDeliveryToken?: string;
   passwordResetPublicUrl?: string;
+  /** Claves VAPID para notificaciones push de avisos. Sin ellas los avisos solo se ven dentro del portal. */
+  vapid?: VapidKeys;
 }
 
 export type EnvironmentSource = Record<string, string | undefined>;
@@ -102,10 +106,24 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
     }
   }
 
+  const vapidPublic = env.VAPID_PUBLIC_KEY?.trim();
+  const vapidPrivate = env.VAPID_PRIVATE_KEY?.trim();
+  const vapidSubject = env.VAPID_SUBJECT?.trim();
+  let vapid: VapidKeys | undefined;
+  if (vapidPublic || vapidPrivate || vapidSubject) {
+    if (!vapidPublic || !vapidPrivate || !vapidSubject) {
+      throw new Error("VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT must be configured together.");
+    }
+    if (!/^(mailto:\S+@\S+|https:\/\/\S+)$/.test(vapidSubject)) throw new Error("VAPID_SUBJECT must be a mailto: address or an https URL.");
+    validateVapidKeys(vapidPublic, vapidPrivate);
+    vapid = { publicKey: vapidPublic, privateKey: vapidPrivate, subject: vapidSubject };
+  }
+
   return {
     nodeEnv: rawEnv, host, port, trustProxyHops, corsOrigins, sessionSecret, gymTimezone,
     ...(passwordResetDeliveryUrl ? { passwordResetDeliveryUrl } : {}),
     ...(passwordResetDeliveryToken ? { passwordResetDeliveryToken } : {}),
-    ...(passwordResetPublicUrl ? { passwordResetPublicUrl } : {})
+    ...(passwordResetPublicUrl ? { passwordResetPublicUrl } : {}),
+    ...(vapid ? { vapid } : {})
   };
 }

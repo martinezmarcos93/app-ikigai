@@ -27,6 +27,8 @@ import { registerBackupRoutes } from "./routes/backup.js";
 import { registerGameRoutes } from "./routes/game.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerStrengthRankingRoutes } from "./routes/strength-rankings.js";
+import { registerPushRoutes } from "./routes/push.js";
+import { createPushSender, type PushSender } from "./domain/web-push.js";
 import { createHmac } from "node:crypto";
 import { resolveActor } from "./security/actor.js";
 
@@ -53,6 +55,8 @@ export interface AppDependencies {
   transactionalDb?: TransactionalDatabase;
   /** Solo para pruebas: recibe cada ruta registrada (metodo + url) para auditar la matriz de autorizacion. */
   onRoute?: (route: { method: string; url: string; schema?: unknown }) => void;
+  /** Solo para pruebas: reemplaza el envio real de notificaciones push. */
+  pushSender?: PushSender;
 }
 
 export async function buildApp(
@@ -211,7 +215,9 @@ export async function buildApp(
     registerMembershipRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerInvitationRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAccountRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
-    registerAnnouncementRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
+    const pushSender = dependencies.pushSender ?? (config.vapid ? createPushSender(config.vapid) : undefined);
+    registerAnnouncementRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config, pushSender);
+    registerPushRoutes(app, appDb ?? dependencies.transactionalDb, config, pushSender);
     registerAdminSecurityRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerInstitutionalSettingsRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAdminRoleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);

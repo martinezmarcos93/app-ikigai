@@ -181,6 +181,7 @@ export function registerDataProtectionRoutes(
               [member.user_id, `anonimizado-${member.user_id}@anonimizado.invalid`, unusable]
             );
             await tx.query("UPDATE sessions SET revoked_at = clock_timestamp() WHERE user_id = $1 AND revoked_at IS NULL", [member.user_id]);
+            await tx.query("DELETE FROM push_subscriptions WHERE user_id = $1", [member.user_id]);
             await tx.query("UPDATE user_invitations SET revoked_at = clock_timestamp() WHERE user_id = $1 AND accepted_at IS NULL AND revoked_at IS NULL", [member.user_id]);
             await tx.query("UPDATE password_reset_tokens SET revoked_at = clock_timestamp() WHERE user_id = $1 AND used_at IS NULL AND revoked_at IS NULL", [member.user_id]);
             accountClosed = true;
