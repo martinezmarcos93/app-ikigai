@@ -8,7 +8,7 @@
 **iPhone:** solo iOS 16.4+ y con la app agregada a la pantalla de inicio desde Safari; el portal lo explica en la sección Avisos.
 
 **Bloqueos / pendientes:**
-- Fechas de pago + tolerancia + penalización: faltan las reglas de Agustín (hoy los cargos son manuales y no hay vencimientos).
+- Fechas de pago + tolerancia + recargo: Agustín respondió (ver `docs/reglas-cobro-respuestas-agustin.md`); quedan 2 dudas. Se diseña después del deploy de push.
 - Rotar la contraseña de Neon (`neondb_owner`) y actualizar `DATABASE_URL` en Render.
 - Render no despliega solo (desde el 12/10).
 - 8 apodos en espera y 11 sin correspondencia.
