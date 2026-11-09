@@ -789,3 +789,5 @@ transition: none !important;
 
 /* Notificaciones push de avisos */
 .push-panel { margin-bottom: 16px; }
+.compact-select { min-width: 9rem; padding: 6px 8px; }
+.late-fee-panel .form-actions { margin: 0; flex-wrap: nowrap; }

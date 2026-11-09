@@ -1,5 +1,5 @@
 /* Network-first shell strategy: fetch updates when online and fall back to cache offline. */
-const CACHE_VERSION = 'ikigai-shell-v26';
+const CACHE_VERSION = 'ikigai-shell-v27';
 const APP_SHELL = ['./','./index.html','./portal.html','./portal.css','./api-client.js','./tour.js','./iron-pixel.js','./portal.js','./reset-password.html','./reset-password.js','./accept-invitation.html','./accept-invitation.js','./sw-register.js','./assets/fonts/fonts.css','./assets/fonts/bebas-neue-400.woff2','./assets/fonts/rajdhani-400.woff2','./assets/fonts/rajdhani-500.woff2','./assets/fonts/rajdhani-600.woff2','./assets/fonts/rajdhani-700.woff2','./manifest.webmanifest','./assets/brand/tokens.css','./assets/icons/ikigai-symbols.svg','./assets/ikigai-logo.jpg','./assets/pwa/icon-192.png','./assets/pwa/icon-512.png','./assets/pwa/icon-maskable-512.png','./assets/pwa/favicon-48.png','./assets/pwa/apple-touch-icon.png','./assets/social/og-image.png','./assets/illustrations/welcome.svg','./assets/illustrations/empty-members.svg','./assets/illustrations/offline.svg','./assets/illustrations/error-state.svg'];
 
 self.addEventListener('install', event => {
@@ -38,8 +38,8 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification(title, {
     body,
     icon: './assets/pwa/icon-192.png',
-    tag: data.id ? `aviso-${data.id}` : 'ikigai-aviso',
-    data: { url: './portal.html#announcements' }
+    tag: data.id ? `aviso-${data.id}` : data.kind === 'due_reminder' ? 'ikigai-cuota' : 'ikigai-aviso',
+    data: { url: /^\/portal\.html#(announcements|accounts)$/.test(data.url || '') ? '.' + data.url : './portal.html#announcements' }
   }));
 });
 self.addEventListener('notificationclick', event => {
@@ -47,7 +47,8 @@ self.addEventListener('notificationclick', event => {
   const target = new URL(event.notification.data?.url || './portal.html#announcements', self.location.href).href;
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
     const open = windows.find(client => new URL(client.url).pathname.endsWith('/portal.html'));
-    if (open) { open.postMessage({ type: 'open-announcements' }); return open.focus(); }
+    const view = new URL(target).hash.slice(1) || 'announcements';
+    if (open) { open.postMessage({ type: 'open-view', view }); return open.focus(); }
     return self.clients.openWindow(target);
   }));
 });

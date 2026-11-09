@@ -390,10 +390,20 @@
       return;
     }
     const result = await api.listMemberships(state.selectedMember);
+    let defaultDueDay = 10;
+    if (isAdmin()) { try { defaultDueDay = (await api.getBillingRules()).rules.default_due_day; } catch { /* sin reglas: se muestra el 10 */ } }
+    // Vencimiento: solo las mensuales activas. Administracion lo cambia por persona (p. ej. el 20 para quien empezo a mitad de mes).
+    const dueCell = m => {
+      if (m.billing_period !== "monthly" || m.status === "ended") return "—";
+      if (!isAdmin()) return m.due_day ? `Día ${esc(m.due_day)}` : "Día general";
+      const options = [`<option value=""${m.due_day ? "" : " selected"}>General (día ${esc(defaultDueDay)})</option>`]
+        .concat(Array.from({ length: 28 }, (_, i) => i + 1).map(d => `<option value="${d}"${Number(m.due_day) === d ? " selected" : ""}>Día ${d}</option>`));
+      return `<select class="compact-select" data-due-day="${esc(m.id)}" aria-label="Día de vencimiento">${options.join("")}</select>`;
+    };
     // Solo administracion finaliza membresias: el miembro ve su historial sin acciones.
-    const list = table(["Servicio","Período","Desde","Hasta","Precio acordado","Estado",...(isAdmin() ? ["Acción"] : [])],(result.memberships || []).map(m => row([
+    const list = table(["Servicio","Período","Desde","Hasta","Precio acordado","Vence","Estado",...(isAdmin() ? ["Acción"] : [])],(result.memberships || []).map(m => row([
       esc(m.service_name),esc(labels[m.billing_period] || m.billing_period),date(m.starts_on),date(m.ends_on),
-      money(m.agreed_price),statusBadge(m.status),
+      money(m.agreed_price),dueCell(m),statusBadge(m.status),
       ...(isAdmin() ? [m.status !== "ended" && m.status !== "cancelled" ? `<button class="button small danger" data-action="end-membership" data-id="${esc(m.id)}" type="button">Finalizar</button>` : "—"] : [])
     ])));
     const memberPicker = isAdmin() ? `<form class="panel inline-form" data-form="select-member"><div class="field"><label for="memberPick">Miembro</label><select id="memberPick" name="memberId">${options.map(o=>`<option value="${esc(o.value)}"${o.value===state.selectedMember?" selected":""}>${esc(o.label)}</option>`).join("")}</select></div><button class="button" type="submit">Ver historial</button></form><div style="height:14px"></div>` : "";
@@ -409,6 +419,8 @@
     $("#pageContent").innerHTML = `${memberPicker}<div class="panel"><h2 class="section-title">Historial de membresías</h2>${list}</div><div style="height:16px"></div>${isAdmin() ? create : ""}`;
   }
 
+  const MONTH_NAMES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const monthName = period => `${MONTH_NAMES[Number(String(period).slice(5,7)) - 1] || ""} ${String(period).slice(0,4)}`;
   async function renderAccounts() {
     setPage("Cuenta corriente");
     if (isAdmin() || isMember()) await loadMembers();   // el miembro carga solo su propio perfil
@@ -436,7 +448,16 @@
       field("Descripción","description","text",{required:true,wide:true}),
       "Registrar movimiento",
       "Cada envío usa una clave de idempotencia para evitar duplicados al reintentar. El comprobante emitido por el sistema es interno, no una factura fiscal.") : "";
-    $("#pageContent").innerHTML = `${picker}<div class="stats-grid"><div class="stat-card"><small>Saldo neto</small><strong>${money(result.balance)}</strong></div><div class="stat-card"><small>Movimientos</small><strong>${result.total ?? entries.length}</strong></div><div class="stat-card"><small>Registro consultado</small><strong>${isAdmin()?"Miembro":"Mi cuenta"}</strong></div></div><div class="panel"><h2 class="section-title">Movimientos históricos</h2>${movementTable}</div>${create ? '<div style="height:16px"></div>'+create : ""}`;
+    let lateFees = "";
+    if (isAdmin()) {
+      let proposals = [];
+      try { proposals = (await api.listLateFeeProposals()).proposals || []; } catch { proposals = []; }
+      if (proposals.length) lateFees = `<section class="panel late-fee-panel"><h2 class="section-title">Recargos para aprobar</h2><p class="muted">Pasados los días de tolerancia, estas personas tenían deuda. Nada se cobra hasta que lo apruebes.</p>${table(["Miembro","Mes","Venció","Deuda","Recargo","Acción"], proposals.map(p => row([
+        esc(p.member_name), esc(monthName(p.period)), date(p.due_on), money(p.debt_amount), `<strong>${money(p.fee_amount)}</strong> <small class="muted">(${esc(Number(p.percent))}%)</small>`,
+        `<div class="form-actions"><button class="button small primary" type="button" data-action="approve-late-fee" data-id="${esc(p.id)}">Aprobar</button><button class="button small ghost" type="button" data-action="dismiss-late-fee" data-id="${esc(p.id)}">Descartar</button></div>`
+      ])))}</section><div style="height:16px"></div>`;
+    }
+    $("#pageContent").innerHTML = `${lateFees}${picker}<div class="stats-grid"><div class="stat-card"><small>Saldo neto</small><strong>${money(result.balance)}</strong></div><div class="stat-card"><small>Movimientos</small><strong>${result.total ?? entries.length}</strong></div><div class="stat-card"><small>Registro consultado</small><strong>${isAdmin()?"Miembro":"Mi cuenta"}</strong></div></div><div class="panel"><h2 class="section-title">Movimientos históricos</h2>${movementTable}</div>${create ? '<div style="height:16px"></div>'+create : ""}`;
   }
 
   async function renderCoaches() {
@@ -891,6 +912,15 @@
     setLoading("Consultando la configuración guardada en el servidor…");
     const result = await api.getInstitutionSettings();
     const settings = result.settings || {};
+    let rules = null;
+    try { rules = (await api.getBillingRules()).rules; } catch { rules = null; }
+    const billingForm = rules ? form("Cobros y vencimientos","billing-rules",
+      field("Día de vencimiento general (1 a 28)","default_due_day","number",{required:true,min:"1",max:"28",step:"1",value:rules.default_due_day})+
+      field("Días de tolerancia","grace_days","number",{required:true,min:"0",max:"15",step:"1",value:rules.grace_days})+
+      field("Recargo por mora (% de la deuda)","late_fee_percent","number",{min:"0.01",max:"100",step:"0.01",value:rules.late_fee_percent ? Number(rules.late_fee_percent) : "",placeholder:"Vacío = sin recargos"})+
+      selectField("Recordatorios por notificación","due_reminders_enabled",[{value:"true",label:"Sí: un día antes y el día del vencimiento"},{value:"false",label:"No enviar recordatorios"}],String(rules.due_reminders_enabled)),
+      "Guardar reglas de cobro",
+      "Cada persona puede tener su propio día de vencimiento (se cambia en Membresías). Pasada la tolerancia, si hay deuda, la app propone el recargo en Cuenta corriente y vos decidís si se aplica: nunca se cobra solo. Al activar el recargo se cuenta desde hoy, sin recargos de meses anteriores.") : "";
     $( "#pageContent" ).innerHTML = `
       ${form("Configuración institucional","institution-settings",
         field("Nombre del gimnasio","institution_name","text",{value:settings.institution_name || "",maxLength:120,wide:true})+
@@ -901,6 +931,7 @@
         "Guardar configuración",
         "Los campos vacíos quedan sin configurar. Al guardar, los cambios los ven todas las personas que usan la aplicación.") }
       <p class="footer-note">Última actualización: ${esc(settings.updated_at ? new Date(settings.updated_at).toLocaleString("es-AR") : "Sin cambios")}.</p>
+      ${billingForm}
       ${form("Respaldo de la base de datos","backup",
         field("Frase del respaldo (mínimo 12 caracteres)","passphrase","password",{maxLength:200,wide:true,placeholder:"La elegís vos; no se guarda en ningún lado"})+
         field("Repetí la frase","passphrase2","password",{maxLength:200,wide:true}),
@@ -1428,6 +1459,19 @@
       } catch (error) { showNotice(strengthAliasError(error) || error.message || "Ocurrió un error inesperado."); }
       return;
     }
+    if (kind === "billing-rules") {
+      if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
+      const percent = v("late_fee_percent");
+      await api.updateBillingRules({
+        default_due_day: Number(v("default_due_day")),
+        grace_days: Number(v("grace_days")),
+        late_fee_percent: percent ? String(Number(percent)) : null,
+        due_reminders_enabled: v("due_reminders_enabled") === "true"
+      });
+      await renderView("institution-settings");
+      showNotice("Reglas de cobro guardadas.", "success");
+      return;
+    }
     if (kind === "institution-settings") {
       if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
       if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
@@ -1854,6 +1898,17 @@
         await api.markAnnouncementRead(action.dataset.id);
         await renderAnnouncements();
       }
+      else if (action.dataset.action === "approve-late-fee") {
+        if (!window.confirm("¿Aplicar este recargo? Se registra como un cargo en la cuenta corriente del miembro.")) return;
+        await api.approveLateFee(action.dataset.id);
+        await renderAccounts();
+        showNotice("Recargo aplicado en la cuenta corriente.", "success");
+      }
+      else if (action.dataset.action === "dismiss-late-fee") {
+        await api.dismissLateFee(action.dataset.id);
+        await renderAccounts();
+        showNotice("Recargo descartado. No se registró ningún movimiento.", "success");
+      }
       else if (action.dataset.action === "push-on") {
         if (await enablePush()) { await renderAnnouncements(); showNotice("Listo: los avisos van a llegar como notificación a este dispositivo.", "success"); }
       }
@@ -2086,11 +2141,24 @@
     splash.classList.add("is-done");
     setTimeout(() => splash.remove(), 400);
   }
-  // Al tocar una notificacion se abre el portal directo en «Avisos».
-  const startView = () => (location.hash === "#announcements" ? "announcements" : "dashboard");
+  document.addEventListener("change", async event => {
+    const select = event.target.closest?.("[data-due-day]");
+    if (!select) return;
+    select.disabled = true;
+    try {
+      await api.setMembershipDueDay(select.dataset.dueDay, select.value ? Number(select.value) : null);
+      showNotice(select.value ? `Vencimiento cambiado al día ${select.value}.` : "Vuelve a vencer el día general.", "success");
+    } catch (error) { showError(error); await renderView("memberships"); }
+    finally { if (document.body.contains(select)) select.disabled = false; }
+  });
+
+  // Al tocar una notificacion se abre el portal en la seccion que corresponde (avisos o cuenta corriente).
+  const OPENABLE_VIEWS = ["announcements", "accounts"];
+  const startView = () => (OPENABLE_VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "dashboard");
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("message", event => {
-      if (event.data?.type === "open-announcements" && state.user) renderView("announcements").catch(showError);
+      const view = event.data?.type === "open-view" ? event.data.view : event.data?.type === "open-announcements" ? "announcements" : null;
+      if (view && OPENABLE_VIEWS.includes(view) && state.user) renderView(view).catch(showError);
     });
   }
   async function boot() {
