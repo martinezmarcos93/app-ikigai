@@ -147,7 +147,7 @@ test("cobros: recordatorios, propuesta de recargo pasada la tolerancia y aprobac
   const aprobada = await accion(admin.headers, propuesta!.id, "approve");
   assert.equal(aprobada.statusCode, 201);
   assert.equal((await accion(admin.headers, propuesta!.id, "approve")).statusCode, 200, "aprobar dos veces no duplica");
-  assert.equal((await accion(admin.headers, propuesta!.id, "dismiss")).statusCode, 409, "un recargo aprobado se revierte, no se descarta");
+  assert.equal((await accion(admin.headers, propuesta!.id, "dismiss")).statusCode, 409, "un recargo aprobado se corrige con ajuste, no se descarta");
   const recargos = (await pool.query("SELECT amount::text AS amount, description, applied_period::text AS period FROM ledger_entries WHERE member_id=$1 AND description LIKE 'Recargo%'", [debe.memberId])).rows;
   assert.equal(recargos.length, 1);
   assert.equal(recargos[0]?.amount, "5000.00");
@@ -251,8 +251,17 @@ test("cobros: bordes del corte, pagos tardios, concurrencia y saldo a favor", { 
 
   // Dos administradores aprueban a la vez: un solo cargo.
   const id = (await propuesta(concurrente.memberId))!.id;
-  const codes = (await Promise.all([aprobar(admin.headers, id), aprobar(admin2.headers, id), aprobar(admin.headers, id)])).map((r) => r.statusCode).sort();
-  assert.deepEqual(codes, [200, 200, 201]);
+  // Otra conexion bloquea la propuesta para que las dos aprobaciones lleguen juntas y compitan al liberarse.
+  const bloqueo = await pool.connect();
+  await bloqueo.query("BEGIN");
+  await bloqueo.query("SELECT id FROM late_fee_proposals WHERE id = $1 FOR UPDATE", [id]);
+  const pendientes = Promise.all([aprobar(admin.headers, id), aprobar(admin2.headers, id)]);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  await bloqueo.query("COMMIT");
+  bloqueo.release();
+  const codes = (await pendientes).map((r) => r.statusCode).sort();
+  assert.equal(codes.filter((c) => c === 201).length, 1, `una sola aprobacion crea el cargo: ${codes}`);
+  assert.ok(codes.every((c) => c === 200 || c === 201 || c === 409), String(codes));
   assert.equal((await recargos(concurrente.memberId)).length, 1);
 
   // Miembro egresado: no se le aprueba el recargo.

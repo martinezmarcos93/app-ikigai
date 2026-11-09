@@ -5,7 +5,7 @@ Estado: **aceptado** (09/11/2026; Marcos confirmó vencimiento general 10 + prop
 ## Contexto
 Hoy la cuota se carga a mano como `charge` en la cuenta corriente; no hay fecha de vencimiento, ni mora, ni recargo.
 `PRODUCT_PLAN.md` exige reglas explícitas y **ninguna multa automática no aprobada**. Los movimientos del libro son inmutables
-(triggers): todo recargo entra como movimiento nuevo y se corrige con `reversal`, nunca editando.
+(triggers): todo recargo entra como movimiento nuevo y se corrige con un `adjustment` a crédito, nunca editando.
 
 Agustín pidió: vencimiento **configurable por persona**, **2 días** de tolerancia, recargo como **porcentaje de la deuda**
 que **aprueba el admin**, y recordatorio **1 día antes y el mismo día**.
@@ -15,7 +15,8 @@ que **aprueba el admin**, y recordatorio **1 día antes y el mismo día**.
 ### 1. Día de vencimiento: general + propio por persona
 - `billing_rules.default_due_day` (inicial **10**): el vencimiento de todos.
 - `memberships.due_day smallint NULL CHECK (due_day BETWEEN 1 AND 28)`: el propio, para quien empezó a mitad de mes (p. ej. el 20).
-  `NULL` = el general. Se toma 1–28 para que exista en todos los meses. Si una persona tiene varias membresías mensuales,
+  `NULL` = el general. **Al crear la membresía**, si la fecha de inicio es posterior al día general, `due_day` toma el día
+  en que se anotó (29–31 → 28); si no, queda `NULL`. Agustín lo puede cambiar después en Membresías → «Vence». Se toma 1–28 para que exista en todos los meses. Si una persona tiene varias membresías mensuales,
   vence en el día más temprano y la cuota es la suma de los precios acordados.
 - Solo aplica a membresías `monthly` y `active`. Otras periodicidades quedan fuera hasta que haga falta.
 
@@ -31,11 +32,17 @@ que **aprueba el admin**, y recordatorio **1 día antes y el mismo día**.
   estado `pending|approved|dismissed`, quién decidió y cuándo). Una sola propuesta por miembro + período (único).
 - El admin la ve en «Cuenta corriente → Recargos para aprobar»: **Aprobar** crea un `charge` «Recargo por mora <mes>»
   enlazado a la propuesta (idempotente); **Descartar** la cierra sin movimiento. Ambas quedan en auditoría.
+- **Al aprobar se recalcula la deuda al corte** (puede haberse cargado después un pago con fecha anterior): si ya no hay
+  deuda responde 409 y hay que descartar; si bajó, el recargo se calcula sobre la deuda menor (nunca sube).
+  No se aprueban recargos de miembros egresados o anonimizados. Contra el doble cargo hay dos barreras: `FOR UPDATE` sobre la
+  propuesta y el `UPDATE … WHERE status = 'pending'`; si falla la segunda, la transacción se deshace.
+- Un recargo aprobado no se descarta: se corrige con un **ajuste a crédito** en la cuenta corriente.
 - La mora **no cambia sola** el estado del miembro ni bloquea reservas (eso sigue siendo decisión del admin).
 
 ### 4. Recordatorios por push al miembro
-- Día anterior y día del vencimiento, si `due_reminders_enabled` y el miembro no tiene saldo a favor ni un pago con
-  `applied_period` (o hecho) en ese mes. Texto **con monto**, decisión de Marcos/Agustín sabiendo que se ve en la pantalla
+- Día anterior y día del vencimiento, si `due_reminders_enabled` y la cuota no está cubierta: no hay pago con
+  `applied_period` (o hecho) en ese mes, ni la cuota ya cargada desde el vencimiento anterior con saldo no deudor
+  (pago anticipado a fin del mes previo), ni saldo a favor que la cubra. Con saldo a favor parcial, el aviso dice la diferencia. Texto **con monto**, decisión de Marcos/Agustín sabiendo que se ve en la pantalla
   bloqueada: «Tu cuota de $ 25.000 vence mañana.» (saldo deudor si lo hay; si no, la cuota acordada). Al tocarla abre Cuenta corriente.
 - Reutiliza la infraestructura push de ADR/PR #45, ahora con destinatario individual. Se registra el envío
   (`due_reminders_sent`, único por membresía + período + tipo) para no duplicar.
@@ -53,6 +60,10 @@ que **aprueba el admin**, y recordatorio **1 día antes y el mismo día**.
   Sin respuesta, **no se genera** (comportamiento actual).
 - **«Cargo fijo»:** se interpreta como «un movimiento propio en la cuenta corriente» calculado por porcentaje. Si quiso decir
   monto fijo, se agrega `late_fee_fixed` y la regla pasa a «fijo o porcentaje».
+
+- **Base del recargo (hallazgo 6 de la revisión):** hoy el porcentaje se aplica sobre el **saldo deudor total** al corte, que
+  incluye deuda de meses anteriores y recargos ya aprobados (recargo sobre recargo). Confirmar con Agustín **antes de cargar
+  un porcentaje en producción**; la alternativa es calcularlo solo sobre la cuota del mes impaga.
 
 ## Consecuencias
 - Migraciones: `due_day`, columnas en `institutional_settings`, `late_fee_proposals`, `due_reminders_sent`.

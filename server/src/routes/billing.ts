@@ -161,10 +161,12 @@ export function registerBillingRoutes(
            VALUES ($1, 'charge', 'debit', $2, $3, $4::date, $5::date, $6, $7, $8) RETURNING id`,
           [proposal.member_id, feeAmount, description, todayIn(config.gymTimezone), proposal.period, actor.userId, key, hash]
         )).rows[0];
-        await tx.query(
-          "UPDATE late_fee_proposals SET status = 'approved', debt_amount = $4, fee_amount = $5, ledger_entry_id = $2, decided_by = $3, decided_at = now() WHERE id = $1",
+        // Segunda barrera contra doble cargo (ademas del FOR UPDATE): solo se aprueba si seguia pendiente; si no, se deshace todo.
+        const approved = await tx.query(
+          "UPDATE late_fee_proposals SET status = 'approved', debt_amount = $4, fee_amount = $5, ledger_entry_id = $2, decided_by = $3, decided_at = now() WHERE id = $1 AND status = 'pending' RETURNING id",
           [proposal.id, entry?.id, actor.userId, debtAmount, feeAmount]
         );
+        if (approved.rows.length !== 1) throw new BillingError(409, "proposal_changed", "The late fee proposal changed while approving; reload and try again.");
         await tx.query(
           "INSERT INTO audit_events (actor_user_id,action,entity_type,entity_id,request_id,after_data) VALUES ($1,'billing.late_fee_approved','late_fee_proposal',$2,$3,$4::jsonb)",
           [actor.userId, proposal.id, request.id, JSON.stringify({ memberId: proposal.member_id, period: proposal.period, proposedDebt: proposal.debt_amount, debtAmount, feeAmount, ledgerEntryId: entry?.id })]
