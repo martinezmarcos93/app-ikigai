@@ -16,6 +16,8 @@ export interface AppConfig {
   passwordResetPublicUrl?: string;
   /** Claves VAPID para notificaciones push de avisos. Sin ellas los avisos solo se ven dentro del portal. */
   vapid?: VapidKeys;
+  /** Token de la tarea diaria de cobros (lo manda el cron del Worker). Sin el, la tarea no corre. */
+  internalJobToken?: string;
 }
 
 export type EnvironmentSource = Record<string, string | undefined>;
@@ -119,11 +121,15 @@ export function loadConfig(env: EnvironmentSource = process.env): AppConfig {
     vapid = { publicKey: vapidPublic, privateKey: vapidPrivate, subject: vapidSubject };
   }
 
+  const internalJobToken = env.INTERNAL_JOB_TOKEN?.trim();
+  if (internalJobToken && internalJobToken.length < 32) throw new Error("INTERNAL_JOB_TOKEN must contain at least 32 characters.");
+
   return {
     nodeEnv: rawEnv, host, port, trustProxyHops, corsOrigins, sessionSecret, gymTimezone,
     ...(passwordResetDeliveryUrl ? { passwordResetDeliveryUrl } : {}),
     ...(passwordResetDeliveryToken ? { passwordResetDeliveryToken } : {}),
     ...(passwordResetPublicUrl ? { passwordResetPublicUrl } : {}),
-    ...(vapid ? { vapid } : {})
+    ...(vapid ? { vapid } : {}),
+    ...(internalJobToken ? { internalJobToken } : {})
   };
 }

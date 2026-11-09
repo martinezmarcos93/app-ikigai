@@ -1,15 +1,19 @@
 <!-- PUNTO-DE-CONTROL -->
-**Tarea actual (09/11):** notificaciones push de avisos EN PRODUCCIÓN (PR #45, `ba2468c`). API con `VAPID_*` desde un environment group de Render (verificado: `/api/v1/push/config` → enabled, clave pública coincide con `~/.ikigai-signing/vapid.env`). Portal publicado (service worker v26). Landing con APK 1.1.0 (versionCode 2, hash verificado).
+**Tarea actual (09/11):** cobros (ADR-003): vencimiento general 10 (o el día de alta si se anotó después) + editable por persona, tolerancia 2 días, propuestas de recargo (% de la deuda) que aprueba el admin, recordatorios push con monto. Rama `feat/vencimientos-recargos`, revisión hecha (integrar con cambios) y correcciones aplicadas.
 
-**Próximo paso:** Marcos prueba en su Android: primero con la APK 1.0.0 (¿llega la prueba? ¿como Ikigai o como Chrome?) y después con la 1.1.0. Según eso, decidir si hay que pedirles a los miembros que actualicen la APK. Después probar en un iPhone (app agregada a inicio, iOS 16.4+).
+**Próximo paso:** PR → OK de Marcos → merge → `INTERNAL_JOB_TOKEN` (en `~/.ikigai-signing/internal-job-token`) en el environment group de Render y como secreto del Worker → deploy de Render → verificar → Agustín configura el % y los vencimientos.
 
-**Siguiente tarea:** vencimientos + tolerancia + recargo con aprobación del admin + recordatorios push (respuestas en `docs/reglas-cobro-respuestas-agustin.md`; 2 dudas abiertas: ¿cuota mensual automática o manual? ¿«cargo fijo» = monto o %?). Requiere ADR.
+**Antes de cargar un % de recargo en producción:** confirmar con Agustín la base del recargo (hoy: saldo deudor total, incluye deuda vieja y recargos previos → recargo sobre recargo). Alternativa: solo la cuota del mes.
+
+**Ojo tests:** usar una base PostgreSQL NUEVA; reusarla entre corridas hace fallar tests de agenda por datos acumulados.
+
+**Abierto con Agustín:** ¿la cuota mensual la genera la app (§6 del ADR) o sigue manual? Mientras sea manual, sin cargo cargado no hay propuesta de recargo.
+
+**Diferido de la revisión (BAJA):** recordatorios no se recuperan si la tarea no corrió ese día.
 
 **Bloqueos / pendientes:**
-- Claves VAPID: hacer copia de `~/.ikigai-signing/` fuera de la PC (si se pierden, todos reactivan notificaciones).
-- Rotar la contraseña de Neon (`neondb_owner`) y actualizar `DATABASE_URL` en Render.
+- Copia de `~/.ikigai-signing/` fuera de la PC (clave APK, VAPID, token interno).
+- Rotar la contraseña de Neon y actualizar `DATABASE_URL` en Render.
 - Render no despliega solo (desde el 12/10).
-- 8 apodos en espera y 11 sin correspondencia.
-
-**Preguntas abiertas:** ¿Dominadas en repeticiones? ¿Empates comparten puesto?
+- 8 apodos en espera y 11 sin correspondencia. ¿Dominadas en reps? ¿Empates comparten puesto?
 <!-- /PUNTO-DE-CONTROL -->

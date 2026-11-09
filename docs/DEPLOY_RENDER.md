@@ -40,6 +40,7 @@ No usar `sh -c "…"` en el campo: Render no interpreta las comillas y el servic
 | `VAPID_PUBLIC_KEY` | salida de `cd server && npm run push:keys` (notificaciones push de avisos) |
 | `VAPID_PRIVATE_KEY` | ídem (secreto) |
 | `VAPID_SUBJECT` | `mailto:` de contacto del gimnasio o de MMAC (lo piden Google y Apple para contactar si hay abuso) |
+| `INTERNAL_JOB_TOKEN` | `openssl rand -hex 32` (secreto). El **mismo** valor va como secreto del Worker (`wrangler secret put INTERNAL_JOB_TOKEN`): con él el cron diario dispara recordatorios de cuota y propuestas de recargo (ADR-003). Sin él, esa tarea no corre. |
 
 En producción el servidor se niega a arrancar sin las tres variables `PASSWORD_RESET_*` (si falta alguna sale con error de configuración).
 La recuperación por correo no está configurada: las claves se entregan por administración (usuario y clave temporal). El valor `.invalid`

@@ -18,6 +18,10 @@ portal en Cloudflare, el Worker de `deploy/worker/` junta las dos cosas bajo `ht
 - **Render:** `CORS_ORIGINS=https://app.ikigai-training.com` y `TRUST_PROXY_HOPS=2` (saltos de confianza: la red de Render y la dirección de salida de Cloudflare;
   el cliente es la IP que fija el Worker). Si se cambia la cadena de proxies hay que revisar ese número, porque de él depende el límite de intentos por IP.
 
+- **Tarea diaria de cobros (ADR-003):** cron `0 12 * * *` (09:00 de Buenos Aires, todos los días) → `POST /api/v1/internal/daily` directo a la API
+  con la cabecera `x-internal-token`. Requiere el secreto del Worker `INTERNAL_JOB_TOKEN` (mismo valor que en Render):
+  `cd deploy/worker && npx wrangler secret put INTERNAL_JOB_TOKEN`. El proxy público responde 404 a `/api/v*/internal/*`.
+
 ## Publicar
 **Automático:** cada push a `main` corre `.github/workflows/deploy-worker.yml`: tests del portal y del Worker → si el push toca `server/`,
 espera a que Render tenga ese commit arriba (`GET /api/v1/health` → `commit`, que Render define en `RENDER_GIT_COMMIT`; hasta 20 min) → `wrangler deploy`.

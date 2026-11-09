@@ -17,7 +17,7 @@ const PASSWORD = "clave-inicial-segura-1";
 async function person(pool: pg.Pool, role: "admin" | "member" | "coach", memberStatus = "active") {
   const email = `ac-${randomUUID()}@example.test`;
   const user = await pool.query("INSERT INTO users (email,username,password_hash,auth_provider,status) VALUES ($1,$2,$3,'local','active') RETURNING id",
-    [email, `ikigai-${role}-${randomUUID().slice(0, 8).replace(/[0-9]/g, "x")}`, await hashPassword(PASSWORD)]);
+    [email, `ikigai-${role}-${randomUUID().replace(/-/g, "").slice(0, 16).replace(/[0-9]/g, (d) => "ghijklmnop"[Number(d)]!)}`, await hashPassword(PASSWORD)]);
   const userId = String(user.rows[0]?.id);
   await pool.query("INSERT INTO user_roles (user_id,role) VALUES ($1,$2)", [userId, role]);
   let profileId = "";

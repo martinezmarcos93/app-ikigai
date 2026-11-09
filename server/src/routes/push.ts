@@ -38,6 +38,25 @@ async function deliver(db: Database, sender: PushSender, log: FastifyBaseLogger,
   return { sent, removed, failed: statuses.length - sent - removed };
 }
 
+/** Push a los dispositivos de UNA persona (recordatorios de cuota). Nunca lanza: loguea. */
+export async function notifyUser(
+  db: Database, sender: PushSender | undefined, log: FastifyBaseLogger, userId: string, message: Record<string, unknown>
+): Promise<{ devices: number; sent: number }> {
+  if (!sender) return { devices: 0, sent: 0 };
+  try {
+    const rows = await db.query<SubscriptionRow>(
+      `SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth FROM push_subscriptions ps JOIN users u ON u.id = ps.user_id
+        WHERE ps.user_id = $1 AND u.status = 'active'`,
+      [userId]
+    );
+    const outcome = await deliver(db, sender, log, rows.rows, JSON.stringify(message));
+    return { devices: rows.rows.length, sent: outcome.sent };
+  } catch (error) {
+    log.error({ err: error }, "push: no se pudo notificar a la persona");
+    return { devices: 0, sent: 0 };
+  }
+}
+
 /** Avisa por push a los dispositivos de quienes deben ver el aviso (sin el autor). Nunca lanza: loguea. */
 export async function notifyAnnouncement(
   db: Database, sender: PushSender | undefined, log: FastifyBaseLogger,

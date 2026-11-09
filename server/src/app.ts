@@ -28,6 +28,7 @@ import { registerGameRoutes } from "./routes/game.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerStrengthRankingRoutes } from "./routes/strength-rankings.js";
 import { registerPushRoutes } from "./routes/push.js";
+import { registerBillingRoutes } from "./routes/billing.js";
 import { createPushSender, type PushSender } from "./domain/web-push.js";
 import { createHmac } from "node:crypto";
 import { resolveActor } from "./security/actor.js";
@@ -40,7 +41,9 @@ export const PUBLIC_ROUTES = new Set([
   "POST /api/v1/auth/logout",
   "POST /api/v1/auth/password-reset/request",
   "POST /api/v1/auth/password-reset/confirm",
-  "POST /api/v1/auth/accept-invitation"
+  "POST /api/v1/auth/accept-invitation",
+  // Sin sesion por diseno: la protege INTERNAL_JOB_TOKEN y el Worker publico la bloquea (solo la llama su cron).
+  "POST /api/v1/internal/daily"
 ]);
 
 // Con una clave temporal sin cambiar solo se puede ver quien es, cambiarla o salir.
@@ -218,6 +221,7 @@ export async function buildApp(
     const pushSender = dependencies.pushSender ?? (config.vapid ? createPushSender(config.vapid) : undefined);
     registerAnnouncementRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config, pushSender);
     registerPushRoutes(app, appDb ?? dependencies.transactionalDb, config, pushSender);
+    registerBillingRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config, pushSender);
     registerAdminSecurityRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerInstitutionalSettingsRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);
     registerAdminRoleRoutes(app, appDb ?? dependencies.transactionalDb, dependencies.transactionalDb, config);

@@ -11,6 +11,16 @@ export function isApiPath(pathname) {
   return pathname === "/healthz" || pathname.startsWith("/api/");
 }
 
+// La tarea diaria de cobros (/api/v1/internal/*) solo la llama el cron de este Worker, directo a la API.
+// Desde internet no se reenvia, aunque venga disfrazada (%69nternal, barras dobles, mayusculas): la API decodifica igual.
+export function isInternalPath(pathname) {
+  let decoded;
+  try { decoded = decodeURIComponent(pathname); } catch { return true; }
+  return /^\/api\/v\d+\/internal(\/|$)/i.test(decoded.replace(/\/{2,}/g, "/"));
+}
+
+export const DAILY_CRON = "0 12 * * *"; // 09:00 de Buenos Aires, todos los dias
+
 function unavailable(status, error, message) {
   return new Response(JSON.stringify({ error, message }), {
     status,
@@ -21,6 +31,11 @@ function unavailable(status, error, message) {
 export async function proxyToApi(request, env, fetchImpl = fetch) {
   if (!METHODS.has(request.method)) return unavailable(405, "method_not_allowed", "Método no permitido.");
   const url = new URL(request.url);
+  if (isInternalPath(url.pathname)) {
+    return new Response(JSON.stringify({ error: "not_found", message: "The requested resource was not found." }), {
+      status: 404, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
+    });
+  }
   // El origen sale de la configuracion; del pedido solo se toma la ruta (siempre empieza con /api/ o es /healthz).
   const target = new URL(url.pathname + url.search, env.API_ORIGIN);
   const headers = new Headers(request.headers);
@@ -60,13 +75,30 @@ export async function wakeApi(env, fetchImpl = fetch, log = console) {
   }
 }
 
+/** Tarea diaria de cobros (recordatorios y propuestas de recargo). Idempotente: si se repite no duplica nada. */
+export async function runDaily(env, fetchImpl = fetch, log = console) {
+  if (!env.INTERNAL_JOB_TOKEN) { log.error("tarea diaria: falta el secreto INTERNAL_JOB_TOKEN"); return 0; }
+  try {
+    const response = await fetchImpl(new URL("/api/v1/internal/daily", env.API_ORIGIN), {
+      method: "POST",
+      headers: { "x-internal-token": env.INTERNAL_JOB_TOKEN },
+      signal: AbortSignal.timeout(Number(env.TIMEOUT_MS) || DEFAULT_TIMEOUT_MS)
+    });
+    log.log(`tarea diaria -> ${response.status} ${await response.text().catch(() => "")}`);
+    return response.status;
+  } catch (error) {
+    log.error("tarea diaria fallo:", error && error.name);
+    return 0;
+  }
+}
+
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
     // run_worker_first manda aca solo la API; si una ruta de assets llegara igual, se sirve como asset.
     return isApiPath(pathname) ? proxyToApi(request, env) : env.ASSETS.fetch(request);
   },
-  async scheduled(_event, env, ctx) {
-    ctx.waitUntil(wakeApi(env));
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(event.cron === DAILY_CRON ? runDaily(env) : wakeApi(env));
   }
 };

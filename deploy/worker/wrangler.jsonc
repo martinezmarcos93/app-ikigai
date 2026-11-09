@@ -21,7 +21,8 @@
   "routes": [{ "pattern": "app.ikigai-training.com", "custom_domain": true }],
   "triggers": {
     // Cada 10 minutos, lunes a sabado, 11:00 a 22:59 UTC = 08:00 a 19:59 en Buenos Aires (Render duerme a los 15 min).
-    "crons": ["*/10 11-22 * * 1-6"]
+    // Y la tarea diaria de cobros a las 12:00 UTC = 09:00 en Buenos Aires, todos los dias (necesita el secreto INTERNAL_JOB_TOKEN).
+    "crons": ["*/10 11-22 * * 1-6", "0 12 * * *"]
   },
   "observability": { "enabled": true }
 }

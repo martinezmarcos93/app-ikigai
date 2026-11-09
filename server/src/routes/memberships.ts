@@ -207,7 +207,7 @@ export function registerMembershipRoutes(
     const result = await db.query(
       `SELECT m.id, m.member_id, m.service_id, s.name AS service_name,
               m.starts_on::text AS starts_on, m.ends_on::text AS ends_on,
-              m.billing_period, m.agreed_price::numeric(12,2)::text AS agreed_price, m.status, m.created_at
+              m.billing_period, m.agreed_price::numeric(12,2)::text AS agreed_price, m.status, m.due_day, m.created_at
          FROM memberships m JOIN services s ON s.id=m.service_id
         WHERE m.member_id=$1
         ORDER BY m.starts_on DESC, m.created_at DESC`,
@@ -266,10 +266,13 @@ export function registerMembershipRoutes(
           return { membership: row, replayed: true };
         }
         const inserted = await tx.query(
-          `INSERT INTO memberships (member_id, service_id, starts_on, ends_on, billing_period, agreed_price, status, created_by)
-           VALUES ($1,$2,$3::date,$4::date,$5,$6,$7,$8)
+          // ADR-003: si se anota despues del dia general de vencimiento, vence el dia en que se anoto (max. 28). Editable despues.
+          `INSERT INTO memberships (member_id, service_id, starts_on, ends_on, billing_period, agreed_price, status, created_by, due_day)
+           VALUES ($1,$2,$3::date,$4::date,$5,$6,$7,$8,
+             (SELECT CASE WHEN EXTRACT(DAY FROM $3::date) > r.default_due_day THEN LEAST(EXTRACT(DAY FROM $3::date), 28)::smallint END
+                FROM billing_rules r WHERE r.id = 1))
            RETURNING id, member_id, service_id, starts_on::text AS starts_on, ends_on::text AS ends_on,
-                     billing_period, agreed_price::numeric(12,2)::text AS agreed_price, status, created_at`,
+                     billing_period, agreed_price::numeric(12,2)::text AS agreed_price, status, due_day, created_at`,
           [request.params.id, body.serviceId, body.startsOn, body.endsOn ?? null, body.billingPeriod, body.agreedPrice, status, actor.userId]
         );
         const membership = inserted.rows[0];
