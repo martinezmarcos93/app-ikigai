@@ -16,13 +16,17 @@
     "run_worker_first": ["/api/*", "/healthz"]
   },
   "vars": {
-    "API_ORIGIN": "https://api.ikigai-training.com"
+    "API_ORIGIN": "https://api.ikigai-training.com",
+    // Otra puerta al MISMO servicio de Render. Si el Cloudflare de Render pone su desafio anti-bots en una
+    // direccion (paso el 07/11 con onrender.com y el 10/11 con api.*), el Worker reintenta por la otra.
+    "API_ORIGIN_FALLBACK": "https://ikigai-api-q17j.onrender.com"
   },
   "routes": [{ "pattern": "app.ikigai-training.com", "custom_domain": true }],
   "triggers": {
-    // Cada 10 minutos, lunes a sabado, 11:00 a 22:59 UTC = 08:00 a 19:59 en Buenos Aires (Render duerme a los 15 min).
+    // Cada 12 minutos, lunes a sabado, 11:00 a 22:59 UTC = 08:00 a 19:59 en Buenos Aires (Render duerme a los 15 min;
+    // se espacio de 10 a 12 para que el trafico automatico se parezca menos a un bot y deje 3 min de margen).
     // Y la tarea diaria de cobros a las 12:00 UTC = 09:00 en Buenos Aires, todos los dias (necesita el secreto INTERNAL_JOB_TOKEN).
-    "crons": ["*/10 11-22 * * 1-6", "0 12 * * *"]
+    "crons": ["*/12 11-22 * * 1-6", "0 12 * * *"]
   },
   "observability": { "enabled": true }
 }

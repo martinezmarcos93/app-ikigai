@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import worker, { isApiPath, isInternalPath, proxyToApi, runDaily, wakeApi, DAILY_CRON } from "../src/index.js";
+import worker, { isEdgeError, isApiPath, isInternalPath, proxyToApi, runDaily, wakeApi, apiOrigins, isChallenge, WORKER_UA, DAILY_CRON } from "../src/index.js";
 
 const env = { API_ORIGIN: "https://api.example.test", ASSETS: { fetch: async () => new Response("asset") } };
 const req = (path, init = {}) => new Request(`https://app.example.test${path}`, init);
@@ -119,4 +119,84 @@ test("la tarea diaria llama a la API con el token y el cron diario la dispara", 
   assert.equal(calls[0].init.method, "POST");
   assert.equal(calls[0].init.headers["x-internal-token"], "t".repeat(40));
   assert.equal(DAILY_CRON, "0 12 * * *");
+});
+
+// --- Desafio anti-bots del Cloudflare de Render (incidentes 07/11 y 10/11) ---
+const quiet = { log() {}, error() {} };
+const envFb = { ...env, API_ORIGIN_FALLBACK: "https://respaldo.example.test" };
+const challenge = () => new Response("<html>Just a moment...</html>", { status: 429, headers: { "content-type": "text/html", "cf-mitigated": "challenge" } });
+const okJson = () => new Response('{"ok":true}', { status: 200, headers: { "content-type": "application/json" } });
+function route(byOrigin) {
+  const calls = [];
+  const fn = async (target, init) => {
+    calls.push({ target: String(target), init });
+    const h = byOrigin[new URL(target).origin];
+    if (h instanceof Error) throw h;
+    return h();
+  };
+  return { fn, calls };
+}
+
+test("reconoce el desafio y arma la lista de direcciones sin repetidos ni vacios", () => {
+  assert.equal(isChallenge(challenge()), true);
+  assert.equal(isChallenge(new Response("x", { status: 429 })), false, "un 429 propio de la API no es el desafio");
+  assert.equal(isEdgeError(new Response("x", { status: 530 })), true);
+  assert.equal(isEdgeError(new Response("x", { status: 503 })), false, "un 503 de Render es el mismo servidor: no se reintenta");
+  assert.deepEqual(apiOrigins(env), ["https://api.example.test"]);
+  assert.deepEqual(apiOrigins(envFb), ["https://api.example.test", "https://respaldo.example.test"]);
+  assert.deepEqual(apiOrigins({ API_ORIGIN: "https://a.test", API_ORIGIN_FALLBACK: "https://a.test" }), ["https://a.test"]);
+});
+
+test("si la direccion principal devuelve el desafio, el login se reenvia completo por la de respaldo", async () => {
+  const { fn, calls } = route({ "https://api.example.test": challenge, "https://respaldo.example.test": okJson });
+  const res = await proxyToApi(req("/api/v1/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: '{"login":"a","password":"b"}' }), envFb, fn, quiet);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("x-ikigai-api-route"), "fallback");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].target, "https://respaldo.example.test/api/v1/auth/login");
+  for (const c of calls) assert.equal(new TextDecoder().decode(c.init.body), '{"login":"a","password":"b"}', "el cuerpo llega igual a las dos direcciones");
+});
+
+test("sin problemas usa solo la principal y no marca la respuesta", async () => {
+  const { fn, calls } = route({ "https://api.example.test": okJson, "https://respaldo.example.test": okJson });
+  const res = await proxyToApi(req("/api/v1/x"), envFb, fn, quiet);
+  assert.equal(calls.length, 1);
+  assert.equal(res.headers.get("x-ikigai-api-route"), null);
+});
+
+test("si la principal no conecta pasa a la de respaldo; un timeout no se reintenta", async () => {
+  const r1 = route({ "https://api.example.test": new TypeError("fetch failed"), "https://respaldo.example.test": okJson });
+  assert.equal((await proxyToApi(req("/api/v1/x"), envFb, r1.fn, quiet)).status, 200);
+  assert.equal(r1.calls.length, 2);
+  const r530 = route({ "https://api.example.test": () => new Response("error code: 1016", { status: 530 }), "https://respaldo.example.test": okJson });
+  assert.equal((await proxyToApi(req("/api/v1/x"), envFb, r530.fn, quiet)).status, 200, "530 de Cloudflare (DNS del origen) tambien pasa al respaldo");
+  const both530 = route({ "https://api.example.test": () => new Response("x", { status: 530 }), "https://respaldo.example.test": () => new Response("x", { status: 522 }) });
+  assert.equal((await proxyToApi(req("/api/v1/x"), envFb, both530.fn, quiet)).status, 502, "si ninguna llega: 502 en JSON");
+  const r2 = route({ "https://api.example.test": Object.assign(new Error("t"), { name: "TimeoutError" }), "https://respaldo.example.test": okJson });
+  assert.equal((await proxyToApi(req("/api/v1/x"), envFb, r2.fn, quiet)).status, 503);
+  assert.equal(r2.calls.length, 1, "Render dormido: la otra puerta da al mismo servidor dormido");
+});
+
+test("con todas las direcciones bloqueadas el portal recibe JSON 503, no la pagina HTML del desafio, y queda una ALERTA en el log", async () => {
+  const { fn } = route({ "https://api.example.test": challenge, "https://respaldo.example.test": challenge });
+  const errors = [];
+  const res = await proxyToApi(req("/api/v1/auth/login", { method: "POST", body: "{}" }), envFb, fn, { log() {}, error: (m) => errors.push(m) });
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).error, "api_blocked");
+  assert.equal(errors.filter((m) => m.startsWith("ALERTA")).length, 2);
+  const solo = route({ "https://api.example.test": challenge });
+  assert.equal((await proxyToApi(req("/api/v1/x"), env, solo.fn, quiet)).status, 503, "sin respaldo configurado tambien responde JSON");
+});
+
+test("los crons se identifican con User-Agent propio y tambien usan la direccion de respaldo", async () => {
+  const w = route({ "https://api.example.test": challenge, "https://respaldo.example.test": () => new Response("ok") });
+  assert.equal(await wakeApi(envFb, w.fn, quiet), 200);
+  assert.equal(w.calls[1].target, "https://respaldo.example.test/healthz");
+  assert.equal(w.calls[1].init.headers["user-agent"], WORKER_UA);
+  const d = route({ "https://api.example.test": challenge, "https://respaldo.example.test": () => new Response("{}") });
+  assert.equal(await runDaily({ ...envFb, INTERNAL_JOB_TOKEN: "t".repeat(40) }, d.fn, quiet), 200);
+  assert.equal(d.calls[1].target, "https://respaldo.example.test/api/v1/internal/daily");
+  assert.equal(d.calls[1].init.headers["user-agent"], WORKER_UA);
+  const blocked = route({ "https://api.example.test": challenge, "https://respaldo.example.test": challenge });
+  assert.equal(await wakeApi(envFb, blocked.fn, quiet), 0, "bloqueado no cuenta como despierto");
 });
