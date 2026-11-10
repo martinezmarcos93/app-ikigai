@@ -1,20 +1,19 @@
 <!-- PUNTO-DE-CONTROL -->
-**Tarea actual (09/11):** cobros (ADR-003): vencimiento general 10 (o el día de alta si se anotó después) + editable por persona, tolerancia 2 días, propuestas de recargo (% de la deuda) que aprueba el admin, recordatorios push con monto. Rama `feat/vencimientos-recargos`, revisión hecha (integrar con cambios) y correcciones aplicadas.
+**Tarea actual (10/11):** ninguna en curso. Incidente 429 cerrado: el Cloudflare de Render desafió `api.ikigai-training.com` (el 07/11, `onrender.com`). PR #47 en producción (Worker `e7ec5c0a`): reintenta por `API_ORIGIN_FALLBACK` ante desafío/fallo/52x, `503 api_blocked` si todo está bloqueado, `ALERTA api:` en logs. Monitores UptimeRobot activos con alerta por mail: «Ikigai – login usuarios» y «Ikigai – API principal». Ver `docs/DEPLOY_WORKER.md` y `docs/handoffs/2026-11-10.md`.
 
-**Próximo paso:** PR → OK de Marcos → merge → `INTERNAL_JOB_TOKEN` (en `~/.ikigai-signing/internal-job-token`) en el environment group de Render y como secreto del Worker → deploy de Render → verificar → Agustín configura el % y los vencimientos.
+**Próximo paso:** cuota mensual automática, editable cada mes (general y por persona). Antes de cargar un % de recargo: Agustín confirma la base (hoy saldo deudor total → recargo sobre recargo).
 
-**Antes de cargar un % de recargo en producción:** confirmar con Agustín la base del recargo (hoy: saldo deudor total, incluye deuda vieja y recargos previos → recargo sobre recargo). Alternativa: solo la cuota del mes.
+**Si llega una alerta:** monitor «login usuarios» = nadie entra (actuar ya). Solo «API principal» = el respaldo cubre; mirar `ALERTA api:` en los logs del Worker.
 
-**Ojo tests:** usar una base PostgreSQL NUEVA; reusarla entre corridas hace fallar tests de agenda por datos acumulados.
-
-**Abierto con Agustín:** ¿la cuota mensual la genera la app (§6 del ADR) o sigue manual? Mientras sea manual, sin cargo cargado no hay propuesta de recargo.
-
-**Diferido de la revisión (BAJA):** recordatorios no se recuperan si la tarea no corrió ese día.
+**Ojo tests:** base PostgreSQL NUEVA por corrida (datos acumulados rompen tests de agenda).
 
 **Bloqueos / pendientes:**
-- **Incidente 429 repetido (10/11):** el Cloudflare de Render volvió a desafiar ("Just a moment...") ahora a `api.ikigai-training.com` (el 07/11 fue a `*.onrender.com`). Se levantó solo en minutos; `onrender.com` andaba desde el Worker (versión de prueba `8a26d0f6` al 0 %, ya retirada). Arreglo: **PR #47** (`fix/worker-failover-desafio`): el Worker pasa a la dirección de respaldo ante el desafío o un error 52x, avisa en los logs (`ALERTA api:`) y los crons usan User-Agent propio. Probado en Cloudflare al 0 % del tráfico. Mergeado a `main` el 10/11 (`7324bd0`). Monitores UptimeRobot creados el 10/11 (alerta por mail probada): «Ikigai – login usuarios» (keyword en app.) e «Ikigai – API principal» (api.).
+- Consulta a soporte de Render por el desafío anti-bots (sin mandar).
+- Borrar la rama mergeada `fix/worker-failover-desafio` (OK de Marcos).
 - Copia de `~/.ikigai-signing/` fuera de la PC (clave APK, VAPID, token interno).
 - Rotar la contraseña de Neon y actualizar `DATABASE_URL` en Render.
-- Render no despliega solo (desde el 12/10).
-- 8 apodos en espera y 11 sin correspondencia. ¿Dominadas en reps? ¿Empates comparten puesto?
+- Recordatorios de cobro no se recuperan si la tarea diaria no corrió ese día (BAJA).
+- 8 apodos en espera y 11 sin correspondencia.
+
+**Preguntas abiertas:** ¿Dominadas en reps? ¿Empates comparten puesto?
 <!-- /PUNTO-DE-CONTROL -->
