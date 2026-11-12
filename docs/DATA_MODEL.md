@@ -70,7 +70,7 @@ Este modelo separa el funcionamiento del gimnasio de la interfaz. Es la base con
 
 ### Ranking de fuerza
 - Catálogo independiente de ocho ejercicios de fuerza: código, nombre, unidad y orden de presentación.
-- Marca histórica: miembro, ejercicio, peso en kg, fecha/hora, usuario de administración que la registró y nota opcional.
+- Marca histórica: miembro, ejercicio, marca en la unidad del ejercicio (kg; Dominadas en repeticiones enteras, migración 0020 — la columna sigue llamándose `weight_kg`), fecha/hora, usuario de administración que la registró y nota opcional.
 - El ranking no guarda una posición editable: se calcula en cada consulta tomando la mejor marca histórica de cada miembro para el ejercicio seleccionado.
 - Todos los usuarios autenticados pueden leer el ranking; la API devuelve la posición del miembro vinculado para que pueda verse sin recorrer la tabla.
 - Sólo administración puede crear, corregir o eliminar marcas. Cada modificación genera un evento de auditoría.

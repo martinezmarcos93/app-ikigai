@@ -54,7 +54,7 @@ Incorporar una sección de Ranking visible para toda persona autenticada, con un
 - [x] Correspondencia apodo del Excel → miembro real: 16 confirmados por el gimnasio, 8 a la espera. Los nombres viven fuera del repositorio.
 - [ ] Cargar solo los 16 confirmados en la base real (lo hace Claude con acceso a producción y al Excel original `registro_gimnasio.xlsx`). No delegar: son datos de terceros.
 - [ ] Dos de los confirmados son staff: verificar que tengan ficha de miembro antes de cargarles marcas.
-- [ ] Importar únicamente las celdas numéricas como kg; "-" significa ausencia de marca.
+- [ ] Importar únicamente las celdas numéricas como kg (Dominadas: repeticiones enteras); "-" significa ausencia de marca.
 - [ ] Registrar fecha y autor de importación de forma explícita.
 - [ ] No incorporar nombres del Excel como datos semilla del repositorio.
 
@@ -66,4 +66,5 @@ Incorporar una sección de Ranking visible para toda persona autenticada, con un
 - [x] CRUD administrativo y auditoría.
 - [x] La eliminación de la mejor marca hace subir la siguiente.
 - [x] Validación visual en Chrome de escritorio (1366 px) y celular (390 px), como admin y como miembro.
+- [x] Dominadas en repeticiones (2026-11-11, migración 0020): el servidor exige enteros de 1 a 1000 y el portal muestra «reps».
 - [ ] Empates: hoy se ordenan por apodo (alfabético). Decidir si dos marcas iguales comparten puesto.

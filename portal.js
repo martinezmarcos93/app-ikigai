@@ -737,7 +737,7 @@
             </select>
           </div>
         </div>
-        <p class="section-subtitle">La posición se calcula con la mejor marca registrada de cada miembro en este ejercicio. Unidad: ${esc(exercise?.unit || "kg")}.</p>
+        <p class="section-subtitle">La posición se calcula con la mejor marca registrada de cada miembro en este ejercicio. Unidad: ${esc(strengthUnitLabel(exercise?.unit))}.</p>
       </section>`;
 
     if (!state.strengthRankings.length) {
@@ -773,7 +773,7 @@
             <span class="ranking-place">#${esc(item.position)}</span>
             <strong>${esc(item.display_name)}</strong>
             ${isAdmin() && memberName ? `<small>${esc(memberName)}</small>` : ""}
-            <b>${esc(item.best_weight_kg)} kg</b>
+            <b>${strengthMark(item.best_weight_kg, exercise?.unit)}</b>
             ${isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : ""}
           </article>`;
         }).join("")}
@@ -782,7 +782,7 @@
     const own = first.me ? `
       <section class="ranking-self panel">
         <div><p class="eyebrow">TU POSICIÓN</p><strong>#${esc(first.me.position)} de ${state.strengthRankings.length}</strong></div>
-        <div><span>${esc(first.me.display_name || "")}${isAdmin() && first.me.member_name ? `<small>${esc(first.me.member_name)}</small>` : ""}<small>${esc(exercise?.name || "Ejercicio")}</small></span><b>${esc(first.me.best_weight_kg)} kg</b></div>
+        <div><span>${esc(first.me.display_name || "")}${isAdmin() && first.me.member_name ? `<small>${esc(first.me.member_name)}</small>` : ""}<small>${esc(exercise?.name || "Ejercicio")}</small></span><b>${strengthMark(first.me.best_weight_kg, exercise?.unit)}</b></div>
       </section>` : "";
 
     const list = table(
@@ -792,7 +792,7 @@
         return row([
         `<strong>#${esc(item.position)}</strong>`,
         `<strong>${esc(item.display_name)}</strong>${isAdmin() && memberName ? `<small>${esc(memberName)}</small>` : ""}`,
-        `<strong>${esc(item.best_weight_kg)} kg</strong>`,
+        `<strong>${strengthMark(item.best_weight_kg, exercise?.unit)}</strong>`,
         isAdmin() ? `<button class="button ghost small" type="button" data-action="edit-member" data-id="${esc(item.member_id)}">Perfil</button>` : "—"
       ]);
       })
@@ -809,6 +809,11 @@
       `<section class="panel"><h2 class="section-title">Clasificación completa</h2>${list}</section>` + admin;
   }
 
+  // La marca se muestra en la unidad del ejercicio: kg o repeticiones (dominadas).
+  const strengthUnitLabel = unit => unit === "reps" ? "repeticiones" : "kg";
+  const strengthMark = (value, unit) => unit === "reps" ? `${esc(Number(value))} reps` : `${esc(value)} kg`;
+  const strengthUnitOf = exerciseId => state.strengthExercises.find(item => String(item.id) === String(exerciseId))?.unit || "kg";
+
   function renderStrengthAdminForm(exercise) {
     if (!isAdmin() || !exercise) return "";
     const members = state.members.filter(member => member.status !== "exited" && member.full_name !== "Persona anonimizada");
@@ -816,7 +821,9 @@
       `<div class="field full-span"><label for="f-memberId">Miembro</label><select id="f-memberId" name="memberId" data-action="strength-member" required>${memberOptions(members).map(item => `<option value="${esc(item.value)}"${String(item.value) === String(members[0]?.id || "") ? " selected" : ""}>${esc(item.label)}</option>`).join("")}</select></div>` +
       field("Apodo en el ranking", "alias", "text", { maxLength: 24, value: state.strengthAliases[members[0]?.id] || "", placeholder: state.strengthAliases[members[0]?.id] ? "" : "Obligatorio la primera vez" }) +
       selectField("Ejercicio", "exerciseId", state.strengthExercises.map(item => ({ value: item.id, label: item.name })), exercise.id, true, true) +
-      field("Peso (kg)", "weightKg", "number", { required: true, min: 0.01, max: 2000, step: "0.01", placeholder: "Ej. 82.5" }) +
+      (exercise.unit === "reps"
+        ? field("Marca (repeticiones)", "weightKg", "number", { required: true, min: 1, max: 1000, step: "1", placeholder: "Ej. 12" })
+        : field("Peso (kg)", "weightKg", "number", { required: true, min: 0.01, max: 2000, step: "0.01", placeholder: "Ej. 82.5" })) +
       field("Fecha y hora", "recordedAt", "datetime-local") +
       field("Nota", "notes", "text", { maxLength: 500, wide: true }),
       "Registrar marca",
@@ -829,12 +836,12 @@
     return `
       <section class="panel">
         <h2 class="section-title">Historial administrativo</h2>
-        ${table(["Miembro","Ejercicio","Peso","Fecha","Acciones"], state.strengthRecords.map(record => row([
+        ${table(["Miembro","Ejercicio","Marca","Fecha","Acciones"], state.strengthRecords.map(record => row([
           esc(record.member_name),
           esc(record.exercise_name),
-          `${esc(record.weight_kg)} kg`,
+          strengthMark(record.weight_kg, record.unit),
           date(record.recorded_at),
-          `<button class="button ghost small" type="button" data-action="edit-strength-record" data-id="${esc(record.id)}" data-weight="${esc(record.weight_kg)}" data-notes="${esc(record.notes || "")}">Editar</button>
+          `<button class="button ghost small" type="button" data-action="edit-strength-record" data-id="${esc(record.id)}" data-weight="${esc(record.unit === "reps" ? Number(record.weight_kg) : record.weight_kg)}" data-unit="${esc(record.unit || "kg")}" data-notes="${esc(record.notes || "")}">Editar</button>
            <button class="button ghost small" type="button" data-action="edit-strength-alias" data-member-id="${esc(record.member_id)}">Apodo</button>
            <button class="button ghost small danger" type="button" data-action="delete-strength-record" data-id="${esc(record.id)}">Eliminar</button>`
         ])))}
@@ -1441,7 +1448,8 @@
     if (kind === "create-strength-record") {
       if (!isAdmin()) throw new Error("Esta sección es exclusiva de administración.");
       const weightKg = Number(v("weightKg"));
-      if (!Number.isFinite(weightKg) || weightKg <= 0) { showNotice("Ingresá un peso válido."); return; }
+      if (!Number.isFinite(weightKg) || weightKg <= 0) { showNotice("Ingresá una marca válida."); return; }
+      if (strengthUnitOf(v("exerciseId")) === "reps" && !Number.isInteger(weightKg)) { showNotice("Las repeticiones van en número entero."); return; }
       const recordedAtRaw = v("recordedAt");
       const payload = {
         memberId: v("memberId"),
@@ -1795,10 +1803,11 @@
       }
       else if (action.dataset.action === "edit-strength-record") {
         if (!isAdmin()) throw new Error("Esta acción es exclusiva de administración.");
-        const rawWeight = window.prompt("Nuevo peso en kg:", action.dataset.weight || "");
+        const isReps = action.dataset.unit === "reps";
+        const rawWeight = window.prompt(isReps ? "Nueva marca en repeticiones:" : "Nuevo peso en kg:", action.dataset.weight || "");
         if (rawWeight === null) return;
         const weightKg = Number(rawWeight.replace(",", "."));
-        if (!Number.isFinite(weightKg) || weightKg <= 0) { showNotice("El peso no es válido."); return; }
+        if (!Number.isFinite(weightKg) || weightKg <= 0 || (isReps && !Number.isInteger(weightKg))) { showNotice(isReps ? "Las repeticiones van en número entero." : "El peso no es válido."); return; }
         const notes = window.prompt("Nota (opcional):", action.dataset.notes || "");
         if (notes === null) return;
         await api.updateStrengthRecord(action.dataset.id, { weightKg, notes });

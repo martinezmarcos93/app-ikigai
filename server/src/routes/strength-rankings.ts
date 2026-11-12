@@ -13,6 +13,15 @@ function bad(reply: FastifyReply, message: string) {
   return reply.code(400).send({ error: "invalid_strength_record", message });
 }
 
+// La marca se guarda en weight_kg, pero su unidad la define el ejercicio: kg o repeticiones.
+const MAX_REPS = 1000;
+function invalidMarkForUnit(unit: unknown, value: number): string | null {
+  if (unit === "reps" && (!Number.isInteger(value) || value > MAX_REPS)) {
+    return "Este ejercicio se mide en repeticiones: ingresá un número entero entre 1 y " + MAX_REPS + ".";
+  }
+  return null;
+}
+
 export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database, transactionalDb: TransactionalDatabase, config: AppConfig): void {
   app.get<{ Querystring: RankingQuery }>("/api/v1/strength-rankings", {
     schema: { querystring: { type: "object", additionalProperties: false, properties: { exerciseId: { type: "string", format: "uuid" } } } }
@@ -124,7 +133,7 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
     const where = request.query.exerciseId ? "WHERE sr.exercise_id = $1" : "";
     if (request.query.exerciseId) params.push(request.query.exerciseId);
     const records = await db.query(
-      "SELECT sr.id, sr.member_id, m.full_name AS member_name, sr.exercise_id, se.code, se.name AS exercise_name, sr.weight_kg, sr.recorded_at, sr.notes " +
+      "SELECT sr.id, sr.member_id, m.full_name AS member_name, sr.exercise_id, se.code, se.name AS exercise_name, se.unit, sr.weight_kg, sr.recorded_at, sr.notes " +
       "FROM strength_records sr JOIN member_profiles m ON m.id=sr.member_id JOIN strength_exercises se ON se.id=sr.exercise_id " +
       where + " ORDER BY sr.recorded_at DESC, sr.id DESC",
       params
@@ -157,8 +166,10 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
       const record = await transactionalDb.transaction(async (tx) => {
         const member = await tx.query("SELECT id FROM member_profiles WHERE id = $1 AND anonymized_at IS NULL", [request.body.memberId]);
         if (!member.rows[0]) throw Object.assign(new Error("Member not found."), { statusCode: 404 });
-        const exercise = await tx.query("SELECT id FROM strength_exercises WHERE id = $1 AND active = true", [request.body.exerciseId]);
+        const exercise = await tx.query("SELECT id, unit FROM strength_exercises WHERE id = $1 AND active = true", [request.body.exerciseId]);
         if (!exercise.rows[0]) throw Object.assign(new Error("Exercise not found."), { statusCode: 404 });
+        const unitError = invalidMarkForUnit(exercise.rows[0].unit, weight);
+        if (unitError) throw Object.assign(new Error(unitError), { statusCode: 400, errorCode: "invalid_strength_record" });
 
         const inserted = await tx.query(
           "INSERT INTO strength_records (member_id, exercise_id, weight_kg, recorded_at, recorded_by, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, member_id, exercise_id, weight_kg, recorded_at, recorded_by, notes",
@@ -204,6 +215,7 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
         const code = Number((error as { statusCode?: unknown }).statusCode);
         if (code === 404) return reply.code(404).send({ error: "not_found", message: "El miembro o ejercicio solicitado no existe." });
         if (code === 400) {
+          if ((error as { errorCode?: string }).errorCode === "invalid_strength_record") return bad(reply, String((error as { message?: unknown }).message));
           const invalid = (error as { errorCode?: string }).errorCode === "invalid_alias";
           return reply.code(400).send(invalid ? { error: "invalid_alias", message: "El apodo debe tener entre 2 y 24 caracteres." } : { error: "alias_required", message: "El miembro necesita un apodo para el ranking." });
         }
@@ -242,6 +254,11 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
     const record = await transactionalDb.transaction(async (tx) => {
       const current = await tx.query("SELECT id, member_id, exercise_id, weight_kg, recorded_at, notes FROM strength_records WHERE id=$1 FOR UPDATE", [request.params.id]);
       if (!current.rows[0]) return null;
+      if (request.body.weightKg !== undefined) {
+        const exercise = await tx.query("SELECT unit FROM strength_exercises WHERE id = $1", [current.rows[0].exercise_id]);
+        const unitError = invalidMarkForUnit(exercise.rows[0]?.unit, Number(request.body.weightKg));
+        if (unitError) return { unitError };
+      }
       const assignments = fields.map((field, index) => field + " = $" + (index + 1)).join(", ");
       values.push(request.params.id);
       const updated = await tx.query("UPDATE strength_records SET " + assignments + " WHERE id=$" + values.length + " RETURNING id, member_id, exercise_id, weight_kg, recorded_at, recorded_by, notes", values);
@@ -255,6 +272,7 @@ export function registerStrengthRankingRoutes(app: FastifyInstance, db: Database
     });
 
     if (!record) return reply.code(404).send({ error: "not_found", message: "El registro no existe." });
+    if ("unitError" in record) return bad(reply, String(record.unitError));
     return reply.send({ record });
   });
 

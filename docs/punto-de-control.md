@@ -15,5 +15,7 @@
 - Recordatorios de cobro no se recuperan si la tarea diaria no corrió ese día (BAJA).
 - 8 apodos en espera y 11 sin correspondencia.
 
-**Preguntas abiertas:** ¿Dominadas en reps? ¿Empates comparten puesto?
+**Hecho 11/11 (sin commitear/desplegar):** Dominadas pasa de kg a repeticiones (migración 0020, validación de enteros, portal muestra «reps»). 152/152 tests.
+
+**Preguntas abiertas:** ¿Empates comparten puesto?
 <!-- /PUNTO-DE-CONTROL -->

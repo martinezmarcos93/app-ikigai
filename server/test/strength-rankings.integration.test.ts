@@ -184,3 +184,52 @@ test("strength rankings are readable by authenticated roles and writable only by
     "strength_record.deleted"
   ]);
 });
+
+test("dominadas se miden en repeticiones enteras", {
+  skip: !integrationEnabled
+}, async (t) => {
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 6, connectionTimeoutMillis: 5000 });
+  const db = new PostgresDatabase(pool);
+  const app = await buildApp(config, { db, transactionalDb: db });
+  t.after(async () => { await app.close(); await pool.end(); });
+
+  const suffix = randomUUID();
+  const admin = await createActor(pool, `Reps Admin ${suffix}`, "admin");
+  const member = await createActor(pool, `Reps Member ${suffix}`, "member");
+  await pool.query("UPDATE member_profiles SET ranking_alias = $1 WHERE id = $2", [`Reps ${suffix.slice(0, 8)}`, member.memberId]);
+
+  const pullUps = await pool.query("SELECT id, unit FROM strength_exercises WHERE code = 'DM'");
+  assert.equal(pullUps.rows[0]?.unit, "reps");
+  const exerciseId = String(pullUps.rows[0]?.id);
+
+  const ranking = await app.inject({ method: "GET", url: `/api/v1/strength-rankings?exerciseId=${exerciseId}`, headers: { cookie: `ikigai_session=${member.token}` } });
+  assert.equal(ranking.statusCode, 200, ranking.body);
+  assert.equal(ranking.json().exercise.unit, "reps");
+
+  const decimal = await app.inject({ method: "POST", url: "/api/v1/admin/strength-records", headers: headers(admin), payload: { memberId: member.memberId, exerciseId, weightKg: 12.5 } });
+  assert.equal(decimal.statusCode, 400, decimal.body);
+  assert.equal(decimal.json().error, "invalid_strength_record");
+
+  const tooMany = await app.inject({ method: "POST", url: "/api/v1/admin/strength-records", headers: headers(admin), payload: { memberId: member.memberId, exerciseId, weightKg: 1001 } });
+  assert.equal(tooMany.statusCode, 400, tooMany.body);
+
+  const ok = await app.inject({ method: "POST", url: "/api/v1/admin/strength-records", headers: headers(admin), payload: { memberId: member.memberId, exerciseId, weightKg: 12 } });
+  assert.equal(ok.statusCode, 201, ok.body);
+  const recordId = String(ok.json().record.id);
+
+  const badFix = await app.inject({ method: "PATCH", url: `/api/v1/admin/strength-records/${recordId}`, headers: headers(admin), payload: { weightKg: 13.5 } });
+  assert.equal(badFix.statusCode, 400, badFix.body);
+  const goodFix = await app.inject({ method: "PATCH", url: `/api/v1/admin/strength-records/${recordId}`, headers: headers(admin), payload: { weightKg: 14 } });
+  assert.equal(goodFix.statusCode, 200, goodFix.body);
+  assert.equal(Number(goodFix.json().record.weight_kg), 14);
+
+  const kgExercise = await pool.query("SELECT id FROM strength_exercises WHERE code = 'PP'");
+  const kg = await app.inject({ method: "POST", url: "/api/v1/admin/strength-records", headers: headers(admin), payload: { memberId: member.memberId, exerciseId: String(kgExercise.rows[0]?.id), weightKg: 82.5 } });
+  assert.equal(kg.statusCode, 201, kg.body);
+
+  const history = await app.inject({ method: "GET", url: `/api/v1/admin/strength-records?exerciseId=${exerciseId}`, headers: headers(admin) });
+  assert.equal(history.statusCode, 200, history.body);
+  assert.equal(history.json().records.find((r: { id: string }) => r.id === recordId)?.unit, "reps");
+
+  await pool.query("DELETE FROM strength_records WHERE member_id = $1", [member.memberId]);
+});
