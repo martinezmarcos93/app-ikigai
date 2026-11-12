@@ -15,7 +15,7 @@
 - Recordatorios de cobro no se recuperan si la tarea diaria no corrió ese día (BAJA).
 - 8 apodos en espera y 11 sin correspondencia.
 
-**Hecho 11/11 (sin commitear/desplegar):** Dominadas pasa de kg a repeticiones (migración 0020, validación de enteros, portal muestra «reps»). 152/152 tests.
+**11/11 — Dominadas en reps, en producción:** `158e79e` (migración 0020 + enteros + portal «reps»), Render manual 22:52, Worker `0e9371d3`. 152/152 tests. Render NO tiene Auto-Deploy: tras tocar `server/`, Marcos hace Manual Deploy y recién ahí se publica el Worker.
 
 **Preguntas abiertas:** ¿Empates comparten puesto?
 <!-- /PUNTO-DE-CONTROL -->
